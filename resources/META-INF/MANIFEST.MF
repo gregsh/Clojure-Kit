@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Class-Path: kotlin-runtime.jar kotlin-reflect.jar clojure-1.8.0.jar cl
+ ojure-jsr223-1.5.1.jar
+

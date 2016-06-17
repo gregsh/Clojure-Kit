@@ -1,0 +1,12 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="clojure-kit:zip">
+    <output-path>$PROJECT_DIR$/binaries</output-path>
+    <root id="archive" name="ClojureKit.zip">
+      <element id="directory" name="ClojureKit">
+        <element id="directory" name="lib">
+          <element id="artifact" artifact-name="clojure-kit:jar" />
+        </element>
+      </element>
+    </root>
+  </artifact>
+</component>

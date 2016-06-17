@@ -1,0 +1,11 @@
+<component name="ArtifactManager">
+  <artifact build-on-make="true" name="clojure-kit:jar">
+    <output-path>$PROJECT_DIR$/binaries</output-path>
+    <root id="root">
+      <element id="archive" name="clojure-kit.jar">
+        <element id="module-output" name="clojure-kit" />
+        <element id="dir-copy" path="$PROJECT_DIR$/resources" />
+      </element>
+    </root>
+  </artifact>
+</component>

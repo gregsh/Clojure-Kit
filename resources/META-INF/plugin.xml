@@ -1,0 +1,22 @@
+<idea-plugin version="2">
+  <id>org.jetbrains.idea.clojure</id>
+  <version>1.0</version>
+  <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
+  <idea-version since-build="162.0" until-build=""/>
+
+  <name>Clojure-Kit</name>
+  <description>Clojure in Kotlin</description>
+
+  <depends>com.intellij.modules.lang</depends>
+
+  <change-notes><![CDATA[
+    ]]>
+  </change-notes>
+
+  <extensions defaultExtensionNs="com.intellij">
+  </extensions>
+
+  <actions>
+  </actions>
+
+</idea-plugin>
