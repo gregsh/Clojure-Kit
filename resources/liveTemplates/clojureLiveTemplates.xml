@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templateSet group="Clojure">
+  <template name="d" value="(defn $name$ [$args$] ($END$))" description="(defn ...)" toReformat="true">
+    <variable name="name" expression="" defaultValue="" alwaysStopAt="true"/>
+    <variable name="args" expression="" defaultValue="" alwaysStopAt="true"/>
+    <context>
+      <option name="Clojure" value="true"/>
+    </context>
+  </template>
+</templateSet>

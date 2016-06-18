@@ -1,22 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
 <idea-plugin version="2">
   <id>org.jetbrains.idea.clojure</id>
-  <version>1.0</version>
+  <version>0.5.1</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="162.0" until-build=""/>
+  <idea-version since-build="162.1447" until-build="164.*"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure in Kotlin</description>
 
   <depends>com.intellij.modules.lang</depends>
+  <depends optional="true" config-file="plugin-copyright.xml">com.intellij.copyright</depends>
+  <depends optional="true" config-file="plugin-java.xml">com.intellij.modules.java</depends>
 
-  <change-notes><![CDATA[
+  <change-notes>
+    <![CDATA[
     ]]>
   </change-notes>
 
+  <actions>
+  </actions>
+
   <extensions defaultExtensionNs="com.intellij">
+
+    <fileTypeFactory implementation="org.intellij.clojure.lang.ClojureFileTypeFactory"/>
+    <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureParserDefinition"/>
+    <lang.parserDefinition language="ClojureScript" implementationClass="org.intellij.clojure.lang.ClojureScriptParserDefinition"/>
+    <lang.substitutor language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureLanguageSubstitutor"/>
+    <lang.syntaxHighlighterFactory language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureSyntaxHighlighterFactory"/>
+    <colorSettingsPage implementation="org.intellij.clojure.lang.ClojureColorSettingsPage"/>
+    <lang.braceMatcher language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureBraceMatcher"/>
+
+    <spellchecker.support language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureSpellCheckingStrategy"/>
+    <lang.commenter language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCommenter"/>
+    <quoteHandler fileType="Clojure" className="org.intellij.clojure.editor.ClojureQuoteHandler"/>
+    <lang.psiStructureViewFactory language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureStructureViewFactory"/>
+    <breadcrumbsInfoProvider implementation="org.intellij.clojure.editor.ClojureBreadCrumbProvider"/>
+    <lang.foldingBuilder language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureFoldingBuilder"/>
+    <liveTemplateContext implementation="org.intellij.clojure.lang.ClojureLiveTemplateContext"/>
+    <defaultLiveTemplatesProvider implementation="org.intellij.clojure.lang.ClojureLiveTemplateProvider"/>
+
+    <completion.contributor language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCompletionContributor"/>
+    <annotator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureAnnotator"/>
+    <codeInsight.lineMarkerProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureLineMarkerProvider"/>
+    <targetElementEvaluator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureTargetElementEvaluator"/>
+    <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureDocumentationProvider"/>
+    <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.java.JavaHelper$AsmDocumentationProvider"/>
+    <codeInsight.parameterInfo language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInfoProvider"/>
+
+    <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureNSIndex"/>
+    <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureDefsIndex"/>
+    <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureKeywordIndex"/>
+    <additionalLibraryRootsProvider implementation="org.intellij.clojure.tools.LeinLibraryRootsProvider"/>
+    <additionalLibraryRootsProvider implementation="org.intellij.clojure.lang.usages.ClojureLibraryRootsProvider"/>
+    <gotoSymbolContributor implementation="org.intellij.clojure.lang.usages.ClojureGotoSymbolContributor"/>
+    <lang.findUsagesProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureFindUsagesProvider"/>
+    <findUsagesHandlerFactory implementation="org.intellij.clojure.java.JavaHelper$AsmFindUsagesHandlerFactory"/>
+    <projectService serviceInterface="org.intellij.clojure.psi.impl.ClojureDefinitionService"
+                    serviceImplementation="org.intellij.clojure.psi.impl.ClojureDefinitionService" />
+    <renameHandler implementation="org.intellij.clojure.editor.ClojureInplaceRenameHandler"/>
+    <lang.namesValidator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureNamesValidator"/>
+    <renameInputValidator implementation="org.intellij.clojure.editor.ClojureNamesValidator"/>
+    <elementDescriptionProvider implementation="org.intellij.clojure.lang.usages.ClojureElementDescriptionProvider"/>
+
+    <lang.formatter language="Clojure" implementationClass="org.intellij.clojure.formatter.ClojureFormattingModelBuilder"/>
+    <codeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureCodeStyleSettingsProvider"/>
+    <langCodeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureLangCodeStyleSettingsProvider"/>
+
+    <!--<referencesSearch implementation="org.intellij.clojure.lang.usages.ClojureReferenceSearcher"/>-->
+
+    <lang.inspectionSuppressor language="Clojure" implementationClass="org.intellij.clojure.inspections.ClojureInspectionSuppressor"/>
+    <localInspection language="Clojure" shortName="ClojureResolveInspection" suppressId="clojure-resolve" bundle="messages.ClojureBundle"
+                     key="inspection.name.resolve"
+                     groupKey="clojure.inspections.group.name" enabledByDefault="true" level="WARNING"
+                     implementationClass="org.intellij.clojure.inspections.ClojureResolveInspection"/>
+
+    <actionPromoter implementation="org.intellij.clojure.tools.ReplActionPromoter"/>
+
   </extensions>
 
   <actions>
+    <action id="clojure.editor.slurp-bwd" class="org.intellij.clojure.actions.SlurpBwdAction"
+            text="Slurp Backwards" description="Swallow the element preceding the current form">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="N"/>
+    </action>
+    <action id="clojure.editor.slurp-fwd" class="org.intellij.clojure.actions.SlurpFwdAction"
+            text="Slurp Forwards" description="Swallow the element following the current form">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="M"/>
+    </action>
+    <group id="ClojureStructuralEditingActionGroup" text="Clojure" popup="true">
+      <action id="clojure.editor.barf-bwd" class="org.intellij.clojure.actions.BarfBwdAction"
+      text="Barf Backwards" description="Spit out the first element in the current form">
+        <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="COMMA"/>
+      </action>
+      <action id="clojure.editor.barf-fwd" class="org.intellij.clojure.actions.BarfFwdAction"
+      text="Barf Forwards" description="Spit out the last element in the current form">
+        <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="PERIOD"/>
+      </action>
+<!--
+      <action id="clojure.editor.splice" class="org.intellij.clojure.actions.SpliceAction"
+              text="Splice Form" description="Splice the current form into it’s parent">
+        <keyboard-shortcut keymap="$default" first-keystroke="control SEMICOLON"/>
+      </action>
+      <action id="clojure.editor.rise" class="org.intellij.clojure.actions.RiseAction"
+              text="Rise" description="">
+        <keyboard-shortcut keymap="$default" first-keystroke="control shift SEMICOLON"/>
+      </action>
+      <action id="clojure.editor.kill" class="org.intellij.clojure.actions.KillAction"
+              text="Kill" description="">
+        <keyboard-shortcut keymap="$default" first-keystroke="control shift SEMICOLON"/>
+      </action>
+-->
+      <add-to-group group-id="EditMenu" anchor="last"/>
+    </group>
+
+    <action id="Clojure.Repl.Execute" class="org.intellij.clojure.tools.ReplExecuteAction"
+            use-shortcut-of="Console.Execute.Multiline"
+            icon="AllIcons.Actions.Execute"
+            text="Send to REPL" description="Execute form in REPL"/>
+
+
   </actions>
 
 </idea-plugin>

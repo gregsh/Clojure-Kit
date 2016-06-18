@@ -1,0 +1,125 @@
+{
+  generate=[tokenAccessors="no"]
+  parserClass='org.intellij.clojure.parser.ClojureParser'
+  parserImports=[
+    'static org.intellij.clojure.parser.ClojureParserUtil.adapt_builder_'
+    'static org.intellij.clojure.parser.ClojureParserUtil.parseTree'
+    'static org.intellij.clojure.parser.ClojureParserUtil.nospace'
+    'static org.intellij.clojure.parser.ClojureParserUtil.formRecover'
+  ]
+  psiPackage='org.intellij.clojure.psi'
+  psiImplPackage='org.intellij.clojure.psi.impl'
+  psiImplUtilClass='org.intellij.clojure.psi.impl.ClojurePsiImplUtil'
+  psiClassPrefix='C'
+  psiVisitorName='ClojureVisitor'
+
+  elementTypeHolderClass='org.intellij.clojure.psi.ClojureTypes'
+  elementTypeClass="org.intellij.clojure.psi.ClojureNodeType"
+  tokenTypeClass="org.intellij.clojure.psi.ClojureTokenType"
+  elementTypePrefix='C_'
+
+  stubClass("list")="org.intellij.clojure.psi.stubs.CListStub"
+  mixin("list")="org.intellij.clojure.psi.impl.CListBase"
+  elementTypeClass("list")="org.intellij.clojure.psi.stubs.CListElementType"
+
+  stubClass("keyword")="org.intellij.clojure.psi.stubs.CKeywordStub"
+  mixin("keyword")="org.intellij.clojure.psi.impl.CKeywordBase"
+  elementTypeClass("keyword")="org.intellij.clojure.psi.stubs.CKeywordElementType"
+
+  tokens=[
+    whitespace='regexp:\s+'
+    //line_comment='regexp:;.*'
+    string='regexp:"([^"]|\\")*"'
+    string_unclosed='regexp:"([^"]|\\")*'
+    number='regexp:\d\d?r[\da-zA-Z]+|M?\d+(\.\d*([eE]\d+)?)?'
+    ratio='regexp:\d+/\d+'
+    char='regexp:\\(u\d{4}|newline|space|backspace|return|.)'
+    bool="regexp:true|false"
+    nil='nil'
+    sym="regexp:[\w.<>$%&=*/+\-!?_'[^\d]][\w.<>$%&=*/+\-!?_']*(:[\w<>$%&=*/+\-!?_'])+)?"
+    sharp_hat="#^"
+    sharp_quote="#'"
+    sharp_comment="#_"
+    sharp_qmark="#?"
+    sharp_qmark_at="#?@"
+    sharp_eq="#="
+
+    paren1='('
+    paren2=')'
+    bracket1='['
+    bracket2=']'
+    brace1='{'
+    brace2='}'
+    colon=':'
+    coloncolon='::'
+    comma=','
+    quote="'"
+    syntax_quote="`"
+    sharp="#"
+    hat="^"
+    tilde="~"
+    at="@"
+
+    dot='.'
+    dotdash='.-'
+    slash='/'
+  ]
+  extends("p_form|s_form")=form
+  extends("l_form|vec|set|map|constructor")=p_form
+  extends("symbol|keyword|literal")=s_form
+  extends("fun|list")=l_form
+  extends("regexp")=literal
+  extends("symbol_.*")=symbol
+  elementType("symbol_.*")=symbol
+  pin("list|set|vec|map|fun")="'[\(\[\{]'"
+  pin("constructor|reader_cond")=1
+  name("metadata|constructor|reader_.*")=form
+}
+
+root ::= <<parseTree (root_entry)>>
+//root ::= entry * // for LivePreview
+private root_entry ::= !<<eof>> form {pin=1 recoverWhile=root_entry_recover}
+private root_entry_recover ::= form_recover | ')' | '}' | ']'
+
+form ::= form_prefix form_prefix * form_upper | form_inner {
+  pin(".*")=1
+  methods=[form="" metas="metadata" readerMacros="reader_macro"]}
+private form_prefix ::= metadata | reader_macro
+private external form_recover ::= formRecover
+
+upper form_upper ::= form_inner {elementType=form name=form}
+private form_inner ::= p_forms
+  | s_forms | constructor
+private p_forms ::= list | set | vec | map | fun
+private s_forms ::= symbol | keyword | literal | regexp
+
+fake p_form ::= form * {methods=[forms="form"]}
+fake l_form ::= {methods=[getFirst]}
+fake s_form ::=
+list ::= '(' list_body ')'
+set ::= '#' '{' set_body '}'
+vec ::= '[' vec_body ']'
+map ::= '{' map_body '}'
+fun ::= '#' <<nospace>> '(' list_body ')'
+symbol ::= '/' | symbol_tail {
+  methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference] }
+keyword ::= (colon | coloncolon) symbol_tail {
+  methods=[getName getNamespace getTextOffset]}
+private symbol_tail ::= symbol_plain symbol_nsq? '.'?
+symbol_plain ::= ('.' | '.-') sym? | sym
+left symbol_nsq ::= '/' sym
+literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char {
+  methods=[getLiteralType getLiteralText]}
+regexp ::= '#' <<nospace>> string {extends=literal}
+constructor ::= '#' symbol (vec | map)
+metadata ::= ("^" | "#^") (string | symbol | keyword | map)
+reader_macro ::= "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond
+private reader_cond ::= ('#?' | '#?@') &'(' {pin(".*")=1}
+
+private meta items ::= <<items_entry <<recover>> <<param>>>> * {pin=1 recoverWhile="<<recover>>"}
+private meta items_entry ::= <<recover>> <<param>> {pin=1 recoverWhile=form_recover}
+private list_body ::= <<items !')' form>>
+private set_body ::= <<items !'}' form>>
+private vec_body ::= <<items !']' form>>
+private map_body ::= <<items !'}' map_entry>>
+private map_entry ::= form form {pin=1}

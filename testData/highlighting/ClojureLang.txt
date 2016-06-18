@@ -1,0 +1,192 @@
+/clojure/core.clj                        0 errors, 9 warnings
+      121020: unable to resolve 'setInt'
+      121159: unable to resolve 'setLong'
+      121306: unable to resolve 'setBoolean'
+      121455: unable to resolve 'setFloat'
+      121602: unable to resolve 'setDouble'
+      121749: unable to resolve 'setShort'
+      121892: unable to resolve 'setByte'
+      122033: unable to resolve 'setChar'
+      153164: unable to resolve 'matches'
+/clojure/core/protocols.clj              0 errors, 0 warnings
+/clojure/core/reducers.clj               0 errors, 3 warnings
+      2051: unable to resolve 'jsr166y.ForkJoinPool'
+      2113: unable to resolve 'jsr166y.ForkJoinTask'
+      2178: unable to resolve 'jsr166y.ForkJoinTask'
+/clojure/core/server.clj                 0 errors, 1 warnings
+      5874: unable to resolve 'repl-requires'
+/clojure/core_deftype.clj                0 errors, 0 warnings
+/clojure/core_print.clj                  0 errors, 0 warnings
+/clojure/core_proxy.clj                  0 errors, 4 warnings
+      3488: unable to resolve 'getDeclaringClass'
+      3507: unable to resolve 'isInterface'
+      10625: unable to resolve 'getModifiers'
+      18526: unable to resolve 'getPropertyDescriptors'
+/clojure/data.clj                        0 errors, 2 warnings
+      2495: unable to resolve 'isArray'
+      2620: unable to resolve 'isArray'
+/clojure/edn.clj                         0 errors, 0 warnings
+/clojure/genclass.clj                    0 errors, 0 warnings
+/clojure/gvec.clj                        0 errors, 25 warnings
+      730: unable to resolve 'tailoff'
+      745: unable to resolve 'arrayFor'
+      760: unable to resolve 'i'
+      767: unable to resolve 'pushTail'
+      782: unable to resolve 'level'
+      810: unable to resolve 'parent'
+      839: unable to resolve 'tailnode'
+      853: unable to resolve 'popTail'
+      867: unable to resolve 'level'
+      873: unable to resolve 'node'
+      883: unable to resolve 'newPath'
+      892: unable to resolve 'edit'
+      902: unable to resolve 'level'
+      908: unable to resolve 'node'
+      918: unable to resolve 'doAssoc'
+      932: unable to resolve 'level'
+      938: unable to resolve 'node'
+      948: unable to resolve 'i'
+      1000: unable to resolve 'size'
+      1024: unable to resolve 'arr'
+      1041: unable to resolve 'arr'
+      1056: unable to resolve 'arr'
+      1065: unable to resolve 'i'
+      1078: unable to resolve 'arr'
+      1087: unable to resolve 'i'
+/clojure/inspector.clj                   0 errors, 0 warnings
+/clojure/instant.clj                     0 errors, 0 warnings
+/clojure/java/browse.clj                 0 errors, 1 warnings
+      729: unable to resolve 'toLowerCase'
+/clojure/java/browse_ui.clj              0 errors, 1 warnings
+      1120: unable to resolve 'getDocument'
+/clojure/java/io.clj                     0 errors, 2 warnings
+      12621: unable to resolve 'getChannel'
+      12681: unable to resolve 'getChannel'
+/clojure/java/javadoc.clj                0 errors, 1 warnings
+      2499: unable to resolve 'toURI'
+/clojure/java/shell.clj                  0 errors, 0 warnings
+/clojure/main.clj                        0 errors, 1 warnings
+      5931: unable to resolve 'getSimpleName'
+/clojure/parallel.clj                    0 errors, 29 warnings
+      2317: unable to resolve 'Ops$Op'
+      2381: unable to resolve 'Ops$BinaryOp'
+      2470: unable to resolve 'Ops$IntAndObjectToObject'
+      2554: unable to resolve 'Ops$Reducer'
+      2627: unable to resolve 'Ops$Predicate'
+      2715: unable to resolve 'Ops$BinaryPredicate'
+      2821: unable to resolve 'Ops$IntAndObjectPredicate'
+      4270: unable to resolve 'ParallelArrayWithMapping'
+      4323: unable to resolve 'ParallelArray'
+      4337: unable to resolve 'createUsingHandoff'
+      4394: unable to resolve 'ParallelArray'
+      4408: unable to resolve 'defaultExecutor'
+      4538: unable to resolve 'withBounds'
+      4607: unable to resolve 'withFilter'
+      4680: unable to resolve 'withFilter'
+      4780: unable to resolve 'withIndexedFilter'
+      4867: unable to resolve 'withMapping'
+      4940: unable to resolve 'withMapping'
+      5031: unable to resolve 'withIndexedMapping'
+      5408: unable to resolve 'any'
+      6117: unable to resolve 'summary'
+      6170: unable to resolve 'summary'
+      6671: unable to resolve 'getArray'
+      6812: unable to resolve 'ParallelArrayWithMapping'
+      6855: unable to resolve 'all'
+      7115: unable to resolve 'allUniqueElements'
+      7231: unable to resolve 'precumulate'
+      7651: unable to resolve 'removeNulls'
+      7828: unable to resolve 'removeConsecutiveDuplicates'
+/clojure/pprint.clj                      0 errors, 0 warnings
+/clojure/pprint/cl_format.clj            0 errors, 24 warnings
+      56082: unable to resolve 'params'
+      56150: unable to resolve 'params'
+      56166: unable to resolve 'params'
+      56218: unable to resolve 'params'
+      56284: unable to resolve 'params'
+      56846: unable to resolve 'params'
+      56881: unable to resolve 'params'
+      58652: unable to resolve 'params'
+      58803: unable to resolve 'params'
+      59183: unable to resolve 'params'
+      59882: unable to resolve 'params'
+      59898: unable to resolve 'params'
+      59984: unable to resolve 'params'
+      60075: unable to resolve 'params'
+      60405: unable to resolve 'params'
+      60449: unable to resolve 'params'
+      60785: unable to resolve 'params'
+      60801: unable to resolve 'params'
+      60851: unable to resolve 'params'
+      60900: unable to resolve 'params'
+      62137: unable to resolve 'params'
+      62153: unable to resolve 'params'
+      62220: unable to resolve 'params'
+      62290: unable to resolve 'params'
+/clojure/pprint/column_writer.clj        0 errors, 9 warnings
+      1989: unable to resolve 'this'
+      2286: unable to resolve 'this'
+      2310: unable to resolve 'this'
+      2404: unable to resolve 'this'
+      2474: unable to resolve 'this'
+      2499: unable to resolve 'this'
+      2649: unable to resolve 'this'
+      2718: unable to resolve 'this'
+      2775: unable to resolve 'this'
+/clojure/pprint/dispatch.clj             0 errors, 11 warnings
+      3405: unable to resolve 'aseq'
+      3434: unable to resolve 'aseq'
+      3458: unable to resolve 'aseq'
+      3478: unable to resolve 'aseq'
+      3566: unable to resolve 'aseq'
+      3833: unable to resolve 'aseq'
+      3862: unable to resolve 'aseq'
+      3920: unable to resolve 'aseq'
+      4126: unable to resolve 'aseq'
+      4155: unable to resolve 'aseq'
+      4265: unable to resolve 'aseq'
+/clojure/pprint/pprint_base.clj          0 errors, 2 warnings
+      15091: unable to resolve 'walk'
+      15151: unable to resolve 'walk'
+/clojure/pprint/pretty_writer.clj        0 errors, 20 warnings
+      7284: unable to resolve 'nl-t?'
+      7642: unable to resolve 'nl-t?'
+      8486: unable to resolve 'nl-t?'
+      12016: unable to resolve 'make-buffer-blob'
+      12819: unable to resolve 'make-buffer-blob'
+      13876: unable to resolve 'this'
+      14153: unable to resolve 'this'
+      14424: unable to resolve 'this'
+      14430: unable to resolve 'make-buffer-blob'
+      14528: unable to resolve 'this'
+      14579: unable to resolve 'this'
+      14637: unable to resolve 'this'
+      14793: unable to resolve 'this'
+      14888: unable to resolve 'this'
+      14949: unable to resolve 'this'
+      15072: unable to resolve 'this'
+      16041: unable to resolve 'make-start-block-t'
+      16553: unable to resolve 'make-end-block-t'
+      16756: unable to resolve 'make-nl-t'
+      17205: unable to resolve 'make-indent-t'
+/clojure/pprint/print_table.clj          0 errors, 0 warnings
+/clojure/pprint/utilities.clj            0 errors, 1 warnings
+      3727: unable to resolve 'ppflush'
+/clojure/reflect.clj                     0 errors, 0 warnings
+/clojure/reflect/java.clj                0 errors, 0 warnings
+/clojure/repl.clj                        0 errors, 1 warnings
+      9841: unable to resolve 'getSimpleName'
+/clojure/set.clj                         0 errors, 0 warnings
+/clojure/stacktrace.clj                  0 errors, 0 warnings
+/clojure/string.clj                      0 errors, 2 warnings
+      7599: unable to resolve 'toUpperCase'
+      7732: unable to resolve 'toLowerCase'
+/clojure/template.clj                    0 errors, 0 warnings
+/clojure/test.clj                        0 errors, 0 warnings
+/clojure/test/junit.clj                  0 errors, 0 warnings
+/clojure/test/tap.clj                    0 errors, 0 warnings
+/clojure/uuid.clj                        0 errors, 0 warnings
+/clojure/walk.clj                        0 errors, 0 warnings
+/clojure/xml.clj                         0 errors, 0 warnings
+/clojure/zip.clj                         0 errors, 0 warnings
+Total: 149 warnings in 42 files (715.68K chars)

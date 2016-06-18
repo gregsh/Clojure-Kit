@@ -1,5 +1,5 @@
 <component name="libraryTable">
-  <library name="ClojureJavaRuntime">
+  <library name="Clojure">
     <CLASSES>
       <root url="jar://$APPLICATION_HOME_DIR$/lib/clojure-1.8.0.jar!/" />
       <root url="jar://$APPLICATION_HOME_DIR$/lib/clojure-jsr223-1.5.1.jar!/" />

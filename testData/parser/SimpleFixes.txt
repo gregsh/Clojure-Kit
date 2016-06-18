@@ -1,0 +1,13 @@
+ClojureFileImpl:a.clj
+  CSymbolImpl(C_SYMBOL)
+    PsiElement(.)('.')
+    PsiElement(sym)('1')
+  PsiWhiteSpace(' ')
+  PsiComment(C_LINE_COMMENT)(';comment')
+  PsiWhiteSpace('\n')
+  CLiteralImpl(C_LITERAL)
+    PsiElement(number)('1')
+  PsiComment(C_LINE_COMMENT)(';unclosed eof')
+  PsiWhiteSpace('\n')
+  PsiErrorElement:'"x' unexpected
+    PsiElement(string_unclosed)('"x')

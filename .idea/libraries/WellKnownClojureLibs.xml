@@ -1,0 +1,31 @@
+<component name="libraryTable">
+  <library name="WellKnownClojureLibs">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/leiningen-core/leiningen-core/2.6.1/leiningen-core-2.6.1.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-asset-minifier/lein-asset-minifier/0.2.8/lein-asset-minifier-0.2.8.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-cljs-externs/lein-cljs-externs/0.1.0/lein-cljs-externs-0.1.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-cljsbuild/lein-cljsbuild/1.1.3/lein-cljsbuild-1.1.3.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-codox/lein-codox/0.9.5/lein-codox-0.9.5.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-doo/lein-doo/0.1.6/lein-doo-0.1.6.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-figwheel/lein-figwheel/0.5.4-7/lein-figwheel-0.5.4-7.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-libdir/lein-libdir/0.1.1/lein-libdir-0.1.1.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-light-nrepl/lein-light-nrepl/0.3.0/lein-light-nrepl-0.3.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-koan/lein-koan/0.1.3/lein-koan-0.1.3.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-light-nrepl-instarepl/lein-light-nrepl-instarepl/0.3.1/lein-light-nrepl-instarepl-0.3.1.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-modules/lein-modules/0.3.11/lein-modules-0.3.11.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/lein-npm/lein-npm/0.6.2/lein-npm-0.6.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring/ring/1.3.2/ring-1.3.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring/ring-codec/1.0.1/ring-codec-1.0.1.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring/ring-core/1.5.0/ring-core-1.5.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring/ring-devel/1.3.2/ring-devel-1.3.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring/ring-jetty-adapter/1.3.2/ring-jetty-adapter-1.3.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring/ring-servlet/1.3.2/ring-servlet-1.3.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring-cors/ring-cors/0.1.7/ring-cors-0.1.7.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring-refresh/ring-refresh/0.1.2/ring-refresh-0.1.2.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring-rewrite/ring-rewrite/0.1.0/ring-rewrite-0.1.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/ring-server/ring-server/0.4.0/ring-server-0.4.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
