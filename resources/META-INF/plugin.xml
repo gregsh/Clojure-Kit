@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin version="2">
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.5.1</version>
+  <version>0.4.2</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="162.1447" until-build="164.*"/>
 
   <name>Clojure-Kit</name>
-  <description>Clojure in Kotlin</description>
+  <description>Clojure and ClojureScript</description>
 
   <depends>com.intellij.modules.lang</depends>
   <depends optional="true" config-file="plugin-copyright.xml">com.intellij.copyright</depends>
@@ -14,6 +14,14 @@
 
   <change-notes>
     <![CDATA[
+    <ul>
+      <li>Language: basic language support for Clojure and ClojureScript</li>
+      <li>Editor: colors, completion, navigation, parameter info, quickdoc and live templates</li>
+      <li>Structural editing: slurp/barf/splice/rise/kill and smart delete/backspace</li>
+      <li>Leiningen: silently add all 'project.clj' libs from ~/.m2/ repository</li>
+      <li>Runner: the simplest lein-based REPL</li>
+    </ul>
+    <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>
   </change-notes>
 
@@ -21,6 +29,7 @@
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
+    <errorHandler implementation="com.intellij.diagnostic.ITNReporter"/>
 
     <fileTypeFactory implementation="org.intellij.clojure.lang.ClojureFileTypeFactory"/>
     <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureParserDefinition"/>
@@ -38,6 +47,10 @@
     <lang.foldingBuilder language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureFoldingBuilder"/>
     <liveTemplateContext implementation="org.intellij.clojure.lang.ClojureLiveTemplateContext"/>
     <defaultLiveTemplatesProvider implementation="org.intellij.clojure.lang.ClojureLiveTemplateProvider"/>
+
+    <typedHandler implementation="org.intellij.clojure.actions.ClojureTypedHandler"/>
+    <editorActionHandler action="EditorBackSpace" implementationClass="org.intellij.clojure.actions.ClojureBackspaceHandler"/>
+    <editorActionHandler action="EditorDelete" implementationClass="org.intellij.clojure.actions.ClojureDeleteHandler"/>
 
     <completion.contributor language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCompletionContributor"/>
     <annotator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureAnnotator"/>
@@ -81,42 +94,40 @@
   <actions>
     <action id="clojure.editor.slurp-bwd" class="org.intellij.clojure.actions.SlurpBwdAction"
             text="Slurp Backwards" description="Swallow the element preceding the current form">
-      <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="N"/>
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift H"/>
     </action>
     <action id="clojure.editor.slurp-fwd" class="org.intellij.clojure.actions.SlurpFwdAction"
             text="Slurp Forwards" description="Swallow the element following the current form">
-      <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="M"/>
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift J"/>
     </action>
     <group id="ClojureStructuralEditingActionGroup" text="Clojure" popup="true">
       <action id="clojure.editor.barf-bwd" class="org.intellij.clojure.actions.BarfBwdAction"
-      text="Barf Backwards" description="Spit out the first element in the current form">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="COMMA"/>
+              text="Barf Backwards" description="Spit out the first element in the current form">
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift K"/>
       </action>
       <action id="clojure.editor.barf-fwd" class="org.intellij.clojure.actions.BarfFwdAction"
-      text="Barf Forwards" description="Spit out the last element in the current form">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt A" second-keystroke="PERIOD"/>
+              text="Barf Forwards" description="Spit out the last element in the current form">
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift L"/>
       </action>
-<!--
       <action id="clojure.editor.splice" class="org.intellij.clojure.actions.SpliceAction"
               text="Splice Form" description="Splice the current form into it’s parent">
-        <keyboard-shortcut keymap="$default" first-keystroke="control SEMICOLON"/>
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift Y"/>
       </action>
       <action id="clojure.editor.rise" class="org.intellij.clojure.actions.RiseAction"
               text="Rise" description="">
-        <keyboard-shortcut keymap="$default" first-keystroke="control shift SEMICOLON"/>
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift U"/>
       </action>
       <action id="clojure.editor.kill" class="org.intellij.clojure.actions.KillAction"
               text="Kill" description="">
-        <keyboard-shortcut keymap="$default" first-keystroke="control shift SEMICOLON"/>
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift PERIOD"/>
       </action>
--->
       <add-to-group group-id="EditMenu" anchor="last"/>
     </group>
 
     <action id="Clojure.Repl.Execute" class="org.intellij.clojure.tools.ReplExecuteAction"
             use-shortcut-of="Console.Execute.Multiline"
             icon="AllIcons.Actions.Execute"
-            text="Send to REPL" description="Execute form in REPL"/>
+            text="Execute in REPL" description="Execute form in REPL"/>
 
 
   </actions>
