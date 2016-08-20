@@ -28,13 +28,13 @@ import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CDefImpl
-import org.intellij.clojure.psi.impl.CDefPMImpl
 import org.intellij.clojure.psi.impl.CKeywordImpl
+import org.intellij.clojure.psi.impl.CMDefImpl
 
 /**
  * @author gregsh
  */
-private val VERSION: Int = 2
+private val VERSION: Int = 3
 private val NS_VERSION: Int = 1
 private val DEF_VERSION: Int = 1
 private val KEYWORD_VERSION: Int = 1
@@ -99,7 +99,7 @@ class ClojureFileElementType(name: String, language: Language) : IStubFileElemen
 class CListElementType(name: String) : IStubElementType<CListStub, CDef>(name, ClojureLanguage), ClojureElementType {
   override fun getExternalId(): String = "clj." + super.toString()
   override fun createPsi(stub: CListStub) =
-      if (stub.type == ClojureConstants.TYPE_PROTOCOL_METHOD) CDefPMImpl(stub) else CDefImpl(stub)
+      if (stub.type == ClojureConstants.TYPE_PROTOCOL_METHOD) CMDefImpl(stub) else CDefImpl(stub)
 
   override fun createStub(psi: CDef, parentStub: StubElement<*>?): CListStub {
     val def = psi.def

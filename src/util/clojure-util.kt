@@ -55,22 +55,23 @@ fun PsiElement?.findPrevSibling(c: IElementType) = TreeUtil.findSiblingBackward(
 
 @Suppress("UNCHECKED_CAST")
 fun <T> JBIterable<T?>.notNulls(): JBIterable<T> = filter { it != null } as JBIterable<T>
+fun <T: Any, E: Any> JBIterable<T>.filter(c : KClass<E>) = filter(c.java)
 
-fun ASTNode?.iterate(): JBIterable<out ASTNode> =
+fun ASTNode?.iterate(): JBIterable<ASTNode> =
     if (this == null) JBIterable.empty() else cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
 
-fun PsiElement?.iterate(): JBIterable<out PsiElement> =
+fun PsiElement?.iterate(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
 
-fun PsiElement?.iterateForms(): JBIterable<CForm> = iterate().filter(CForm::class.java)
+fun PsiElement?.iterateForms(): JBIterable<CForm> = iterate().filter(CForm::class)
 
-fun PsiElement?.iterateRCAware(): JBIterable<out PsiElement> =
+fun PsiElement?.iterateRCAware(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverserRCAware().expandAndSkip(Conditions.equalTo(this)).traverse()
 
-fun PsiElement?.siblings(): JBIterable<out PsiElement> =
+fun PsiElement?.siblings(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else JBIterable.generate(this, { SyntaxTraverser.psiApi().next(it) }).notNulls()
 
-fun PsiElement?.parents(): JBIterable<out PsiElement> =
+fun PsiElement?.parents(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else SyntaxTraverser.psiApi().parents(this)
 
 fun cljTraverser(): SyntaxTraverser<PsiElement> = SyntaxTraverser.psiTraverser()

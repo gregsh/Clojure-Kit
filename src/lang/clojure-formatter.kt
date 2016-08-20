@@ -36,10 +36,7 @@ import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.ClojureTypes.*
-import org.intellij.clojure.util.findChild
-import org.intellij.clojure.util.iterate
-import org.intellij.clojure.util.notNulls
-import org.intellij.clojure.util.parents
+import org.intellij.clojure.util.*
 
 /**
  * @author gregsh
@@ -193,7 +190,7 @@ class ClojureFormattingBlock(node: ASTNode,
     val nextIndex: ()->Int = if (!ClojureTokens.LIST_ALIKE.contains(nodeType)) {{ -1 }} else {{ if (!leftParen) -1 else ++prevIndex }}
 
     val minAlignIndex = if (nodeType != C_LIST || node.firstChildNode.elementType == C_READER_MACRO) 0
-    else if (node.psi is CDef || node.psi.parents().skip(1).filter(CForm::class.java).isEmpty) Integer.MAX_VALUE
+    else if (node.psi is CDef || node.psi.parents().skip(1).filter(CForm::class).isEmpty) Integer.MAX_VALUE
     else if ((node.psi as? CList)?.first?.name?.let {
       ClojureConstants.FN_ALIKE_SYMBOLS.contains(it) || ClojureConstants.LET_ALIKE_SYMBOLS.contains(it) } ?: false) Integer.MAX_VALUE
     else 1

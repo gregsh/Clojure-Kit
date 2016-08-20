@@ -53,6 +53,7 @@ import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.psi.CForm
 import org.intellij.clojure.psi.ClojureFile
+import org.intellij.clojure.util.filter
 import org.intellij.clojure.util.notNulls
 import org.intellij.clojure.util.parents
 import java.awt.BorderLayout
@@ -84,7 +85,7 @@ class ReplExecuteAction : DumbAwareAction() {
         val elementAt = file.findElementAt(
             if (it.offset > 0 && (it.offset >= text.length || Character.isWhitespace(text[it.offset]))) it.offset - 1
             else it.offset)
-        elementAt.parents().filter(CForm::class.java).last() }
+        elementAt.parents().filter(CForm::class).last() }
           .notNulls()
           .reduce(StringBuilder()) { sb, o -> if (!sb.isEmpty()) sb.append("\n"); sb.append(o.text) }
           .toString()

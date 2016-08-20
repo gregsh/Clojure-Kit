@@ -230,7 +230,7 @@ open class CDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?
   }
 }
 
-class CDefPMImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?) :
+class CMDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?) :
     CDefImpl(stub, nodeType, node), CDef {
 
   constructor(stub: CListStub) : this(stub, stub.stubType as CListElementType, null)

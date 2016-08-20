@@ -17,8 +17,9 @@ Change log
 ==========
 0.4.2 (initial)
 
-* Editor: colors, completion, navigation, parameter info, quickdoc and live templates
-* Structural editing: slurp/barf/splice/rise/kill and smart delete/backspace
 * Language: basic language support for Clojure and ClojureScript
+* Editor: colors, completion, navigation, parameter info, quickdoc and live templates
+* CodeInsight: Data flow to/from here
+* Structural editing: slurp/barf/splice/rise/kill and smart delete/backspace
 * Leiningen: silently add all *project.clj* libraries from *~/.m2/* repository
 * Runner: the simplest lein-based REPL

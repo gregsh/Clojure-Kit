@@ -17,6 +17,7 @@
     <ul>
       <li>Language: basic language support for Clojure and ClojureScript</li>
       <li>Editor: colors, completion, navigation, parameter info, quickdoc and live templates</li>
+      <li>CodeInsight: Data flow to/from here</li>
       <li>Structural editing: slurp/barf/splice/rise/kill and smart delete/backspace</li>
       <li>Leiningen: silently add all 'project.clj' libs from ~/.m2/ repository</li>
       <li>Runner: the simplest lein-based REPL</li>
@@ -74,6 +75,7 @@
     <lang.namesValidator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureNamesValidator"/>
     <renameInputValidator implementation="org.intellij.clojure.editor.ClojureNamesValidator"/>
     <elementDescriptionProvider implementation="org.intellij.clojure.lang.usages.ClojureElementDescriptionProvider"/>
+    <lang.sliceProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureSliceSupportProvider"/>
 
     <lang.formatter language="Clojure" implementationClass="org.intellij.clojure.formatter.ClojureFormattingModelBuilder"/>
     <codeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureCodeStyleSettingsProvider"/>

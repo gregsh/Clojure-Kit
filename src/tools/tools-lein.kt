@@ -44,6 +44,7 @@ import org.intellij.clojure.psi.CSymbol
 import org.intellij.clojure.psi.CVec
 import org.intellij.clojure.psi.ClojureFile
 import org.intellij.clojure.util.cljTraverser
+import org.intellij.clojure.util.filter
 import org.intellij.clojure.util.iterateForms
 import org.intellij.clojure.util.sort
 import java.io.File
@@ -104,7 +105,7 @@ class LeinLibraryRootsProvider : AdditionalLibraryRootsProvider() {
     val localFS = LocalFileSystem.getInstance()
     val jarFS = JarFileSystem.getInstance()
     val files = linkedSetOf<VirtualFile>()
-    for (vec in cljTraverser().traverse().filter(CVec::class.java)) {
+    for (vec in cljTraverser().traverse().filter(CVec::class)) {
       val content = vec.iterateForms()
       val name = (content.get(0) as? CSymbol)?.qualifiedName ?: continue
       val version = (content.get(1) as? CLiteral)?.text?.trim('\"') ?: continue

@@ -153,7 +153,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           "." -> javaType(it.firstChild as? CSymbol) ?:
               ((it.nextForm() as? CSymbol)?.reference?.resolve() as? PsiQualifiedNamedElement)?.qualifiedName ?:
               javaType(it.nextForm()?.nextForm())
-          ".." -> javaType(it.siblings().filter(CForm::class.java).last())
+          ".." -> javaType(it.siblings().filter(CForm::class).last())
           "var" -> ClojureConstants.C_VAR
           else -> javaType(it)
         }
@@ -302,16 +302,13 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
     // regular unqualified resolve
     var prevO: CForm = element
-    for (o in element.parents().filter(CLForm::class.java)) {
+    for (o in element.parents().filter(CLForm::class)) {
       if (prevO == element && refText != null) {
         if (o is CDefImpl && o.nameSymbol == prevO) {
           return processor.execute(o, state)
         }
       }
-      val type = if (o is CDef) o.def.type else
-        if (o.first?.firstChild.elementType == ClojureTypes.C_DOT) ". id"
-        else if (o.first?.firstChild.elementType == ClojureTypes.C_DOTDASH) ".-"
-        else o.first?.name ?: continue
+      val type = listType(o) ?: continue
       if (prevO.parent is CVec && refText == "&") return processor.execute(NULL_FORM, state)
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       val isExtendProtocol = !isFnLike && o.parent.run {
@@ -320,11 +317,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       if (o is CDef && type == "deftype" || type == "reify") {
         if (type == "deftype") {
           val binding = o.first.findNextSibling(CVec::class)
-          for (part in binding.iterate().filter(CSymbol::class.java)) {
+          for (part in binding.iterate().filter(CSymbol::class)) {
             if (!processor.execute(part, state)) return false
           }
         }
-        for (fn in o.iterate().filter(CList::class.java)) {
+        for (fn in o.iterate().filter(CList::class)) {
           val nameSymbol = fn.first
           if (nameSymbol != null) {
             if (!processor.execute(nameSymbol, state)) return false
@@ -336,14 +333,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
       }
       else if (o is CDef && type == "defprotocol") {
-        for (prototype in o.iterate().filter(CList::class.java)) {
-          val nameSymbol = prototype.first
-          if (nameSymbol != null) {
-            if (!processor.execute(nameSymbol, state)) return false
-          }
-          for (binding in prototype.iterate().filter(CVec::class.java)) {
+        for (prototype in o.iterate().filter(CDef::class)) {
+          if (!processor.execute(prototype, state)) return false
+          for (binding in prototype.iterate().filter(CVec::class)) {
             if (!binding.isAncestorOf(element)) continue
-            for (part in binding.iterate().filter(CSymbol::class.java)) {
+            for (part in binding.iterate().filter(CSymbol::class)) {
               if (!processor.execute(part, state)) return false
             }
           }
@@ -354,7 +348,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (isFnLike || isExtendProtocol) {
           val nameSymbol = (if (isFnLike) o.first.findNextSibling(CForm::class) else o.first) as? CSymbol
           if (nameSymbol != null) {
-            if (!processor.execute(nameSymbol, state)) return false
+            if (!processor.execute(nameSymbol.parent.let { it as? CDef ?: nameSymbol }, state)) return false
           }
         }
         // def and fn bindings
@@ -367,7 +361,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (!processBindings(o, if (type == "for") "for" else "let", state, processor, myElement)) return false
       }
       else if (type == "letfn") {
-        for (fn in (o.first.findNextSibling(CForm::class) as? CVec).iterate().filter(CList::class.java)) {
+        for (fn in (o.first.findNextSibling(CForm::class) as? CVec).iterate().filter(CList::class)) {
           val nameSymbol = fn.first
           if (nameSymbol != null) {
             if (!processor.execute(nameSymbol, state)) return false
@@ -391,7 +385,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           val isMethod = type == ". id"
           var scope = if (isProp) JavaHelper.Scope.INSTANCE else JavaHelper.Scope.STATIC
           val isInFirst = o.first.isAncestorOf(myElement)
-          val siblings = o.first.siblings().filter(CForm::class.java)
+          val siblings = o.first.siblings().filter(CForm::class)
               .skip(if (type == "." || type == ".." || isInFirst) 1 else 0)
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(myElement) }.size()
           val className = if (isCljs) null else siblings.first()?.let {form ->
@@ -458,8 +452,24 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
 }
 
-fun prototypes(o: CLForm) = o.iterate().filter(CLForm::class.java).
+fun prototypes(o: CLForm) = o.iterate().filter(CLForm::class).
     filter { it.firstChild?.nextSibling is CVec }.append(o)
+
+fun listType(o: CLForm) =
+    if (o is CDef) o.def.type
+    else o.first?.run {
+      if (firstChild.elementType == ClojureTypes.C_DOT) ". id"
+      else if (firstChild.elementType == ClojureTypes.C_DOTDASH) ".-"
+      else name
+    }
+
+fun findBindingsVec(o: CLForm, mode: String): CVec? {
+  val isMethod = mode == "fn" && o is CDef && o.def.type == "defmethod"
+  return (if (isMethod) o.first.siblings().filter(CForm::class).get(3) as? CVec
+  else o.iterate().filter(CVec::class).first())
+}
+
+fun destruct(o: CForm?) = DESTRUCTURING.withRoot(o).traverse()
 
 fun ClojureFile.processNamespace(namespace: String, forced: Boolean, state: ResolveState, processor: PsiScopeProcessor): Boolean {
   StubIndex.getElements(NS_INDEX_KEY, namespace, project,
@@ -489,9 +499,7 @@ fun ClojureFile.processSpecialForms(refText: String?, place: PsiElement, service
 }
 
 fun processBindings(o: CLForm, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
-  val isMethod = mode == "fn" && o is CDef && o.def.type == "defmethod"
-  val bindings = (if (isMethod) o.first.siblings().filter(CForm::class.java).get(3) as? CVec
-  else o.iterate().filter(CVec::class.java).first()) ?: return true
+  val bindings = findBindingsVec(o, mode) ?: return true
   val roots = when (mode) {
     "fn" -> JBIterable.of(bindings)
     "let" -> bindings.iterateForms().filter(EachNth(2)).run {
@@ -529,7 +537,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>, proc
   }.filter { it is CForm }
 
   fun importInfo(o: CForm, st: String): ImportInfo {
-    val iterator = (if (o is CSymbol) o.siblings() else o.iterateRCAware()).filter(CForm::class.java).iterator()
+    val iterator = (if (o is CSymbol) o.siblings() else o.iterateRCAware()).filter(CForm::class).iterator()
     val namespace = if (st == "refer-clojure") null
     else ((if (iterator.hasNext()) iterator.next() as? CSymbol else null) ?: return EMPTY_IMPORT)
 
@@ -546,16 +554,16 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>, proc
         "refer", "require-macros" -> refer = if (!withRefer && iterator.hasNext()) iterator.next().listOrVec() else null
         "only" -> only = if (withRefer && iterator.hasNext()) iterator.next().listOrVec() else null
         "exclude" -> exclude = if (withRefer && iterator.hasNext()) iterator.next().listOrVec() else null
-        "rename" -> rename = if (withRefer && iterator.hasNext()) (iterator.next() as? CMap)?.iterate()?.filter(CSymbol::class.java) else null
+        "rename" -> rename = if (withRefer && iterator.hasNext()) (iterator.next() as? CMap)?.iterate()?.filter(CSymbol::class) else null
       }
     }
     val ranges = JBIterable.empty<CForm>().append(refer).append(only).append(exclude).append(rename?.filter(EachNth(2)) ?: JBIterable.empty())
         .transform { it.textRange }.addAllTo(TreeSet(
         { r1, r2 -> r1.startOffset - r2.startOffset }))
     val info = ImportInfo(namespace, alias,
-        refer.iterateRCAware().filter(CSymbol::class.java).transform { it.text }.toSet(),
-        only.iterateRCAware().filter(CSymbol::class.java).transform { it.text }.toSet(),
-        exclude.iterateRCAware().filter(CSymbol::class.java).transform { it.text }.toSet(),
+        refer.iterateRCAware().filter(CSymbol::class).transform { it.text }.toSet(),
+        only.iterateRCAware().filter(CSymbol::class).transform { it.text }.toSet(),
+        exclude.iterateRCAware().filter(CSymbol::class).transform { it.text }.toSet(),
         rename?.partition(2, true)?.reduce(HashMap()) { map, o -> if (o.size == 2) map.put(o[0].name, o[1]); map } ?: emptyMap(),
         if (ranges.isEmpty()) null else ranges)
     return info
@@ -638,7 +646,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>, proc
           else if (o is CList || o is CVec) {
             val first = o.findChild(CForm::class) as? CSymbol
             val packageName = first?.name ?: continue@f
-            val packageItems = o.iterateRCAware().skipWhile { it != first }.skip(1).filter(CSymbol::class.java)
+            val packageItems = o.iterateRCAware().skipWhile { it != first }.skip(1).filter(CSymbol::class)
             if (inThisImport && first?.textRange?.containsOffset(startOffset) ?: false) {
               return service.java.findPackage(packageName, packageItems.first()?.name)?.let { processor.execute(it, state) } ?: true
             }
@@ -655,7 +663,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>, proc
             val first = o.first ?: continue@f
             if (inThisImport && first.textRange.contains(startOffset)) return processor.execute(NULL_FORM, state)
             val prefix = first.name + "."
-            for (item in o.iterateRCAware().skipWhile { it != first }.skip(1).filter(CForm::class.java)) {
+            for (item in o.iterateRCAware().skipWhile { it != first }.skip(1).filter(CForm::class)) {
               if (item is CSymbol) {
                 val namespace = "$prefix${item.name}"
                 if (!processor.execute(service.getNamespace(namespace), stateRenamed(prefix, item))) return false
@@ -716,7 +724,7 @@ private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {
                   skip = true
                   keys = it.iterate()
                       .transform { (it as? CKeyword)?.symbol ?: it }
-                      .filter(CSymbol::class.java).iterator()
+                      .filter(CSymbol::class).iterator()
                 }
               }
               return skip()

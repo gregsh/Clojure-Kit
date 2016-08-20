@@ -37,7 +37,7 @@ import org.intellij.clojure.psi.ClojureElementType
 import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.psi.impl.CDefImpl
-import org.intellij.clojure.psi.impl.CDefPMImpl
+import org.intellij.clojure.psi.impl.CMDefImpl
 import org.intellij.clojure.psi.impl.CReaderCondImpl
 import org.intellij.clojure.psi.impl.ClojureFileImpl
 import org.intellij.clojure.psi.stubs.ClojureFileElementType
@@ -124,8 +124,9 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
             return CDefImpl(node)
           }
         }
-        else if (node.treeParent?.run { elementType == C_LIST && firstChildNode?.treeNext?.lastChildNode?.text == "defprotocol" } ?: false) {
-          return CDefPMImpl(node)
+        else if (node.treeParent?.run { elementType == C_LIST &&
+            firstChildNode?.treeNext?.lastChildNode?.text?.let { it == "defprotocol" || it == "defrecord"} ?: false} ?: false) {
+          return CMDefImpl(node)
         }
       }
     }
