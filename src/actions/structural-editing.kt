@@ -28,9 +28,7 @@ import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorWriteActionHandler
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Condition
 import com.intellij.psi.PsiDocumentManager
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.CForm
@@ -154,7 +152,7 @@ private fun barf(form: CPForm, forward: Boolean): Unit {
 
 private fun splice(form: CPForm, editor: Editor) {
   val r = form.textRange
-  val paren1 = form.iterate().find(Condition<PsiElement> { ClojureTokens.PARENS.contains(it.elementType) })!!.textRange
+  val paren1 = form.iterate().find { ClojureTokens.PARENS.contains(it.elementType) }!!.textRange
   val replacement = editor.document.immutableCharSequence.substring(paren1.startOffset + 1, r.endOffset - 1)
   editor.document.replaceString(r.startOffset, r.endOffset, replacement)
 }
@@ -176,6 +174,7 @@ private fun rise(form: CPForm, editor: Editor) {
 }
 
 private fun kill(editor: Editor, caret: Caret?, dataContext: DataContext, forward: Boolean): Boolean {
+  if (caret?.hasSelection() ?: editor.selectionModel.hasSelection()) return false
   val offset = caret?.offset ?: editor.caretModel.offset
   val project = LangDataKeys.PROJECT.getData(dataContext) ?: return false
   val psiFile = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) as? ClojureFile ?: return false
@@ -184,7 +183,7 @@ private fun kill(editor: Editor, caret: Caret?, dataContext: DataContext, forwar
   val r = form.textRange
   val replacement = if (forward && r.startOffset == offset || !forward && r.endOffset == offset) ""
   else {
-    val paren1 = form.iterate().find(Condition<PsiElement> { ClojureTokens.PARENS.contains(it.elementType) })!!.textRange
+    val paren1 = form.iterate().find { ClojureTokens.PARENS.contains(it.elementType) }!!.textRange
     editor.document.immutableCharSequence.substring(paren1.startOffset + 1, r.endOffset - 1)
   }
   editor.document.replaceString(r.startOffset, r.endOffset, replacement)
