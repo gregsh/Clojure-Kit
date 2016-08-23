@@ -656,11 +656,11 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>, proc
           }
         }
         else -> {
-          if (o is CSymbol || o is CVec) {
+          if (o is CSymbol || o is CVec && o.iterateForms()[1] !is CSymbol) {
             if (!processVec(o as CForm, "")) return false
           }
-          else if (o is CList) {
-            val first = o.first ?: continue@f
+          else if (o is CList || o is CVec) {
+            val first = o.findChild(CForm::class) as? CSymbol ?: continue@f
             if (inThisImport && first.textRange.contains(startOffset)) return processor.execute(NULL_FORM, state)
             val prefix = first.name + "."
             for (item in o.iterateRCAware().skipWhile { it != first }.skip(1).filter(CForm::class)) {

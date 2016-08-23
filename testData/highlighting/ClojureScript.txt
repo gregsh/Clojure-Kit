@@ -20,8 +20,7 @@
 /cljs/compiler.cljc                      0 errors, 0 warnings
 /cljs/compiler/api.clj                   0 errors, 0 warnings
 /cljs/compiler/macros.clj                0 errors, 0 warnings
-/cljs/core.cljc                          0 errors, 4 warnings
-      1982: unable to resolve 'unchecked-divide'
+/cljs/core.cljc                          0 errors, 3 warnings
       59263: unable to resolve 'parts'
       59405: unable to resolve 'parts'
       59559: unable to resolve 'parts'
@@ -230,4 +229,4 @@
       5845: unable to resolve 'toString'
 /clojure/walk.cljs                       0 errors, 0 warnings
 /clojure/zip.cljs                        0 errors, 0 warnings
-Total: 179 warnings in 53 files (1.19M chars)
+Total: 178 warnings in 53 files (1.19M chars)
