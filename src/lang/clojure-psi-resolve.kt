@@ -358,7 +358,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
       }
       else if (ClojureConstants.LET_ALIKE_SYMBOLS.contains(type)) {
-        if (!processBindings(o, if (type == "for") "for" else "let", state, processor, myElement)) return false
+        if (!processBindings(o, if (type == "for" || type == "doseq") "for" else "let", state, processor, myElement)) return false
       }
       else if (type == "letfn") {
         for (fn in (o.first.findNextSibling(CForm::class) as? CVec).iterate().filter(CList::class)) {
