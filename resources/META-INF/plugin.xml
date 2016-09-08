@@ -64,7 +64,6 @@
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureNSIndex"/>
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureDefsIndex"/>
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureKeywordIndex"/>
-    <additionalLibraryRootsProvider implementation="org.intellij.clojure.tools.LeinLibraryRootsProvider"/>
     <additionalLibraryRootsProvider implementation="org.intellij.clojure.lang.usages.ClojureLibraryRootsProvider"/>
     <gotoSymbolContributor implementation="org.intellij.clojure.lang.usages.ClojureGotoSymbolContributor"/>
     <lang.findUsagesProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureFindUsagesProvider"/>
@@ -90,6 +89,11 @@
                      implementationClass="org.intellij.clojure.inspections.ClojureResolveInspection"/>
 
     <actionPromoter implementation="org.intellij.clojure.tools.ReplActionPromoter"/>
+
+    <!-- tools -->
+    <additionalLibraryRootsProvider implementation="org.intellij.clojure.tools.ClojureProjectDeps$RootsProvider"/>
+    <postStartupActivity implementation="org.intellij.clojure.tools.ClojureProjectDeps$PostStartup"/>
+    <projectService serviceImplementation="org.intellij.clojure.tools.ClojureProjectDeps"/>
 
   </extensions>
 
@@ -126,10 +130,19 @@
       <add-to-group group-id="EditMenu" anchor="last"/>
     </group>
 
-    <action id="Clojure.Repl.Execute" class="org.intellij.clojure.tools.ReplExecuteAction"
+    <action id="clojure.repl.execute" class="org.intellij.clojure.tools.ReplExecuteAction"
             use-shortcut-of="Console.Execute.Multiline"
             icon="AllIcons.Actions.Execute"
             text="Execute in REPL" description="Execute form in REPL"/>
+    <group>
+      <action id="clojure.tools.sync.dependencies" class="org.intellij.clojure.tools.SyncDepsAction"
+              text="Sync Dependencies" description=""
+              icon="AllIcons.Actions.Refresh"/>
+      <action id="clojure.tools.sync.dependencies.all" class="org.intellij.clojure.tools.SyncAllDepsAction"
+              text="Sync All Dependencies" description=""
+              icon="AllIcons.Actions.ForceRefresh"/>
+      <add-to-group group-id="EditorContextBarMenu"/>
+    </group>
 
 
   </actions>

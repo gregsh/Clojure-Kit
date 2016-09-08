@@ -36,6 +36,7 @@ import com.intellij.psi.impl.source.resolve.reference.impl.providers.JavaClassRe
 import com.intellij.psi.meta.PsiMetaOwner
 import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.PsiScopeProcessor
+import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.util.ArrayUtil
 import com.intellij.util.ConcurrencyUtil
@@ -492,25 +493,62 @@ abstract class JavaHelper {
       }
     }
 
-    companion object {
-
-      private fun acceptsMethod(method: MethodInfo, paramCount: Int, vararg paramTypes: String): Boolean {
-        if (paramCount >= 0 && paramCount + 1 != method.types.size) return false
-        if (paramTypes.size == 0) return true
-        if (paramTypes.size + 1 > method.types.size) return false
-        for (i in paramTypes.indices) {
-          val paramType = paramTypes[i]
-          val parameter = method.types[i + 1]
-          if (acceptsName(paramType, parameter)) continue
-          val info = findClassSafe(paramType)
-          if (info != null) {
-            if (Comparing.equal(info.superClass, parameter)) continue
-            if (info.interfaces.contains(parameter)) continue
-          }
-          return false
+    private fun acceptsMethod(method: MethodInfo, paramCount: Int, vararg paramTypes: String): Boolean {
+      if (paramCount >= 0 && paramCount + 1 != method.types.size) return false
+      if (paramTypes.size == 0) return true
+      if (paramTypes.size + 1 > method.types.size) return false
+      for (i in paramTypes.indices) {
+        val paramType = paramTypes[i]
+        val parameter = method.types[i + 1]
+        if (acceptsName(paramType, parameter)) continue
+        val info = (findClass(paramType) as? MyElement)?.delegate as? ClassInfo
+        if (info != null) {
+          if (Comparing.equal(info.superClass, parameter)) continue
+          if (info.interfaces.contains(parameter)) continue
         }
-        return true
+        return false
       }
+      return true
+    }
+
+    private fun findClassSafe(className: String?): ClassInfo? {
+      if (className == null) return null
+      try {
+        var lastDot = className.lastIndexOf('.')
+        var url: String? = null
+        var stream: InputStream? = null
+        while (stream == null && lastDot > 0) {
+          val pkgName = className.substring(0, lastDot).replace('.', '/')
+          val clzName = className.substring(lastDot + 1).replace('.', '$') + ".class"
+          val bundledUrl = JavaHelper::class.java.classLoader.getResource("$pkgName/$clzName")
+          stream = try { bundledUrl?.openStream() ?: null } catch (e: Exception) { null }
+          url = bundledUrl?.toExternalForm()
+          if (stream != null) break
+          for (psiFile in FilenameIndex.getFilesByName(project, clzName, GlobalSearchScope.allScope(project))) {
+            url = "jar:file://" + psiFile.virtualFile.presentableUrl
+            if (url.endsWith("!/$pkgName/$clzName")) {
+              stream = try { psiFile.virtualFile.inputStream } catch (e: Exception) { null }
+              break
+            }
+          }
+          lastDot = className.lastIndexOf('.', lastDot - 1)
+        }
+
+        if (url == null || stream == null) return null
+        val bytes = FileUtil.loadBytes(stream)
+        stream.close()
+        val info = ClassInfo(className, url)
+        processClassBytes(info, bytes)
+        return info
+      }
+      catch (e: Exception) {
+        reportException(e, className, null)
+      }
+
+      return null
+    }
+
+    companion object {
 
       private fun acceptsMethod(method: MethodInfo, scope: Scope): Boolean {
         return method.scope == scope && acceptsModifiers(method.modifiers)
@@ -518,34 +556,6 @@ abstract class JavaHelper {
 
       private fun acceptsField(field: FieldInfo, scope: Scope): Boolean {
         return field.scope == scope && acceptsModifiers(field.modifiers)
-      }
-
-      private fun findClassSafe(className: String?): ClassInfo? {
-        if (className == null) return null
-        try {
-          var lastDot = className.length
-          var url: URL?
-          var stream: InputStream?
-          do {
-            val s = className.substring(0, lastDot).replace('.', '/') + className.substring(lastDot).replace('.', '$')
-            url = JavaHelper::class.java.classLoader.getResource(s + ".class")
-            stream = try { url?.openStream() } catch (e: Exception) { null }
-            lastDot = className.lastIndexOf('/', lastDot - 1)
-          }
-          while (stream == null && lastDot > 0)
-
-          if (stream == null) return null
-          val bytes = FileUtil.loadBytes(stream)
-          stream.close()
-          val info = ClassInfo(className, url!!.toExternalForm())
-          processClassBytes(info, bytes)
-          return info
-        }
-        catch (e: Exception) {
-          reportException(e, className, null)
-        }
-
-        return null
       }
 
       private fun processClassBytes(info: ClassInfo, bytes: ByteArray) {

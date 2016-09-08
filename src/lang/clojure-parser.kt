@@ -62,6 +62,8 @@ object ClojureTokens {
 
   @JvmField val PARENS = TokenSet.create(C_PAREN1, C_PAREN2, C_BRACE1, C_BRACE2, C_BRACKET1, C_BRACKET2)
   @JvmField val LIST_ALIKE = TokenSet.create(C_FUN, C_LIST, C_MAP, C_SET, C_VEC)
+
+  @JvmStatic fun wsOrComment(t : IElementType?) = t != null && (WHITESPACES.contains(t) || COMMENTS.contains(t))
 }
 
 class ClojureLexer(language: Language) : FlexAdapter(_ClojureLexer(language))

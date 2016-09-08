@@ -39,14 +39,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
-import com.intellij.util.EnvironmentUtil
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureFileType
@@ -57,7 +55,6 @@ import org.intellij.clojure.util.filter
 import org.intellij.clojure.util.notNulls
 import org.intellij.clojure.util.parents
 import java.awt.BorderLayout
-import java.io.File
 import javax.swing.JPanel
 
 /**
@@ -126,9 +123,7 @@ fun  startNewProcess(project: Project, projectDir: VirtualFile?): RunContentDesc
   val consoleView = LanguageConsoleImpl(project, title, ClojureLanguage)
   consoleView.consoleEditor.setFile(consoleView.virtualFile)
 
-  val leinPath = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
-    val path = "$it${File.separator}lein${if (SystemInfo.isWindows) ".bat" else ""}"
-    if (File(path).exists()) path else null }.firstOrNull() ?: "lein"
+  val leinPath = Lein.ourLeinPath
   val workingDir = projectDir?.canonicalPath ?: project.baseDir.canonicalPath
   // todo run standard clojure.repl if no lein present
   val cmd = GeneralCommandLine(leinPath, "repl")
