@@ -101,7 +101,7 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
     it.isDirectory && Tool.find(it.toIoFile()) != null }
   val executionManager = ExecutionManager.getInstance(project)
   val existing = executionManager.contentManager.allDescriptors.find {
-    (projectDir?.path ?: "") == it.processHandler?.getUserData(PROJECT_PATH_KEY) ||
+    it.processHandler.let { it != null && !it.isProcessTerminated && (projectDir?.path ?: "") == it.getUserData(PROJECT_PATH_KEY) } ||
         (it.executionConsole as? LanguageConsoleView)?.virtualFile == PsiUtilCore.getVirtualFile(file)
   }
   val descriptor = existing ?: startNewProcess(project, projectDir) ?: return

@@ -68,7 +68,6 @@ object Repo {
 }
 
 interface Tool {
-  val projectFile: String
   fun runDeps(workingDir: String, consumer: (String?) -> Unit): ProcessHandler
   fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler): ProcessHandler
 
@@ -88,7 +87,7 @@ interface Tool {
 }
 
 object Lein : Tool {
-  override val projectFile = ClojureConstants.LEIN_PROJECT_CLJ
+  val projectFile = ClojureConstants.LEIN_PROJECT_CLJ
   val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
     val path = "$it${File.separator}lein${if (SystemInfo.isWindows) ".bat" else ""}"
     if (File(path).exists()) path else null
@@ -99,14 +98,17 @@ object Lein : Tool {
           .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
 
   override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
-      consumer(GeneralCommandLine(Boot.path, "repl")
+      consumer(GeneralCommandLine(path,
+          "update-in", ":dependencies", "conj [org.clojure/tools.nrepl]", "--",
+          "update-in", ":plugins", "conj [cider/cider-nrepl]", "--",
+          "repl"/*, ":headless"*/)
           .withWorkDirectory(workingDir)
           .withCharset(CharsetToolkit.UTF8_CHARSET))
 
 }
 
 object Boot : Tool {
-  override val projectFile = ClojureConstants.BOOT_BUILD_BOOT
+  val projectFile = ClojureConstants.BOOT_BUILD_BOOT
   val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
     val path = "$it${File.separator}boot${if (SystemInfo.isWindows) ".bat" else ""}"
     if (File(path).exists()) path else null
@@ -117,7 +119,10 @@ object Boot : Tool {
           .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
 
   override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
-      consumer(GeneralCommandLine(path, "repl")
+      consumer(GeneralCommandLine(path,
+          "-d", "org.clojure/tools.nrepl",
+          "-d", "cider/cider-nrepl",
+          "repl", "-m", "cider.nrepl/cider-middleware"/*, "-s", "wait"*/)
       .withWorkDirectory(workingDir)
       .withCharset(CharsetToolkit.UTF8_CHARSET))
 }
