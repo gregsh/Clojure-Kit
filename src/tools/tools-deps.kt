@@ -34,9 +34,9 @@ import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.EmptyRunnable
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.util.io.FileUtil
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -221,7 +221,7 @@ private class ClojureProjectDeps(val project: Project) {
         for ((index, file) in files.withIndex()) {
           indicator.isIndeterminate = false
           indicator.fraction = (100.0 * index / files.size)
-          indicator.text2 = file.path
+          indicator.text = file.path
           val list = ArrayList<String>()
           Tool.choose(file)!!.runDeps(file.parentFile.path) { gav ->
             if (gav == null) {
@@ -248,23 +248,22 @@ private class ClojureProjectDeps(val project: Project) {
 }
 
 private fun runDeps(cmd: GeneralCommandLine, consumer: (String?) -> Unit): ProcessHandler {
-  val process = OSProcessHandler(cmd.withCharset(CharsetToolkit.UTF8_CHARSET))
+  val process = ColoredProcessHandler(cmd.withCharset(CharsetToolkit.UTF8_CHARSET))
+  var prefix = ""
+  process.addColoredTextListener() { text, key ->
+    if (key != ProcessOutputTypes.STDERR) {
+      val trimmed = text.trimEnd()
+      if (trimmed.endsWith("]")) {
+        consumer(prefix + trimmed)
+        prefix = ""
+      }
+      else if (key != ProcessOutputTypes.STDOUT && text.indexOf("\n") == -1 && text.indexOf('─') > -1) {
+        prefix += StringUtil.repeat(" ", text.length)
+      }
+    }
+  }
   process.addProcessListener(object : ProcessAdapter() {
-    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>?) {
-      if (outputType == ProcessOutputTypes.STDOUT) {
-        extractGAV(event.text.trimEnd())
-      }
-    }
-
-    override fun processTerminated(event: ProcessEvent) {
-      consumer(null)
-    }
-
-    private fun extractGAV(text: String) {
-      if (text.endsWith("]")) {
-        consumer(text)
-      }
-    }
+    override fun processTerminated(event: ProcessEvent) = consumer(null)
   })
   process.startNotify()
   return process
