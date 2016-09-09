@@ -25,6 +25,7 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CReaderCondImpl
+import org.intellij.clojure.tools.Tool
 import org.intellij.clojure.util.parents
 
 /**
@@ -46,7 +47,7 @@ class ClojureInspectionSuppressor : InspectionSuppressor {
 
 class ClojureResolveInspection : LocalInspectionTool() {
   override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): ClojureVisitor {
-    if (holder.file.name == ClojureConstants.LEIN_PROJECT_CLJ) return ClojureVisitor()
+    if (Tool.choose(holder.file.name) != null) return ClojureVisitor()
 
     val language = holder.file.language
     val isCljS = language == ClojureScriptLanguage

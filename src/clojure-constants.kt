@@ -86,6 +86,7 @@ object ClojureConstants {
 
   @JvmStatic val TYPE_PROTOCOL_METHOD = "protocol method"
   @JvmStatic val LEIN_PROJECT_CLJ = "project.clj"
+  @JvmStatic val BOOT_BUILD_BOOT = "build.boot"
 
   // clojurescript-specific
   @JvmStatic val JS_GOOG = "goog"

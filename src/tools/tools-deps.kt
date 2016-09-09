@@ -37,7 +37,10 @@ import com.intellij.openapi.util.EmptyRunnable
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.openapi.vfs.*
+import com.intellij.openapi.vfs.CharsetToolkit
+import com.intellij.openapi.vfs.JarFileSystem
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.ProjectScope
 import com.intellij.util.EnvironmentUtil
@@ -48,9 +51,9 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.parser.ClojureTokens.wsOrComment
-import org.intellij.clojure.psi.ClojureFile
 import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.util.notNulls
+import org.intellij.clojure.util.toIoFile
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
@@ -59,12 +62,63 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * @author gregsh
  */
-object Lein {
-  val ourLocalRepo = File(File(com.intellij.util.SystemProperties.getUserHome(), ".m2"), "repository")
-  val ourLeinPath = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
+object Repo {
+  val path = File(File(com.intellij.util.SystemProperties.getUserHome(), ".m2"), "repository")
+}
+
+interface Tool {
+  val projectFile: String
+  fun runDeps(workingDir: String, consumer: (String?) -> Unit): ProcessHandler
+  fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler): ProcessHandler
+
+  companion object {
+    fun choose(file: File) = choose(file.name)
+    fun choose(fileName: String) = when (fileName) {
+      Lein.projectFile -> Lein
+      Boot.projectFile -> Boot
+      else -> null
+    }
+    fun find(dir: File) = when {
+      File(dir, Lein.projectFile).exists() -> Lein
+      File(dir, Boot.projectFile).exists() -> Boot
+      else -> null
+    }
+  }
+}
+
+object Lein : Tool {
+  override val projectFile = ClojureConstants.LEIN_PROJECT_CLJ
+  val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
     val path = "$it${File.separator}lein${if (SystemInfo.isWindows) ".bat" else ""}"
     if (File(path).exists()) path else null
   }.firstOrNull() ?: "lein"
+
+  override fun runDeps(workingDir: String, consumer: (String?) -> Unit) =
+      runDeps(GeneralCommandLine(path, "deps", ":tree")
+          .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
+
+  override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
+      consumer(GeneralCommandLine(Boot.path, "repl")
+          .withWorkDirectory(workingDir)
+          .withCharset(CharsetToolkit.UTF8_CHARSET))
+
+}
+
+object Boot : Tool {
+  override val projectFile = ClojureConstants.BOOT_BUILD_BOOT
+  val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
+    val path = "$it${File.separator}boot${if (SystemInfo.isWindows) ".bat" else ""}"
+    if (File(path).exists()) path else null
+  }.firstOrNull() ?: "boot"
+
+  override fun runDeps(workingDir: String, consumer: (String?) -> Unit) =
+      runDeps(GeneralCommandLine(path, "show", "-d")
+          .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
+
+  override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
+      consumer(GeneralCommandLine(path, "repl")
+      .withWorkDirectory(workingDir)
+      .withCharset(CharsetToolkit.UTF8_CHARSET))
 }
 
 private class ClojureProjectDeps(val project: Project) {
@@ -77,7 +131,7 @@ private class ClojureProjectDeps(val project: Project) {
   class RootsProvider : AdditionalLibraryRootsProvider() {
     override fun getAdditionalProjectLibrarySourceRoots(project: Project): Set<VirtualFile> {
       if (ApplicationManager.getApplication().isUnitTestMode) return emptySet()
-      if (!Lein.ourLocalRepo.exists()) return emptySet()
+      if (!Repo.path.exists()) return emptySet()
       return ClojureProjectDeps.getInstance(project).allDependencies
     }
   }
@@ -157,7 +211,7 @@ private class ClojureProjectDeps(val project: Project) {
 
   fun resolveDepsInBackground(filesGetter: () -> Collection<File>) {
     resolveInProgress.set(true)
-    ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Resolve project dependencies", false) {
+    ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Resolving project dependencies...", false) {
       override fun run(indicator: ProgressIndicator) {
         indicator.isIndeterminate = true
         DumbService.getInstance(myProject).waitForSmartMode()
@@ -168,7 +222,7 @@ private class ClojureProjectDeps(val project: Project) {
           indicator.fraction = (100.0 * index / files.size)
           indicator.text2 = file.path
           val list = ArrayList<String>()
-          runLeinDeps(file.parentFile.path) { gav ->
+          Tool.choose(file)!!.runDeps(file.parentFile.path) { gav ->
             if (gav == null) {
               mapping[file.path] = ArrayList(list)
             }
@@ -192,11 +246,8 @@ private class ClojureProjectDeps(val project: Project) {
 
 }
 
-private fun runLeinDeps(workingDir: String, consumer: (String?) -> Unit): ProcessHandler {
-  val cmd = GeneralCommandLine(Lein.ourLeinPath, "deps", ":tree")
-      .withWorkDirectory(FileUtil.toSystemDependentName(workingDir))
-      .withCharset(CharsetToolkit.UTF8_CHARSET)
-  val process = OSProcessHandler(cmd)
+private fun runDeps(cmd: GeneralCommandLine, consumer: (String?) -> Unit): ProcessHandler {
+  val process = OSProcessHandler(cmd.withCharset(CharsetToolkit.UTF8_CHARSET))
   process.addProcessListener(object : ProcessAdapter() {
     override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>?) {
       if (outputType == ProcessOutputTypes.STDOUT) {
@@ -231,7 +282,7 @@ private fun gavToJar(gav: String) : VirtualFile? {
 
   val (path, name) = if (artifact.contains("/")) artifact.indexOf("/").let { Pair(artifact.substring(0, it).replace('.', '/') + artifact.substring(it), artifact.substring(it)) }
   else Pair("$artifact/$artifact", artifact)
-  val gavFile = File(Lein.ourLocalRepo, "$path/$version/$name-$version.jar")
+  val gavFile = File(Repo.path, "$path/$version/$name-$version.jar")
   if (!(gavFile.exists() && !gavFile.isDirectory)) {
     ClojureProjectDeps.LOG.info("$name:$version dependency not found")
   }
@@ -250,23 +301,26 @@ private fun gavToJar(gav: String) : VirtualFile? {
   return null
 }
 
-private fun allProjectFiles(project: Project): Collection<File> {
-  return ReadAction.compute<Collection<File>, RuntimeException> {
-    FilenameIndex.getFilesByName(project, ClojureConstants.LEIN_PROJECT_CLJ, ProjectScope.getContentScope(project), false)
-        .asSequence()
-        .filter { it is ClojureFile }
-        .map { VfsUtil.virtualToIoFile(it.virtualFile) }
-        .toSortedSet()
-  }
+private fun allProjectFiles(project: Project) = ReadAction.compute<Collection<File>, RuntimeException> {
+  val contentScope = ProjectScope.getContentScope(project)
+  JBIterable.of(*FilenameIndex.getFilesByName(project, Lein.projectFile, contentScope, false))
+      .append(FilenameIndex.getFilesByName(project, Boot.projectFile, contentScope, false))
+      .transform { it.virtualFile.toIoFile() }
+      .toSortedSet()
 }
+
+private fun allProjectFiles(e: AnActionEvent) = JBIterable.of(*e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY))
+    .filter { Tool.choose(it.name) != null }
+    .transform { it.toIoFile() }
+    .toSortedSet()
 
 class SyncDepsAction : AnAction() {
   override fun update(e: AnActionEvent) = updateSyncActionImpl(e)
 
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
-    val file = VfsUtil.virtualToIoFile((e.getData(CommonDataKeys.PSI_FILE) as? ClojureFile ?: return).virtualFile)
-    ClojureProjectDeps.getInstance(project).resolveDepsInBackground { listOf(file) }
+    val files = allProjectFiles(e)
+    ClojureProjectDeps.getInstance(project).resolveDepsInBackground { files }
   }
 }
 
@@ -280,8 +334,8 @@ class SyncAllDepsAction : AnAction() {
 }
 
 private fun updateSyncActionImpl(e: AnActionEvent) {
-  val file = e.getData(CommonDataKeys.PSI_FILE) as? ClojureFile
-  val visible = e.project != null && file?.name == ClojureConstants.LEIN_PROJECT_CLJ
+  val files = allProjectFiles(e)
+  val visible = e.project != null && !files.isEmpty()
   val enabled = visible && !ClojureProjectDeps.getInstance(e.project!!).resolveInProgress.get()
   e.presentation.isVisible = visible
   e.presentation.isEnabled = enabled

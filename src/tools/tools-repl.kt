@@ -39,14 +39,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.containers.JBIterable
-import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.psi.CForm
@@ -54,6 +52,7 @@ import org.intellij.clojure.psi.ClojureFile
 import org.intellij.clojure.util.filter
 import org.intellij.clojure.util.notNulls
 import org.intellij.clojure.util.parents
+import org.intellij.clojure.util.toIoFile
 import java.awt.BorderLayout
 import javax.swing.JPanel
 
@@ -99,7 +98,7 @@ class ReplActionPromoter : ActionPromoter {
 val PROJECT_PATH_KEY: Key<String> = Key.create("")
 fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: String) {
   val projectDir = JBIterable.generate(PsiUtilCore.getVirtualFile(file)) { it.parent }.find {
-    it.isDirectory && !(it.findChild(ClojureConstants.LEIN_PROJECT_CLJ)?.isDirectory ?: true) }
+    it.isDirectory && Tool.find(it.toIoFile()) != null }
   val executionManager = ExecutionManager.getInstance(project)
   val existing = executionManager.contentManager.allDescriptors.find {
     (projectDir?.path ?: "") == it.processHandler?.getUserData(PROJECT_PATH_KEY) ||
@@ -123,13 +122,9 @@ fun  startNewProcess(project: Project, projectDir: VirtualFile?): RunContentDesc
   val consoleView = LanguageConsoleImpl(project, title, ClojureLanguage)
   consoleView.consoleEditor.setFile(consoleView.virtualFile)
 
-  val leinPath = Lein.ourLeinPath
-  val workingDir = projectDir?.canonicalPath ?: project.baseDir.canonicalPath
-  // todo run standard clojure.repl if no lein present
-  val cmd = GeneralCommandLine(leinPath, "repl")
-      .withWorkDirectory(workingDir)
-      .withCharset(CharsetToolkit.UTF8_CHARSET)
-  val processHandler = ClojureProcessHandler(consoleView, cmd)
+  val workingDir = (projectDir ?: project.baseDir).toIoFile()
+  val tool = Tool.find(workingDir) ?: Lein
+  val processHandler = tool.runRepl(workingDir.path) { cmd -> ClojureProcessHandler(consoleView, cmd) }
   processHandler.putUserData(PROJECT_PATH_KEY, projectDir?.path ?: "")
 
   val toolbarActions = DefaultActionGroup()

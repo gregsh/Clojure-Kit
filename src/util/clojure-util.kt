@@ -21,6 +21,8 @@ import com.intellij.lang.ASTNode
 import com.intellij.lang.parser.GeneratedParserUtilBase
 import com.intellij.openapi.util.Conditions
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.impl.source.tree.TreeUtil
@@ -52,6 +54,8 @@ fun PsiElement?.parentForm() = findParent(CForm::class).let { if (it?.parent is 
 fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi?: null
 fun PsiElement?.findNextSibling(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi ?: null
 fun PsiElement?.findPrevSibling(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi ?: null
+
+fun VirtualFile.toIoFile() = VfsUtil.virtualToIoFile(this)
 
 @Suppress("UNCHECKED_CAST")
 fun <T> JBIterable<T?>.notNulls(): JBIterable<T> = filter { it != null } as JBIterable<T>

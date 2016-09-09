@@ -25,6 +25,7 @@ import com.intellij.lang.PairedBraceMatcher
 import com.intellij.openapi.fileTypes.FileTypeConsumer
 import com.intellij.openapi.fileTypes.FileTypeFactory
 import com.intellij.openapi.fileTypes.LanguageFileType
+import com.intellij.openapi.fileTypes.WildcardFileNameMatcher
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.LanguageSubstitutor
@@ -42,6 +43,7 @@ import org.intellij.clojure.psi.ClojureTypes
 class ClojureFileTypeFactory : FileTypeFactory() {
   override fun createFileTypes(consumer: FileTypeConsumer) {
     consumer.consume(ClojureFileType, "${ClojureConstants.CLJ};${ClojureConstants.CLJS};${ClojureConstants.CLJC}")
+    consumer.consume(ClojureFileType, WildcardFileNameMatcher(ClojureConstants.BOOT_BUILD_BOOT))
   }
 }
 
