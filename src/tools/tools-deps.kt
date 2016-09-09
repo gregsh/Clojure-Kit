@@ -144,7 +144,7 @@ private class ClojureProjectDeps(val project: Project) {
     val LOG = Logger.getInstance(ClojureProjectDeps::class.java)
   }
 
-  val cacheFile = File(PathManager.getSystemPath(), "clojure/${project.locationHash}-deps.txt")
+  val cacheFile = File(PathManager.getSystemPath(), "clojure/deps-${project.locationHash}.txt")
   val mapping: MutableMap<String, List<String>> = ContainerUtil.newConcurrentMap()
   val allDependencies: Set<VirtualFile> get() = JBIterable.from(mapping.values)
       .flatten { it }
