@@ -52,6 +52,7 @@ import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.parser.ClojureTokens.wsOrComment
 import org.intellij.clojure.psi.ClojureTypes
+import org.intellij.clojure.util.iterate
 import org.intellij.clojure.util.notNulls
 import org.intellij.clojure.util.toIoFile
 import java.io.File
@@ -303,13 +304,13 @@ private fun gavToJar(gav: String) : VirtualFile? {
 
 private fun allProjectFiles(project: Project) = ReadAction.compute<Collection<File>, RuntimeException> {
   val contentScope = ProjectScope.getContentScope(project)
-  JBIterable.of(*FilenameIndex.getFilesByName(project, Lein.projectFile, contentScope, false))
+  FilenameIndex.getFilesByName(project, Lein.projectFile, contentScope, false).iterate()
       .append(FilenameIndex.getFilesByName(project, Boot.projectFile, contentScope, false))
       .transform { it.virtualFile.toIoFile() }
       .toSortedSet()
 }
 
-private fun allProjectFiles(e: AnActionEvent) = JBIterable.of(*e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY))
+private fun allProjectFiles(e: AnActionEvent) = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY).iterate()
     .filter { Tool.choose(it.name) != null }
     .transform { it.toIoFile() }
     .toSortedSet()

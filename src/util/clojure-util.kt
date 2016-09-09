@@ -40,6 +40,7 @@ import kotlin.reflect.KClass
  */
 
 fun <E> E.elementOf(c: Collection<E>) = c.contains(this)
+fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 
 val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
