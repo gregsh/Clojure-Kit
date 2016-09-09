@@ -148,7 +148,7 @@ private class ClojureProjectDeps(val project: Project) {
   val mapping: MutableMap<String, List<String>> = ContainerUtil.newConcurrentMap()
   val allDependencies: Set<VirtualFile> get() = JBIterable.from(mapping.values)
       .flatten { it }
-      .transform { gavToJar(it) }
+      .transform(::gavToJar)
       .notNulls()
       .addAllTo(LinkedHashSet<VirtualFile>())
   var resolveInProgress = AtomicBoolean(true)
@@ -280,8 +280,10 @@ private fun gavToJar(gav: String) : VirtualFile? {
   while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_STRING) lexer.advance()
   val version = if (lexer.tokenType == ClojureTypes.C_STRING) lexer.tokenText.trim('\"') else ""
 
-  val (path, name) = if (artifact.contains("/")) artifact.indexOf("/").let { Pair(artifact.substring(0, it).replace('.', '/') + artifact.substring(it), artifact.substring(it)) }
-  else Pair("$artifact/$artifact", artifact)
+  val (path, name) = (if (artifact.contains("/")) artifact else "$artifact/$artifact").let { artifact ->
+    val idx = artifact.indexOf("/")
+    Pair(artifact.substring(0, idx).replace('.', '/') + artifact.substring(idx), artifact.substring(idx + 1))
+  }
   val gavFile = File(Repo.path, "$path/$version/$name-$version.jar")
   if (!(gavFile.exists() && !gavFile.isDirectory)) {
     ClojureProjectDeps.LOG.info("$name:$version dependency not found")
