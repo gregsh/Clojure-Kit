@@ -155,9 +155,9 @@ class ClojureSliceUsage : SliceUsage {
           val partition1 = vec1.iterateForms().partition(JBIterable.SeparatorOption.SKIP, { (it is CSymbol) && it.text == "&" })
           otherSizes.set(partition1[0]?.size() ?: continue)
         }
-        ReferencesSearch.search(def, params.scope.toSearchScope()).forEach {
-          (it.element.parent as? CList)?.let { list ->
-            if (it.element == list.first) {
+        ReferencesSearch.search(def, params.scope.toSearchScope()).forEach { usage ->
+          usage.element.parents().filter(CList::class).first()?.let { list ->
+            if (list.first.let { it == usage.element || it?.name == "." && it == usage.element.parent }) {
               val params = list.iterateForms().skip(1)
               val argCount = params.size()
               val arg: Any? = when {
