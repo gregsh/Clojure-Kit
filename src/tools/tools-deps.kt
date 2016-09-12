@@ -34,6 +34,7 @@ import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.EmptyRunnable
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
@@ -101,7 +102,7 @@ object Lein : Tool {
       consumer(GeneralCommandLine(path,
           "update-in", ":dependencies", "conj [org.clojure/tools.nrepl]", "--",
           "update-in", ":plugins", "conj [cider/cider-nrepl]", "--",
-          "repl"/*, ":headless"*/)
+          "repl", ":headless")
           .withWorkDirectory(workingDir)
           .withCharset(CharsetToolkit.UTF8_CHARSET))
 
@@ -115,14 +116,15 @@ object Boot : Tool {
   }.firstOrNull() ?: "boot"
 
   override fun runDeps(workingDir: String, consumer: (String?) -> Unit) =
-      runDeps(GeneralCommandLine(path, "show", "-d")
+      runDeps(GeneralCommandLine(path, "--no-colors", "show", "-d")
           .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
 
   override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
       consumer(GeneralCommandLine(path,
+          "--no-colors",
           "-d", "org.clojure/tools.nrepl",
           "-d", "cider/cider-nrepl",
-          "repl", "-m", "cider.nrepl/cider-middleware"/*, "-s", "wait"*/)
+          "repl", "-m", "cider.nrepl/cider-middleware", "-s", "wait")
       .withWorkDirectory(workingDir)
       .withCharset(CharsetToolkit.UTF8_CHARSET))
 }
@@ -253,22 +255,16 @@ private class ClojureProjectDeps(val project: Project) {
 }
 
 private fun runDeps(cmd: GeneralCommandLine, consumer: (String?) -> Unit): ProcessHandler {
-  val process = ColoredProcessHandler(cmd.withCharset(CharsetToolkit.UTF8_CHARSET))
-  var prefix = ""
-  process.addColoredTextListener() { text, key ->
-    if (key != ProcessOutputTypes.STDERR) {
-      val trimmed = text.trimEnd()
-      if (trimmed.endsWith("]")) {
-        consumer(prefix + trimmed)
-        prefix = ""
-      }
-      else if (key != ProcessOutputTypes.STDOUT && text.indexOf("\n") == -1 && text.indexOf('─') > -1) {
-        prefix += StringUtil.repeat(" ", text.length)
-      }
-    }
-  }
+  val process = OSProcessHandler(cmd.withCharset(CharsetToolkit.UTF8_CHARSET))
   process.addProcessListener(object : ProcessAdapter() {
     override fun processTerminated(event: ProcessEvent) = consumer(null)
+    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+      if (outputType != ProcessOutputTypes.STDOUT) return
+      val trimmed = event.text.trimEnd()
+      val idx = trimmed.indexOf("[")
+      if (idx == -1 || !trimmed.endsWith("]")) return
+      consumer(StringUtil.repeat(" ", idx) + trimmed.substring(idx))
+    }
   })
   process.startNotify()
   return process
