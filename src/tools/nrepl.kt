@@ -69,8 +69,9 @@ class NReplClient(val host: String, val port: Int) {
   val valid: Boolean get() = host != "" && port != -1 && transport != BAD_TRANSPORT
 
   private fun request(vararg m: kotlin.Pair<String, Any>) = request(mutableMapOf(*m))
-  private fun request(m: MutableMap<String, Any>) = requestAsync(m).get()
+  private fun request(m: MutableMap<String, Any>) = requestAsync(m).get()!!
 
+  private fun requestAsync(vararg m: kotlin.Pair<String, Any>) = requestAsync(mutableMapOf(*m))
   private fun requestAsync(m: MutableMap<String, Any>): CompletableFuture<Map<String, Any?>> {
     val id = nextId
     val future = CompletableFuture<Map<String, Any?>>()
@@ -116,10 +117,10 @@ class NReplClient(val host: String, val port: Int) {
   fun disconnect() = transport.close()
 
   fun createSession() = request("op" to "clone").let { it["new-session"] as String }
-  fun closeSession(session: String) = request("op" to "close", "session" to session).let { (it["status"] as? List<String>)?.firstOrNull() }
+  fun closeSession(session: String) = request("op" to "close", "session" to session)
   fun describeSession(session: String = mainSession) = request("op" to "describe", "session" to session)
 
-  fun eval(code: String, session: Any = mainSession) = request("op" to "eval", "session" to session, "code" to code)
+  fun evalAsync(code: String, session: Any = mainSession) = requestAsync("op" to "eval", "session" to session, "code" to code)
 }
 
 fun dumpObject(o: Any?) = StringBuilder().let { sb ->

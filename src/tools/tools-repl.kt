@@ -110,8 +110,8 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
   }
   val executionManager = ExecutionManager.getInstance(project)
   val existing = executionManager.contentManager.allDescriptors.run {
-    find { (it.executionConsole as? LanguageConsoleView)?.virtualFile == PsiUtilCore.getVirtualFile(file)} ?:
-    find { it.processHandler.let { it != null && !it.isProcessTerminated && (projectDir?.path ?: "") == it.getUserData(PROJECT_PATH_KEY) } }
+    find { (it.executionConsole as? LanguageConsoleView)?.virtualFile == PsiUtilCore.getVirtualFile(file) } ?:
+        find { it.processHandler.let { it != null && !it.isProcessTerminated && (projectDir?.path ?: "") == it.getUserData(PROJECT_PATH_KEY) } }
   }
   val descriptor = existing ?: startNewProcess(project, projectDir) ?: return
   if (descriptor.processHandler.let { it == null || it.isProcessTerminated || it.isProcessTerminating }) {
@@ -191,23 +191,29 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
   fun sendCommand(text: String) = whenConnected.doWhenDone {
     val trimmed = text.trim()
     consoleView.print("\n" + (consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
-    ConsoleViewUtil.printAsFileType(consoleView, trimmed, ClojureFileType)
+    ConsoleViewUtil.printAsFileType(consoleView, trimmed + "\n", ClojureFileType)
     (consoleView as ConsoleViewImpl).requestScrollingToEnd()
-    val eval = repl!!.eval(trimmed)
-    eval["ns"]?.let { consoleView.prompt = "$it=> " }
-    val result = eval["value"]
-    val error = "${eval["ex"]?.let { "$it\n" } ?: ""}${eval["err"] ?: ""}${eval["out"] ?: ""}".nullize()
-    result?.let {
-      consoleView.print("\n${dumpObject(it)}", ConsoleViewContentType.NORMAL_OUTPUT)
+    repl!!.evalAsync(trimmed).whenComplete { eval, e ->
+      if (e != null) {
+        consoleView.print(ExceptionUtil.getThrowableText(e) + "\n", ConsoleViewContentType.ERROR_OUTPUT)
+      }
+      else if (eval != null) {
+        eval["ns"]?.let { consoleView.prompt = "$it=> " }
+        val result = eval["value"]
+        val error = "${eval["ex"]?.let { "$it\n" } ?: ""}${eval["err"] ?: ""}${eval["out"] ?: ""}".nullize()
+        result?.let {
+          consoleView.print(dumpObject(it), ConsoleViewContentType.NORMAL_OUTPUT)
+        }
+        error?.let { msg ->
+          val adjusted = msg.indexOf(", compiling:(").let { if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) }
+          consoleView.print(adjusted, ConsoleViewContentType.ERROR_OUTPUT)
+        }
+        if (result == null && error == null) {
+          consoleView.print(dumpObject(eval), ConsoleViewContentType.NORMAL_OUTPUT)
+        }
+      }
+      consoleView.requestScrollingToEnd()
     }
-    error?.let { msg ->
-       val adjusted = msg.indexOf(", compiling:(").let { if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) }
-      consoleView.print("\n$adjusted", ConsoleViewContentType.ERROR_OUTPUT)
-    }
-    if (result == null && error == null) {
-      consoleView.print("\n${dumpObject(eval)}", ConsoleViewContentType.NORMAL_OUTPUT)
-    }
-    consoleView.requestScrollingToEnd()
   }
 
   private fun createNRepl(nReplStarted: String): NReplClient {
@@ -216,9 +222,9 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
     try {
       repl.connect()
       val info = repl.describeSession()
-      consoleView.prompt = ((info["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> "} ?: "=> "
+      consoleView.prompt = ((info["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
       consoleView.print("target info:" + dumpObject(info) + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
-      repl.eval("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
+      repl.evalAsync("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
           " (clojure.core/map clojure.core/require clojure.main/repl-requires))")
     }
     catch(e: Exception) {
