@@ -128,6 +128,8 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
       advanceAs(baseLexer, tokenType0)
       if (baseLexer.tokenType === C_SYM) {
         advanceAs(baseLexer, KEYWORD)
+        if (baseLexer.tokenType === C_SLASH) advanceAs(baseLexer, KEYWORD)
+        if (baseLexer.tokenType === C_SYM) advanceAs(baseLexer, KEYWORD)
       }
     }
     else if (tokenType0 === C_PAREN1) {

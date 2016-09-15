@@ -2,6 +2,7 @@ package org.intellij.clojure.lang
 
 import com.intellij.lang.LanguageBraceMatching
 import com.intellij.lang.annotation.HighlightSeverity
+import com.intellij.lexer.Lexer
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.SyntaxTraverser
@@ -25,14 +26,14 @@ import java.nio.file.Path
 /**
  * @author gregsh
  */
-class ClojureLexerTest : LexerTestCase() {
+abstract class ClojureLexerTestCase(val lexer: Lexer) : LexerTestCase() {
   override fun getDirPath() = "$TEST_DATA_PATH/lexer"
-  override fun createLexer() = ClojureLexer(ClojureLanguage)
-  override fun doTest(text: String?) {
-    val actual = printTokens(text, 0, createLexer())
-    assertSameLinesWithFile("$dirPath/${getTestName(false)}.txt", actual)
-  }
+  override fun createLexer() = lexer
+  override fun doTest(text: String?) = assertSameLinesWithFile(
+      "$dirPath/${getTestName(false)}.txt", printTokens(text, 0, createLexer()))
+}
 
+class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
   fun testLiterals() = doTest("""
     |"a" "\"" "\\\\\"" "new
     |line"
@@ -61,6 +62,10 @@ class ClojureLexerTest : LexerTestCase() {
     |#?(:clj     Double/NaN :cljs    js/NaN :default nil)
     |#?@(:clj [3 4] :cljs [5 6])
   """.trimMargin())
+}
+
+class ClojureHighlightingLexerTest : ClojureLexerTestCase(ClojureHighlightingLexer(ClojureLanguage)) {
+  fun testHighlightForm() = doTest("(abc :kwd '(quoted xyz) (some.ns/fn :some.ns/kwd ::user-kwd (.-x (.y z)))")
 }
 
 class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
