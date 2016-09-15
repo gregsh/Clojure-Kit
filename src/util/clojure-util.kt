@@ -17,7 +17,7 @@
 
 package org.intellij.clojure.util
 
-import com.intellij.lang.ASTNode
+import com.intellij.lang.*
 import com.intellij.lang.parser.GeneratedParserUtilBase
 import com.intellij.openapi.util.Conditions
 import com.intellij.openapi.util.TextRange
@@ -28,8 +28,11 @@ import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.impl.source.tree.TreeUtil
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.util.ObjectUtils
 import com.intellij.util.containers.FilteredTraverserBase
 import com.intellij.util.containers.JBIterable
+import org.intellij.clojure.lang.ClojureLanguage
+import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CReaderCondImpl
 import java.util.*
@@ -84,6 +87,19 @@ fun cljTraverser(): SyntaxTraverser<PsiElement> = SyntaxTraverser.psiTraverser()
 
 fun cljNodeTraverser(): SyntaxTraverser<ASTNode> = SyntaxTraverser.astTraverser()
     .forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
+
+fun cljLightTraverser(text: CharSequence,
+                      forcedRootType: IElementType = ClojureTokens.CLJ_FILE_TYPE,
+                      language: Language = ClojureLanguage): SyntaxTraverser<LighterASTNode> {
+  val parserDefinition = LanguageParserDefinitions.INSTANCE.forLanguage(language)
+  val lexer = parserDefinition.createLexer(null)
+  val parser = parserDefinition.createParser(null) as LightPsiParser
+  val builder = PsiBuilderFactory.getInstance().createBuilder(parserDefinition, lexer, text)
+  val rootType = ObjectUtils.notNull<IElementType>(forcedRootType, parserDefinition.fileNodeType)
+  parser.parseLight(rootType, builder)
+  return SyntaxTraverser.lightTraverser(builder).forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
+}
+
 
 fun PsiElement?.cljTraverser(): SyntaxTraverser<PsiElement> = org.intellij.clojure.util.cljTraverser().withRoot(this)
 fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverser().forceDisregard(

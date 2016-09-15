@@ -50,12 +50,14 @@ class NReplClient(val host: String, val port: Int) {
 
   lateinit private var mainSession: String
   lateinit private var toolingSession: String
+  lateinit var clientInfo: Map<String, Any?>
 
   fun connect() {
     try {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
       mainSession = createSession()
       toolingSession = createSession()
+      clientInfo = describeSession(mainSession)
     }
     catch(e: Exception) {
       val t = transport
@@ -76,7 +78,7 @@ class NReplClient(val host: String, val port: Int) {
     val id = nextId
     val future = CompletableFuture<Map<String, Any?>>()
     callbacks.put(id, future)
-    m.put("id", id)
+    m["id"] = id
     transport.send(m)
     return future
   }
@@ -121,16 +123,18 @@ class NReplClient(val host: String, val port: Int) {
   fun describeSession(session: String = mainSession) = request("op" to "describe", "session" to session)
 
   fun evalAsync(code: String, session: Any = mainSession) = requestAsync("op" to "eval", "session" to session, "code" to code)
+  fun rawAsync(m: Map<String, Any>) = requestAsync(LinkedHashMap(m).apply { put("session", m["session"] ?: mainSession) })
 }
 
 fun dumpObject(o: Any?) = StringBuilder().let { sb ->
   fun dump(o: Any?, off: String) {
+    fun newLine(index: Int) = if (index > 0 || off.length > 0) sb.append("\n").append(off) else sb
     when (o) {
       is Map<*, *> -> {
-        o.keys.forEach { key -> sb.append("\n$off ${key as String}: "); dump(o[key] as Any, off + "  ") }
+        o.keys.forEachIndexed { i, key -> newLine(i).append(key).append(": "); dump(o[key] as Any, off + "  ") }
       }
       is Collection<*> -> {
-        o.forEachIndexed { i, it -> sb.append(if (i > 0) "\n" else ""); dump(it as Any, off + "  ") }
+        o.forEachIndexed { i, it -> newLine(i); dump(it as Any, off + "  ") }
       }
       is ByteArray -> sb.append(String(o))
       else -> sb.append(o)

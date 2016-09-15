@@ -55,12 +55,11 @@ import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
 import org.intellij.clojure.nrepl.dumpObject
 import org.intellij.clojure.psi.CForm
+import org.intellij.clojure.psi.ClojureElementType
 import org.intellij.clojure.psi.ClojureFile
-import org.intellij.clojure.util.filter
-import org.intellij.clojure.util.notNulls
-import org.intellij.clojure.util.parents
-import org.intellij.clojure.util.toIoFile
+import org.intellij.clojure.util.*
 import java.awt.BorderLayout
+import java.util.*
 import javax.swing.JPanel
 
 /**
@@ -188,32 +187,60 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
     }
   }
 
-  fun sendCommand(text: String) = whenConnected.doWhenDone {
+  fun sendCommand(text: String) = whenConnected.doWhenDone cb@ {
     val trimmed = text.trim()
     consoleView.print("\n" + (consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
     ConsoleViewUtil.printAsFileType(consoleView, trimmed + "\n", ClojureFileType)
     (consoleView as ConsoleViewImpl).requestScrollingToEnd()
-    repl!!.evalAsync(trimmed).whenComplete { eval, e ->
-      if (e != null) {
-        consoleView.print(ExceptionUtil.getThrowableText(e) + "\n", ConsoleViewContentType.ERROR_OUTPUT)
-      }
-      else if (eval != null) {
-        eval["ns"]?.let { consoleView.prompt = "$it=> " }
-        val result = eval["value"]
-        val error = "${eval["ex"]?.let { "$it\n" } ?: ""}${eval["err"] ?: ""}${eval["out"] ?: ""}".nullize()
-        result?.let {
-          consoleView.print(dumpObject(it), ConsoleViewContentType.NORMAL_OUTPUT)
-        }
-        error?.let { msg ->
-          val adjusted = msg.indexOf(", compiling:(").let { if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) }
-          consoleView.print(adjusted, ConsoleViewContentType.ERROR_OUTPUT)
-        }
-        if (result == null && error == null) {
-          consoleView.print(dumpObject(eval), ConsoleViewContentType.NORMAL_OUTPUT)
-        }
-      }
-      consoleView.requestScrollingToEnd()
+    val repl = repl
+    if (repl == null || !repl.valid) {
+      consoleView.print("Not connected\n", ConsoleViewContentType.ERROR_OUTPUT)
     }
+    else if (text.startsWith("/")) {
+      val idx = text.indexOfFirst { Character.isWhitespace(it) }
+      val op = if (idx == -1) text.substring(1) else text.substring(1, idx)
+      if (op.elementOf(setOf("", "help", "?"))) {
+        consoleView.print("operations: " + dumpObject(repl.clientInfo["ops"]), ConsoleViewContentType.ERROR_OUTPUT)
+      }
+      else {
+        val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
+        val map = LinkedHashMap<String, String>().apply {
+          put("op", op)
+          s.traverse().skip(1).partition(2, true).forEach { put(s.api.textOf(it[0]).toString(), s.api.textOf(it[1]).toString()) }
+        }
+        repl.rawAsync(map).whenComplete { result, e ->
+          onCommandCompleted(result, e)
+          consoleView.requestScrollingToEnd()
+        }
+      }
+    }
+    else repl.evalAsync(trimmed).whenComplete { result, e ->
+      onCommandCompleted(result, e)
+    }
+  }
+
+  private fun onCommandCompleted(result: Map<String, Any?>?, e: Throwable?) {
+    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
+    if (e != null) {
+      consoleView.print(ExceptionUtil.getThrowableText(e), ConsoleViewContentType.ERROR_OUTPUT)
+    }
+    else if (result != null) {
+      result["ns"]?.let { consoleView.prompt = "$it=> " }
+      val value = result["value"]
+      val error = "${result["ex"]?.let { "$it\n" } ?: ""}${result["err"] ?: ""}${result["out"] ?: ""}".nullize()
+      value?.let {
+        consoleView.print(dumpObject(it), ConsoleViewContentType.NORMAL_OUTPUT)
+      }
+      error?.let { msg ->
+        val adjusted = msg.indexOf(", compiling:(").let { if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) }
+        if (value != null) consoleView.print("\n", ConsoleViewContentType.NORMAL_OUTPUT)
+        consoleView.print(adjusted, ConsoleViewContentType.ERROR_OUTPUT)
+      }
+      if (value == null && error == null) {
+        consoleView.print(dumpObject(result), ConsoleViewContentType.NORMAL_OUTPUT)
+      }
+    }
+    consoleView.requestScrollingToEnd()
   }
 
   private fun createNRepl(nReplStarted: String): NReplClient {
@@ -221,11 +248,13 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
     val repl = NReplClient(matcher.groupValues[2], StringUtil.parseInt(matcher.groupValues[1], -1))
     try {
       repl.connect()
-      val info = repl.describeSession()
+      val info = repl.clientInfo
       consoleView.prompt = ((info["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
-      consoleView.print("target info:" + dumpObject(info) + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
+      consoleView.print("session description:\n" + dumpObject(info) + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
       repl.evalAsync("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
-          " (clojure.core/map clojure.core/require clojure.main/repl-requires))")
+          " (clojure.core/map clojure.core/require clojure.main/repl-requires))").whenComplete { map, throwable ->
+        onCommandCompleted(null, throwable)
+      }
     }
     catch(e: Exception) {
       consoleView.print(ExceptionUtil.getThrowableText(e) + "\n", ConsoleViewContentType.ERROR_OUTPUT)

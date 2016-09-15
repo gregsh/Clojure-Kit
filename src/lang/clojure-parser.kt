@@ -22,7 +22,6 @@ import com.intellij.lang.parser.GeneratedParserUtilBase
 import com.intellij.lang.parser.GeneratedParserUtilBase.*
 import com.intellij.lexer.FlexAdapter
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Condition
 import com.intellij.psi.FileViewProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.TokenType
@@ -63,7 +62,7 @@ object ClojureTokens {
   @JvmField val PARENS = TokenSet.create(C_PAREN1, C_PAREN2, C_BRACE1, C_BRACE2, C_BRACKET1, C_BRACKET2)
   @JvmField val LIST_ALIKE = TokenSet.create(C_FUN, C_LIST, C_MAP, C_SET, C_VEC)
 
-  @JvmStatic fun wsOrComment(t : IElementType?) = t != null && (WHITESPACES.contains(t) || COMMENTS.contains(t))
+  @JvmStatic fun wsOrComment(t: IElementType?) = t != null && (WHITESPACES.contains(t) || COMMENTS.contains(t))
 }
 
 class ClojureLexer(language: Language) : FlexAdapter(_ClojureLexer(language))
@@ -107,15 +106,15 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
           if (it == ClojureTypes.C_SHARP_QMARK_AT) return CReaderCondImpl(node, true)
         }
       }
-      val forms: JBIterable<out ASTNode> = node.iterate().filter(Condition<ASTNode> {
+      val forms: JBIterable<out ASTNode> = node.iterate().filter {
         val type = it.elementType
         type != ClojureTypes.C_READER_MACRO && type != ClojureTypes.C_METADATA && type is ClojureElementType
-      }).take(3)
+      }.take(3)
       val first = forms.get(0)
       val second = forms.get(1)
       if (first != null && first.elementType == ClojureTypes.C_SYMBOL &&
           first.firstChildNode.elementType.let { it != ClojureTypes.C_DOT && it != ClojureTypes.C_DOTDASH } &&
-          (first.lastChildNode?.treePrev?.elementType ?: null).let { it != ClojureTypes.C_DOTDASH }) {
+          first.lastChildNode?.treePrev?.elementType.let { it != ClojureTypes.C_DOTDASH }) {
         if (second?.elementType == ClojureTypes.C_SYMBOL) {
           val text = first.lastChildNode?.text ?: return@f
           if (text == "ns" || text == "in-ns" || text == "create-ns") return CDefImpl(node)
@@ -126,8 +125,12 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
             return CDefImpl(node)
           }
         }
-        else if (node.treeParent?.run { elementType == C_LIST &&
-            firstChildNode?.treeNext?.lastChildNode?.text?.let { it == "defprotocol" || it == "defrecord"} ?: false} ?: false) {
+        else if (node.treeParent?.run {
+          elementType == C_LIST &&
+              firstChildNode?.treeNext?.lastChildNode?.text?.let {
+                it == "defprotocol" || it == "defrecord"
+              } ?: false
+        } ?: false) {
           return CMDefImpl(node)
         }
       }

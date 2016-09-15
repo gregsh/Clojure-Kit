@@ -102,6 +102,7 @@ object Lein : Tool {
       consumer(GeneralCommandLine(path,
           "update-in", ":dependencies", "conj [org.clojure/tools.nrepl]", "--",
           "update-in", ":plugins", "conj [cider/cider-nrepl]", "--",
+          "update-in", ":middleware", "conj [cider-nrepl.plugin/middleware]", "--",
           "repl", ":headless")
           .withWorkDirectory(workingDir)
           .withCharset(CharsetToolkit.UTF8_CHARSET))
