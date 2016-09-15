@@ -707,7 +707,14 @@ public class _ClojureLexer implements FlexLexer {
 
       if (zzInput == YYEOF && zzStartRead == zzCurrentPos) {
         zzAtEOF = true;
+        switch (zzLexicalState) {
+            case DISPATCH: {
+              yybegin(YYINITIAL); return BAD_CHARACTER;
+            }
+            case 140: break;
+            default:
         return null;
+        }
       }
       else {
         switch (zzAction < 0 ? zzAction : ZZ_ACTION[zzAction]) {

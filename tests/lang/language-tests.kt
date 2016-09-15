@@ -66,6 +66,7 @@ class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
 
 class ClojureHighlightingLexerTest : ClojureLexerTestCase(ClojureHighlightingLexer(ClojureLanguage)) {
   fun testHighlightForm() = doTest("(abc :kwd '(quoted xyz) (some.ns/fn :some.ns/kwd ::user-kwd (.-x (.y z)))")
+  fun testHighlightSingleSharp() = doTest("#")
 }
 
 class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {

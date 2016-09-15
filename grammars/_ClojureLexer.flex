@@ -52,7 +52,7 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   {LINE_COMMENT}         { return ClojureTokens.LINE_COMMENT; }
 
   "#"                    { yybegin(DISPATCH); }
-  
+
   "^"                    { return C_HAT; }
   "~" "@"?               { return C_TILDE; }
   "@"                    { return C_AT; }
@@ -123,6 +123,8 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   "?"                    { yybegin(YYINITIAL); return C_SHARP_QMARK; }  // Conditional
   [\s\w]                 { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP; }
   [^]                    { yybegin(YYINITIAL); yypushback(yylength()); return BAD_CHARACTER; }
+
+  <<EOF>>                { yybegin(YYINITIAL); return BAD_CHARACTER; }
 }
 
 [^] { return BAD_CHARACTER; }
