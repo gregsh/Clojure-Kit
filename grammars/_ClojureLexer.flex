@@ -13,7 +13,6 @@ import static org.intellij.clojure.psi.ClojureTypes.*;
 
 %{
   private Language myLanguage;
-  private boolean myAfterNS;
 
   public _ClojureLexer(Language language) {
     myLanguage = language;
@@ -77,8 +76,8 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   {RATIO}                { return C_RATIO; }
   {CHARACTER}            { return C_CHAR; }
 
-  "::"  /  {SYM_CHAR2}   { yybegin(SYMBOL0); return C_COLONCOLON; }
-  ":"   /  {SYM_CHAR2}   { yybegin(SYMBOL0); return C_COLON; }
+  "::"                   { yybegin(SYMBOL0); return C_COLONCOLON; }
+  ":"                    { yybegin(SYMBOL0); return C_COLON; }
   ".-"  /  {SYM_CHAR}    { yybegin(SYMBOL0); return C_DOTDASH; }
   "."   /  {SYM_CHAR}    { yybegin(SYMBOL0); return C_DOT; }
 
@@ -121,6 +120,7 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   "_"                    { yybegin(YYINITIAL); return C_SHARP_COMMENT; }  // Discard
   "?@"                   { yybegin(YYINITIAL); return C_SHARP_QMARK_AT; }  // Conditional w/ Splicing
   "?"                    { yybegin(YYINITIAL); return C_SHARP_QMARK; }  // Conditional
+  ":"                    { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP_NS; }  // Map ns prefix
   [\s\w]                 { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP; }
   [^]                    { yybegin(YYINITIAL); yypushback(yylength()); return BAD_CHARACTER; }
 

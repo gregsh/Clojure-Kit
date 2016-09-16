@@ -83,6 +83,27 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   };
 
   /* ********************************************************** */
+  // &(coloncolon sym)
+  static boolean alias_condition(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "alias_condition")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _AND_);
+    r = alias_condition_0(b, l + 1);
+    exit_section_(b, l, m, r, false, null);
+    return r;
+  }
+
+  // coloncolon sym
+  private static boolean alias_condition_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "alias_condition_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = consumeTokens(b, 0, C_COLONCOLON, C_SYM);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  /* ********************************************************** */
   // '#' symbol (vec | map)
   public static boolean constructor(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "constructor")) return false;
@@ -215,27 +236,39 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // <<recover>> <<param>>
+  // (not_eof <<recover>>) <<param>>
   static boolean items_entry(PsiBuilder b, int l, Parser _recover, Parser _param) {
     if (!recursion_guard_(b, l, "items_entry")) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_);
-    r = _recover.parse(b, l);
+    r = items_entry_0(b, l + 1, _recover);
     p = r; // pin = 1
     r = r && _param.parse(b, l);
     exit_section_(b, l, m, r, p, form_recover_parser_);
     return r || p;
   }
 
+  // not_eof <<recover>>
+  private static boolean items_entry_0(PsiBuilder b, int l, Parser _recover) {
+    if (!recursion_guard_(b, l, "items_entry_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = not_eof(b, l + 1);
+    r = r && _recover.parse(b, l);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
   /* ********************************************************** */
-  // (colon | coloncolon) symbol_tail
+  // (colon | coloncolon) <<nospace>> symbol_qualified
   public static boolean keyword(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "keyword")) return false;
     if (!nextTokenIs(b, "<keyword>", C_COLON, C_COLONCOLON)) return false;
     boolean r;
-    Marker m = enter_section_(b, l, _COLLAPSE_, C_KEYWORD, "<keyword>");
+    Marker m = enter_section_(b, l, _NONE_, C_KEYWORD, "<keyword>");
     r = keyword_0(b, l + 1);
-    r = r && symbol_tail(b, l + 1);
+    r = r && nospace(b, l + 1);
+    r = r && symbol_qualified(b, l + 1);
     exit_section_(b, l, m, r, false, null);
     return r;
   }
@@ -345,6 +378,74 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
+  // "#:" (colon <<nospace>> symbol_plain
+  //   | alias_condition coloncolon <<nospace>> symbol_plain
+  //   | coloncolon ) &'{'
+  static boolean map_ns_prefix(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "map_ns_prefix")) return false;
+    if (!nextTokenIs(b, C_SHARP_NS)) return false;
+    boolean r, p;
+    Marker m = enter_section_(b, l, _NONE_);
+    r = consumeToken(b, C_SHARP_NS);
+    p = r; // pin = 1
+    r = r && report_error_(b, map_ns_prefix_1(b, l + 1));
+    r = r && map_ns_prefix_2(b, l + 1);
+    exit_section_(b, l, m, r, p, null);
+    return r || p;
+  }
+
+  // colon <<nospace>> symbol_plain
+  //   | alias_condition coloncolon <<nospace>> symbol_plain
+  //   | coloncolon
+  private static boolean map_ns_prefix_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "map_ns_prefix_1")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = map_ns_prefix_1_0(b, l + 1);
+    if (!r) r = map_ns_prefix_1_1(b, l + 1);
+    if (!r) r = consumeToken(b, C_COLONCOLON);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // colon <<nospace>> symbol_plain
+  private static boolean map_ns_prefix_1_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "map_ns_prefix_1_0")) return false;
+    boolean r, p;
+    Marker m = enter_section_(b, l, _NONE_);
+    r = consumeToken(b, C_COLON);
+    p = r; // pin = 1
+    r = r && report_error_(b, nospace(b, l + 1));
+    r = p && symbol_plain(b, l + 1) && r;
+    exit_section_(b, l, m, r, p, null);
+    return r || p;
+  }
+
+  // alias_condition coloncolon <<nospace>> symbol_plain
+  private static boolean map_ns_prefix_1_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "map_ns_prefix_1_1")) return false;
+    boolean r, p;
+    Marker m = enter_section_(b, l, _NONE_);
+    r = alias_condition(b, l + 1);
+    p = r; // pin = 1
+    r = r && report_error_(b, consumeToken(b, C_COLONCOLON));
+    r = p && report_error_(b, nospace(b, l + 1)) && r;
+    r = p && symbol_plain(b, l + 1) && r;
+    exit_section_(b, l, m, r, p, null);
+    return r || p;
+  }
+
+  // &'{'
+  private static boolean map_ns_prefix_2(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "map_ns_prefix_2")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _AND_);
+    r = consumeToken(b, C_BRACE1);
+    exit_section_(b, l, m, r, false, null);
+    return r;
+  }
+
+  /* ********************************************************** */
   // ("^" | "#^") (string | symbol | keyword | map)
   public static boolean metadata(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "metadata")) return false;
@@ -378,6 +479,17 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!r) r = keyword(b, l + 1);
     if (!r) r = map(b, l + 1);
     exit_section_(b, m, null, r);
+    return r;
+  }
+
+  /* ********************************************************** */
+  // !<<eof>>
+  static boolean not_eof(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "not_eof")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _NOT_);
+    r = !eof(b, l + 1);
+    exit_section_(b, l, m, r, false, null);
     return r;
   }
 
@@ -432,7 +544,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond
+  // "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
   public static boolean reader_macro(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "reader_macro")) return false;
     boolean r;
@@ -445,6 +557,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!r) r = consumeToken(b, C_SHARP_QUOTE);
     if (!r) r = consumeToken(b, C_SHARP_EQ);
     if (!r) r = reader_cond(b, l + 1);
+    if (!r) r = map_ns_prefix(b, l + 1);
     exit_section_(b, l, m, r, false, null);
     return r;
   }
@@ -480,26 +593,16 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // !<<eof>> form
+  // not_eof form
   static boolean root_entry(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "root_entry")) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_);
-    r = root_entry_0(b, l + 1);
+    r = not_eof(b, l + 1);
     p = r; // pin = 1
     r = r && form(b, l + 1);
     exit_section_(b, l, m, r, p, root_entry_recover_parser_);
     return r || p;
-  }
-
-  // !<<eof>>
-  private static boolean root_entry_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "root_entry_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b, l, _NOT_);
-    r = !eof(b, l + 1);
-    exit_section_(b, l, m, r, false, null);
-    return r;
   }
 
   /* ********************************************************** */
@@ -563,15 +666,63 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // '/' | symbol_tail
+  // '/' | ('.' | '.-') sym? | symbol_qualified '.'?
   public static boolean symbol(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "symbol")) return false;
     boolean r;
     Marker m = enter_section_(b, l, _COLLAPSE_, C_SYMBOL, "<symbol>");
     r = consumeToken(b, C_SLASH);
-    if (!r) r = symbol_tail(b, l + 1);
+    if (!r) r = symbol_1(b, l + 1);
+    if (!r) r = symbol_2(b, l + 1);
     exit_section_(b, l, m, r, false, null);
     return r;
+  }
+
+  // ('.' | '.-') sym?
+  private static boolean symbol_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_1")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = symbol_1_0(b, l + 1);
+    r = r && symbol_1_1(b, l + 1);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // '.' | '.-'
+  private static boolean symbol_1_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_1_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = consumeToken(b, C_DOT);
+    if (!r) r = consumeToken(b, C_DOTDASH);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // sym?
+  private static boolean symbol_1_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_1_1")) return false;
+    consumeToken(b, C_SYM);
+    return true;
+  }
+
+  // symbol_qualified '.'?
+  private static boolean symbol_2(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_2")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = symbol_qualified(b, l + 1);
+    r = r && symbol_2_1(b, l + 1);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // '.'?
+  private static boolean symbol_2_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_2_1")) return false;
+    consumeToken(b, C_DOT);
+    return true;
   }
 
   /* ********************************************************** */
@@ -588,70 +739,34 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // ('.' | '.-') sym? | sym
+  // sym
   public static boolean symbol_plain(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "symbol_plain")) return false;
-    boolean r;
-    Marker m = enter_section_(b, l, _NONE_, C_SYMBOL, "<symbol plain>");
-    r = symbol_plain_0(b, l + 1);
-    if (!r) r = consumeToken(b, C_SYM);
-    exit_section_(b, l, m, r, false, null);
-    return r;
-  }
-
-  // ('.' | '.-') sym?
-  private static boolean symbol_plain_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_plain_0")) return false;
+    if (!nextTokenIs(b, C_SYM)) return false;
     boolean r;
     Marker m = enter_section_(b);
-    r = symbol_plain_0_0(b, l + 1);
-    r = r && symbol_plain_0_1(b, l + 1);
-    exit_section_(b, m, null, r);
+    r = consumeToken(b, C_SYM);
+    exit_section_(b, m, C_SYMBOL, r);
     return r;
-  }
-
-  // '.' | '.-'
-  private static boolean symbol_plain_0_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_plain_0_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeToken(b, C_DOT);
-    if (!r) r = consumeToken(b, C_DOTDASH);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // sym?
-  private static boolean symbol_plain_0_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_plain_0_1")) return false;
-    consumeToken(b, C_SYM);
-    return true;
   }
 
   /* ********************************************************** */
-  // symbol_plain symbol_nsq? '.'?
-  static boolean symbol_tail(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_tail")) return false;
+  // symbol_plain symbol_nsq?
+  static boolean symbol_qualified(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_qualified")) return false;
+    if (!nextTokenIs(b, C_SYM)) return false;
     boolean r;
     Marker m = enter_section_(b);
     r = symbol_plain(b, l + 1);
-    r = r && symbol_tail_1(b, l + 1);
-    r = r && symbol_tail_2(b, l + 1);
+    r = r && symbol_qualified_1(b, l + 1);
     exit_section_(b, m, null, r);
     return r;
   }
 
   // symbol_nsq?
-  private static boolean symbol_tail_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_tail_1")) return false;
+  private static boolean symbol_qualified_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_qualified_1")) return false;
     symbol_nsq(b, l + 1);
-    return true;
-  }
-
-  // '.'?
-  private static boolean symbol_tail_2(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_tail_2")) return false;
-    consumeToken(b, C_DOT);
     return true;
   }
 

@@ -18,6 +18,8 @@
 package org.intellij.clojure.parser
 
 import com.intellij.lang.*
+import com.intellij.lang.WhitespacesBinders.GREEDY_LEFT_BINDER
+import com.intellij.lang.WhitespacesBinders.GREEDY_RIGHT_BINDER
 import com.intellij.lang.parser.GeneratedParserUtilBase
 import com.intellij.lang.parser.GeneratedParserUtilBase.*
 import com.intellij.lexer.FlexAdapter
@@ -78,8 +80,13 @@ class ClojureParserUtil {
     @JvmStatic fun parseTree(b: PsiBuilder, l: Int, p: Parser) =
         parseAsTree(ErrorState.get(b), b, l, DUMMY_BLOCK, false, p, TRUE_CONDITION)
 
-    @JvmStatic fun nospace(b: PsiBuilder, l: Int) =
-        !ClojureTokens.WHITESPACES.contains(b.rawLookup(0))
+    @JvmStatic fun nospace(b: PsiBuilder, l: Int): Boolean {
+      if (ClojureTokens.WHITESPACES.contains(b.rawLookup(0))) {
+        b.mark().apply { b.tokenType; error("no <whitespace> allowed") }
+            .setCustomEdgeTokenBinders(GREEDY_LEFT_BINDER, GREEDY_RIGHT_BINDER)
+      }
+      return true
+    }
 
     @JvmStatic fun formRecover(b: PsiBuilder, l: Int) =
         b.tokenType == TokenType.BAD_CHARACTER || b.tokenType == ClojureTypes.C_STRING_UNCLOSED

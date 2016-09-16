@@ -7,4 +7,7 @@ import com.intellij.psi.PsiElement;
 
 public interface CReaderMacro extends PsiElement {
 
+  @Nullable
+  CSymbol getSymbol();
+
 }

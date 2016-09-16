@@ -26,4 +26,10 @@ public class CReaderMacroImpl extends ASTWrapperPsiElement implements CReaderMac
     else super.accept(visitor);
   }
 
+  @Override
+  @Nullable
+  public CSymbol getSymbol() {
+    return PsiTreeUtil.getChildOfType(this, CSymbol.class);
+  }
+
 }

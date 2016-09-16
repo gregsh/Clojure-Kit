@@ -49,6 +49,7 @@ public interface ClojureTypes {
   IElementType C_SHARP_COMMENT = new ClojureTokenType("#_");
   IElementType C_SHARP_EQ = new ClojureTokenType("#=");
   IElementType C_SHARP_HAT = new ClojureTokenType("#^");
+  IElementType C_SHARP_NS = new ClojureTokenType("#:");
   IElementType C_SHARP_QMARK = new ClojureTokenType("#?");
   IElementType C_SHARP_QMARK_AT = new ClojureTokenType("#?@");
   IElementType C_SHARP_QUOTE = new ClojureTokenType("#'");

@@ -43,6 +43,7 @@
     sharp_qmark="#?"
     sharp_qmark_at="#?@"
     sharp_eq="#="
+    sharp_ns="#:"
 
     paren1='('
     paren2=')'
@@ -78,8 +79,9 @@
 
 root ::= <<parseTree (root_entry)>>
 //root ::= entry * // for LivePreview
-private root_entry ::= !<<eof>> form {pin=1 recoverWhile=root_entry_recover}
+private root_entry ::= not_eof form {pin=1 recoverWhile=root_entry_recover}
 private root_entry_recover ::= form_recover | ')' | '}' | ']'
+private not_eof ::= !<<eof>>
 
 form ::= form_prefix form_prefix * form_upper | form_inner {
   pin(".*")=1
@@ -101,23 +103,27 @@ set ::= '#' '{' set_body '}'
 vec ::= '[' vec_body ']'
 map ::= '{' map_body '}'
 fun ::= '#' <<nospace>> '(' list_body ')'
-symbol ::= '/' | symbol_tail {
+symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified '.'? {
   methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference] }
-keyword ::= (colon | coloncolon) symbol_tail {
+keyword ::= (colon | coloncolon) <<nospace>> symbol_qualified {
   methods=[getName getNamespace getTextOffset]}
-private symbol_tail ::= symbol_plain symbol_nsq? '.'?
-symbol_plain ::= ('.' | '.-') sym? | sym
+private symbol_qualified ::= symbol_plain symbol_nsq?
+symbol_plain ::=  sym
 left symbol_nsq ::= '/' sym
 literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char {
   methods=[getLiteralType getLiteralText]}
 regexp ::= '#' <<nospace>> string {extends=literal}
 constructor ::= '#' symbol (vec | map)
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
-reader_macro ::= "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond
+reader_macro ::= "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
 private reader_cond ::= ('#?' | '#?@') &'(' {pin(".*")=1}
+private map_ns_prefix ::= "#:" (colon <<nospace>> symbol_plain
+  | alias_condition coloncolon <<nospace>> symbol_plain
+  | coloncolon ) &'{' {pin(".*")=1}
+private alias_condition ::= &(coloncolon sym)
 
-private meta items ::= <<items_entry <<recover>> <<param>>>> * {pin=1 recoverWhile="<<recover>>"}
-private meta items_entry ::= <<recover>> <<param>> {pin=1 recoverWhile=form_recover}
+private meta items ::= <<items_entry <<recover>> <<param>>>> * {recoverWhile="<<recover>>"}
+private meta items_entry ::= (not_eof <<recover>>) <<param>> {pin=1 recoverWhile=form_recover}
 private list_body ::= <<items !')' form>>
 private set_body ::= <<items !'}' form>>
 private vec_body ::= <<items !']' form>>
