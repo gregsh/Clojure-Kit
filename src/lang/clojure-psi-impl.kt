@@ -61,7 +61,7 @@ class ClojureFileImpl(viewProvider: FileViewProvider, language: Language) :
     val publicOnly = language == ClojureLanguage && namespace != placeNs
     val defs = definitions.filter { it.def.namespace == namespace && !(publicOnly && it.def.type == "defn-") }
     defs.forEach { if (!processor.execute(it, state)) return false }
-    if (placeFile !== this) return true;
+    if (placeFile !== this) return true
     if (!processFileImports(imports, processor, state, place)) return false
     return true
   }
@@ -115,10 +115,8 @@ class ClojurePsiImplUtil {
       return o.text.let { it.substring(offset - o.textRange.startOffset, it.length + delta) }
     }
 
-    @JvmStatic fun getName(o: CKeyword): String = o.stub?.name ?: o.symbol.name
-    @JvmStatic fun getNamespace(o: CKeyword): String = o.stub?.namespace ?:
-        o.symbol.qualifier?.name ?: if (o.text.startsWith("::")) NS_USER
-        else (o.containingFile as ClojureFile).namespace
+    @JvmStatic fun getName(o: CKeyword): String = (o as CKeywordBase).def.name
+    @JvmStatic fun getNamespace(o: CKeyword): String = (o as CKeywordBase).def.namespace
     @JvmStatic fun getTextOffset(o: CKeyword): Int = o.symbol.textOffset
     @JvmStatic fun getFirst(o: CLForm): CSymbol? = o.findChild(CForm::class) as? CSymbol
     @JvmStatic fun getLiteralType(o: CLiteral): IElementType? = o.lastChild?.elementType
@@ -126,12 +124,9 @@ class ClojurePsiImplUtil {
   }
 }
 
-data class DefImpl(override val type: String,
-                   override val name: String,
-                   override val namespace: String) : DefInfo
-
-abstract class CStubBase<Stub : StubElement<*>>(stub: Stub?, nodeType: IStubElementType<*, *>, node: ASTNode?) :
-    StubBasedPsiElementBase<Stub>(stub, if (node == null) nodeType else null, node), CForm, ItemPresentation {
+abstract class CStubBase<Stub>(stub: Stub?, nodeType: IStubElementType<*, *>, node: ASTNode?) :
+    StubBasedPsiElementBase<Stub>(stub, if (node == null) nodeType else null, node), CForm, ItemPresentation
+    where Stub : StubElement<*> {
 
   override fun getMetas(): List<CMetadata> = PsiTreeUtil.getChildrenOfTypeAsList(this, CMetadata::class.java)
   override fun getReaderMacros(): List<CReaderMacro> = PsiTreeUtil.getChildrenOfTypeAsList(this, CReaderMacro::class.java)
@@ -166,47 +161,35 @@ open class CDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?
   constructor(stub: CListStub) : this(stub, stub.stubType as CListElementType, null)
   constructor(node: ASTNode) : this(null, node.elementType as CListElementType, node)
 
-  override fun getPresentableText() = "(${def.type} ${def.name})"
+  override fun getPresentableText() = def.run { "($type $namespace/$name)" }
   override fun getIcon(unused: Boolean) = getIconForType(def.type)
 
-  private var myDef: DefInfo? = null
   override val def: DefInfo
-    get() {
-      if (myDef != null) return myDef!!
-      val stub = stub
-      if (stub != null) {
-        return stub
-      }
-      val first = first ?: throw AssertionError(text)
-      val def = calcDef(first)
-      myDef = def
-      return def
-    }
+    get() = myDef ?: stub ?: calcDef().apply { myDef = this }
 
-  internal open fun calcDef(first: CSymbol): DefImpl {
-    val type = first.name
+  override fun subtreeChanged() = super.subtreeChanged().run { myDef = null }
+  private var myDef: DefInfo? = null
+
+  internal open fun calcDef(): DefInfo {
+    val type = first?.name ?: throw AssertionError(text)
     val second = nameSymbol
     val name = if (second is CSymbol) second.name else ""
-    val namespace = (second as? CSymbol)?.qualifier?.name ?:
-        (containingFile as ClojureFile).namespace
-
-    return DefImpl(type, name, namespace)
+    val namespace = (second as? CSymbol)?.qualifier?.name
+    return object : DefInfo {
+      override val type: String get() = type
+      override val name: String get() = name
+      override val namespace: String get() = namespace ?: (containingFile as ClojureFile).namespace
+    }
   }
 
   override val nameSymbol: CSymbol? get() = first.findNextSibling(CSymbol::class)
-
-  override fun subtreeChanged() {
-    super.subtreeChanged()
-    myDef = null
-  }
 
   override fun getNameIdentifier() = nameSymbol?.lastChild
   override fun getNavigationElement() = this
 
   override fun getName(): String = def.name
-  override fun setName(newName: String): PsiElement {
+  override fun setName(newName: String) = apply {
     nameIdentifier?.replace(newLeafPsiElement(project, newName))
-    return this
   }
 
   override fun getQualifiedName() = def.namespace + "/" + def.name
@@ -221,7 +204,7 @@ open class CDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?
           return (form as? CLiteral)?.let {
             if (it.literalType == ClojureTypes.C_STRING)
               StringUtil.unquoteString(it.literalText) else it.literalText
-          } ?: null
+          }
         }
         next = i % 2 == 0 && form is CKeyword && form.text == key
       }
@@ -236,8 +219,13 @@ class CMDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?) :
   constructor(stub: CListStub) : this(stub, stub.stubType as CListElementType, null)
   constructor(node: ASTNode) : this(null, node.elementType as CListElementType, node)
 
-  override fun calcDef(first: CSymbol): DefImpl {
-    return DefImpl(ClojureConstants.TYPE_PROTOCOL_METHOD, first.name, (containingFile as ClojureFile).namespace)
+  override fun calcDef(): DefInfo {
+    val name = first?.name ?: throw AssertionError(text)
+    return object: DefInfo {
+      override val type: String get() = ClojureConstants.TYPE_PROTOCOL_METHOD
+      override val name: String get() = name
+      override val namespace: String get() = (containingFile as ClojureFile).namespace
+    }
   }
 
   override val nameSymbol: CSymbol?
@@ -249,7 +237,7 @@ class CReaderCondImpl(node: ASTNode, val splicing: Boolean) : CListImpl(node) {
 }
 
 abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, node: ASTNode?) :
-    CStubBase<CKeywordStub>(stub, nodeType, node), CKeyword, PsiNameIdentifierOwner {
+    CStubBase<CKeywordStub>(stub, nodeType, node), CKeyword, CNamed {
   constructor(stub: CKeywordStub) : this(stub, stub.stubType as CKeywordElementType, null)
   constructor(node: ASTNode) : this(null, node.elementType as CKeywordElementType, node)
 
@@ -259,7 +247,28 @@ abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, 
     return this
   }
 
-  override fun getPresentableText() = ":$name"
+  override fun getPresentableText() = ":$namespace/$name"
+  override fun getQualifiedName() = def.namespace + "/" + def.name
+  override val nameSymbol: CSymbol? get() = symbol
+
+  override val def: DefInfo
+    get() = myDef ?: stub ?: calcDef().apply { myDef = this }
+
+  override fun subtreeChanged() = super.subtreeChanged().run { myDef = null }
+  private var myDef: DefInfo? = null
+
+  internal open fun calcDef(): DefInfo {
+    val name = symbol.name
+    val ns: () -> String = symbol.qualifier?.name?.let { { it } } ?:
+        if (text.startsWith("::")) {{ (containingFile as ClojureFile).namespace }} else
+        {{ (parent as? CMap)?.resolveNsPrefix() ?: "_"}}
+    return object : DefInfo {
+      override val type: String get() = "keyword"
+      override val name: String get() = name
+      override val namespace: String get() = ns()
+    }
+  }
+
 }
 
 fun newLeafPsiElement(project: Project, s: String) : PsiElement =

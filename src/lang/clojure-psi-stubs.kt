@@ -34,7 +34,7 @@ import org.intellij.clojure.psi.impl.CMDefImpl
 /**
  * @author gregsh
  */
-private val VERSION: Int = 3
+private val VERSION: Int = 4
 private val NS_VERSION: Int = 1
 private val DEF_VERSION: Int = 1
 private val KEYWORD_VERSION: Int = 1
@@ -58,8 +58,10 @@ class ClojureKeywordIndex : StringStubIndexExtension<CKeyword>() {
   override fun getVersion() = KEYWORD_VERSION
 }
 
-class CKeywordStub(val name: String, val namespace: String, stub: StubElement<*>?) :
-    StubBase<CKeyword>(stub, ClojureTypes.C_KEYWORD as IStubElementType<out StubElement<*>, *>)
+class CKeywordStub(override val name: String, override val namespace: String, stub: StubElement<*>?) :
+    StubBase<CKeyword>(stub, ClojureTypes.C_KEYWORD as IStubElementType<out StubElement<*>, *>), DefInfo {
+  override val type = "keyword"
+}
 
 class CListStub(override val type: String,
                 override val name: String,

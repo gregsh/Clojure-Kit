@@ -44,14 +44,16 @@ interface ClojureFile : PsiFile {
   val imports: JBIterable<CList>
 }
 
-interface CDef : CList, PsiNameIdentifierOwner, PsiQualifiedNamedElement {
-  val def : DefInfo
-  val nameSymbol : CSymbol?
+interface CNamed : CForm, PsiNameIdentifierOwner, PsiQualifiedNamedElement {
+  val def: DefInfo
+  val nameSymbol: CSymbol?
 
   fun meta(key: String): String? = null
 
   override fun getName(): String
 }
+
+interface CDef : CList, CNamed { }
 
 interface DefInfo {
   val type: String

@@ -51,6 +51,7 @@ import java.util.HashMap
 import java.util.concurrent.ConcurrentMap
 
 val RENAMED_KEY: Key<String> = Key.create("RENAMED_KEY")
+val ALIAS_KEY: Key<String> = Key.create("ALIAS_KEY")
 
 class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRight(-o.textRange.startOffset)) :
     PsiPolyVariantReferenceBase<CSymbol>(o, r), PsiQualifiedReference {
@@ -265,6 +266,14 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         return processor.execute(NULL_FORM, state)
       }
     }
+    if (element.parent.let { it is CReaderMacro && it.firstChild.elementType == ClojureTypes.C_SHARP_NS}) {
+      return when (element.prevSibling.elementType) {
+        ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
+        ClojureTypes.C_COLONCOLON -> containingFile.processFileImports(
+            containingFile.imports, processor, state.put(ALIAS_KEY, element.name), element)
+        else -> true
+      }
+    }
 
     // regular qualified resolve
     if (qualifier != null) {
@@ -472,6 +481,7 @@ fun findBindingsVec(o: CLForm, mode: String): CVec? {
 fun destruct(o: CForm?) = DESTRUCTURING.withRoot(o).traverse()
 
 fun ClojureFile.processNamespace(namespace: String, forced: Boolean, state: ResolveState, processor: PsiScopeProcessor): Boolean {
+  if (state.get(ALIAS_KEY) != null) return true
   StubIndex.getElements(NS_INDEX_KEY, namespace, project,
       ClojureDefinitionService.getClojureSearchScope(project), ClojureFile::class.java).forEach {
     val enabled = forced || it != this
@@ -498,6 +508,15 @@ fun ClojureFile.processSpecialForms(refText: String?, place: PsiElement, service
   return true
 }
 
+fun CMap.resolveNsPrefix(): String? {
+  val nsMacro = iterate().filter(CReaderMacro::class).filter { it.firstChild.elementType == ClojureTypes.C_SHARP_NS }.first() ?: return null
+  return when (nsMacro.firstChild.nextSibling.elementType) {
+    ClojureTypes.C_COLON -> nsMacro.symbol?.name
+    ClojureTypes.C_COLONCOLON -> (nsMacro.symbol?.reference?.resolve() as? PsiNamedElement)?.name ?: (containingFile as ClojureFile).namespace
+    else -> throw AssertionError(nsMacro.text)
+  }
+}
+
 fun processBindings(o: CLForm, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
   val bindings = findBindingsVec(o, mode) ?: return true
   val roots = when (mode) {
@@ -520,7 +539,10 @@ fun processBindings(o: CLForm, mode: String, state: ResolveState, processor: Psi
   return true
 }
 
-internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>, processor: PsiScopeProcessor, state: ResolveState, place: PsiElement): Boolean {
+internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
+                                                processor: PsiScopeProcessor,
+                                                state: ResolveState,
+                                                place: PsiElement): Boolean {
   val service = ClojureDefinitionService.getInstance(project)
   val startOffset = place.textRange.startOffset
   val isCljs = language == ClojureScriptLanguage

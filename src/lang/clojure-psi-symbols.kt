@@ -124,7 +124,7 @@ class ClojureDefinitionService(val project: Project) {
     return o.findParent(CFun::class)!!.map[SymKey(o.name, "", "argument")]!!.let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
-  internal data class SymKey(val name: String, val namespace: String, val type: String)
+  internal data class SymKey(override val name: String, override val namespace: String, override val type: String) : DefInfo
 
   private fun createPomMap(): Map<SymKey, PsiElement> {
 

@@ -106,10 +106,10 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
 
   override fun generateDoc(element: PsiElement?, originalElement: PsiElement?): String? {
     val def = ((element as? PomTargetPsiElement)?.navigationElement ?: element)
-        as? CDef ?: return null
+        as? CNamed ?: return null
     val nameSymbol = def.nameSymbol ?: return null
     val sb = StringBuilder("<html>")
-    sb.append("<b>(${def.def.type}</b> ${def.def.namespace}/${def.def.name} <b>…)</b>").append("<br>")
+    sb.append("<b>(${def.def.type}</b> ${def.def.namespace}/${def.def.name}<b>${if (def is CLForm) " …" else ""})</b>").append("<br>")
     val docString = if (def.def.type == ClojureConstants.TYPE_PROTOCOL_METHOD) nameSymbol.findNextSibling(CLiteral::class)
     else nameSymbol.findNextSibling(CForm::class) as? CLiteral
     docString?.let {
