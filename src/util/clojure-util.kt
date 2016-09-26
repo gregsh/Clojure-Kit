@@ -42,6 +42,9 @@ import kotlin.reflect.KClass
  * @author gregsh
  */
 
+@Suppress("UNCHECKED_CAST")
+fun <T : Any> Any?.forceCast(): T? = this as? T
+
 fun <E> E.elementOf(c: Collection<E>) = c.contains(this)
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 

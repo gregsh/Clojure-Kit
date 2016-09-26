@@ -49,7 +49,6 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.containers.JBIterable
-import com.intellij.util.text.nullize
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
@@ -227,7 +226,7 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
     else if (result != null) {
       result["ns"]?.let { consoleView.prompt = "$it=> " }
       val value = result["value"]
-      val error = "${result["ex"]?.let { "$it\n" } ?: ""}${result["err"] ?: ""}${result["out"] ?: ""}".nullize()
+      val error = "${result["ex"]?.let { "$it\n" } ?: ""}${result["err"] ?: ""}${result["out"] ?: ""}".run { if (length == 0) null else this }
       value?.let {
         consoleView.print(dumpObject(it), ConsoleViewContentType.NORMAL_OUTPUT)
       }

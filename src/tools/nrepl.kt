@@ -18,7 +18,8 @@
 package org.intellij.clojure.nrepl
 
 import com.intellij.openapi.diagnostic.Logger
-import io.netty.util.concurrent.DefaultThreadFactory
+import com.intellij.util.ConcurrencyUtil
+import org.intellij.clojure.util.forceCast
 import java.io.*
 import java.net.Socket
 import java.net.SocketException
@@ -84,7 +85,7 @@ class NReplClient(val host: String, val port: Int) {
   }
 
   private fun runCallbacks(o: Any): Unit {
-    val m = o as? Map<String, Any?> ?: return
+    val m = o.forceCast<Map<String, Any?>>() ?: return
     val id = m["id"] as? Long ?: return
     val combined = if (m["status"].let { it is List<*> && it.firstOrNull() == "done" }) {
       (partialResponses.remove(id) ?: HashMap()).apply { join(m) }
@@ -108,8 +109,8 @@ class NReplClient(val host: String, val port: Int) {
       val val2 = m[key]
       when {
         val1 == null -> put(key, val2)
-        val1 is ArrayList<*> -> (val1 as ArrayList<Any?>).run { if (val2 is Collection<*>) addAll(val2) else add(val2) }
-        val1 is MutableMap<*, *> && val2 is Map<*, *> -> (val1 as MutableMap<String, Any?>).join(val2 as Map<String, Any?>)
+        val1 is ArrayList<*> -> val1.forceCast<ArrayList<Any?>>()!!.run { if (val2 is Collection<*>) addAll(val2) else add(val2) }
+        val1 is MutableMap<*, *> && val2 is Map<*, *> -> val1.forceCast<MutableMap<String, Any?>>()!!.join(val2.forceCast<Map<String, Any?>>()!!)
         key == "value" -> put(key, ArrayList(listOf(val1, val2)))
         key == "ns" -> put(key, val2)
       }
@@ -158,7 +159,7 @@ val BAD_TRANSPORT = object : Transport() {
 
 class AsyncTransport(private val delegate: Transport, private val responseHandler: (Any) -> Any) : Transport() {
   companion object {
-    private val threadPool = Executors.newCachedThreadPool(DefaultThreadFactory("clojure-kit-nrepl", true))!!
+    private val threadPool = Executors.newCachedThreadPool(ConcurrencyUtil.newNamedThreadFactory("clojure-kit-nrepl", true, Thread.NORM_PRIORITY))!!
   }
 
   val closed = AtomicReference<Throwable>()
