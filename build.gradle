@@ -1,0 +1,75 @@
+buildscript {
+  ext.kotlin_version=kotlinVersion
+  repositories {
+    mavenCentral()
+  }
+  dependencies {
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+  }
+}
+
+plugins {
+  id 'org.jetbrains.intellij' version "0.1.9"
+}
+
+version = "${version}.${buildNumber}"
+defaultTasks 'clean', 'artifacts', 'test'
+
+allprojects {
+  apply plugin: 'java'
+  apply plugin: "kotlin"
+
+  sourceCompatibility = javaVersion
+  targetCompatibility = javaVersion
+
+  sourceSets {
+    main {
+      java.srcDirs 'src', 'gen'
+      kotlin.srcDirs 'src'
+      resources.srcDirs 'resources'
+    }
+    test {
+      kotlin.srcDirs 'tests'
+    }
+  }
+  apply plugin: 'org.jetbrains.intellij'
+  intellij {
+    version ideaVersion
+    type 'IC'
+    plugins 'copyright'
+    updateSinceUntilBuild false
+    downloadSources = false
+  }
+}
+
+repositories {
+  mavenCentral()
+  maven { url "http://clojars.org/repo" }
+}
+dependencies {
+  testRuntime "org.clojure:clojurescript:1.9.229"
+}
+
+test {
+  useJUnit {}
+  include "**/*Test.class"
+  scanForTestClasses false
+  ignoreFailures true
+}
+
+task plugin_jar(type: Jar, dependsOn: [rootProject.tasks['assemble']]) {
+  baseName = 'clojure-kit'
+  destinationDir = file(artifactsPath)
+  manifest { from "$rootDir/resources/META-INF/MANIFEST.MF" }
+  from(rootProject.sourceSets.main.output)
+}
+
+task plugin_zip(type: Zip, dependsOn: [plugin_jar]) {
+  baseName = 'ClojureKit.zip'
+  destinationDir = file(artifactsPath)
+  from(tasks['plugin_jar'].outputs) {
+    into '/ClojureKit/lib'
+  }
+}
+
+task artifacts(dependsOn: [plugin_jar, plugin_zip]) {}

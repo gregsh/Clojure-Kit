@@ -76,7 +76,7 @@ class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
 
   fun testParseClojureLang() = walkAndParse(::walkClojureLang)
-  fun testParseWellKnownLibs() = walkAndParse(::walkKnownLibs)
+//  fun testParseWellKnownLibs() = walkAndParse(::walkKnownLibs)
 }
 
 class ClojureScriptParsingTest : ClojureParsingTestCase(ClojureScriptParserDefinition()) {
@@ -119,7 +119,8 @@ abstract class ClojureParsingTestCase(o : ClojureParserDefinitionBase) : Parsing
     println(stat.run { "${getTestName(false)}\nTotal: $errors errors and ${StringUtil.formatFileSize(nodes)} nodes" +
         " in $files files (${StringUtil.formatFileSize(chars)} chars)" })
     println("Processed in ${StringUtil.formatDuration(stat.duration)}\n")
-    ParsingTestCase.assertTrue(stat.errors == 0.toLong() && stat.nodes > 1000)
+    ParsingTestCase.assertEquals("${stat.errors} errors", 0L, stat.errors)
+    ParsingTestCase.assertTrue("${stat.nodes} nodes", stat.nodes > 1000)
   }
 }
 
