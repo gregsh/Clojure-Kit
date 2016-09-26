@@ -47,7 +47,7 @@ repositories {
   maven { url "http://clojars.org/repo" }
 }
 dependencies {
-  testRuntime "org.clojure:clojurescript:1.9.229"
+  testRuntime "org.clojure:clojurescript:1.8.51"
 }
 
 test {

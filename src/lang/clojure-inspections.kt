@@ -46,6 +46,9 @@ class ClojureInspectionSuppressor : InspectionSuppressor {
 }
 
 class ClojureResolveInspection : LocalInspectionTool() {
+  override fun getDisplayName() = "Unresolved reference"
+  override fun getShortName() = "ClojureResolveInspection"
+
   override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): ClojureVisitor {
     if (Tool.choose(holder.file.name) != null) return ClojureVisitor()
 
