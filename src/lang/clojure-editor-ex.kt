@@ -67,7 +67,7 @@ class ClojureAnnotator : Annotator {
         if (target.key.type != "ns") {
           val nsAttrs = ClojureColors.NS_COLORS[target.key.namespace]
           if (nsAttrs != null) {
-            holder.createInfoAnnotation(element.valueRange(), null).enforcedTextAttributes = nsAttrs
+            holder.createInfoAnnotation(element.valueRange, null).enforcedTextAttributes = nsAttrs
           }
         }
         val attrs = when (target.key.type) {
@@ -77,7 +77,7 @@ class ClojureAnnotator : Annotator {
           else -> null
         }
         if (attrs != null) {
-          holder.createInfoAnnotation(element.valueRange(), null).textAttributes = attrs
+          holder.createInfoAnnotation(element.valueRange, null).textAttributes = attrs
         }
       }
       is CMetadata -> {
@@ -110,8 +110,8 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
     val nameSymbol = def.nameSymbol ?: return null
     val sb = StringBuilder("<html>")
     sb.append("<b>(${def.def.type}</b> ${def.def.namespace}/${def.def.name}<b>${if (def is CLForm) " …" else ""})</b>").append("<br>")
-    val docString = if (def.def.type == ClojureConstants.TYPE_PROTOCOL_METHOD) nameSymbol.findNextSibling(CLiteral::class)
-    else nameSymbol.findNextSibling(CForm::class) as? CLiteral
+    val docString = if (def.def.type == ClojureConstants.TYPE_PROTOCOL_METHOD) nameSymbol.findNext(CLiteral::class)
+    else nameSymbol.findNext(CForm::class) as? CLiteral
     docString?.let {
       if (it.literalType == ClojureTypes.C_STRING) {
         sb.append("<br>").append(StringUtil.unquoteString(it.literalText)).append("<br>")
@@ -124,7 +124,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         else sb.append(StringUtil.unquoteString(form.text))
       }
     }
-    appendMap(docString.findNextSibling(CForm::class))
+    appendMap(docString.findNext(CForm::class))
     for (m in nameSymbol.metas) {
       appendMap(m.form)
     }

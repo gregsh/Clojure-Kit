@@ -128,7 +128,7 @@ class ClojureTypedHandler() : TypedHandlerDelegate() {
 
 private fun slurp(form: CPForm, forward: Boolean): Unit {
   val children = form.iterateForms()
-  val target = (if (forward) form.findNextSibling(CForm::class) else form.findPrevSibling(CForm::class)) ?: return
+  val target = (if (forward) form.findNext(CForm::class) else form.findPrev(CForm::class)) ?: return
   val copy = target.copy()
   target.delete()
   if (forward) form.addAfter(copy, children.last()) else form.addBefore(copy, children.first())
@@ -166,7 +166,7 @@ private fun rise(form: CPForm, editor: Editor) {
           "(${text.subSequence(caret.selectionStart - diff, caret.selectionEnd - diff)})")
     }
     else {
-      val r = form.findElementAt(editor.caretModel.offset - form.textRange.startOffset).parentForm()!!.textRange
+      val r = form.findElementAt(editor.caretModel.offset - form.textRange.startOffset).parentForm!!.textRange
       editor.document.replaceString(r.startOffset + diff, r.endOffset + diff, "(${r.subSequence(text)})")
     }
     diff += 2

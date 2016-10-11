@@ -85,7 +85,7 @@ class ClojureFileImpl(viewProvider: FileViewProvider, language: Language) :
       val definitions = cljTraverser().filter(CDef::class.java).toList()
       val imports = cljTopLevelTraverser().filter(CList::class.java)
           .filter { (it as CList).first?.name?.let { ClojureConstants.NS_ALIKE_SYMBOLS.contains(it)} ?: false }.toList()
-      val namespace = ((imports.firstOrNull() as? CDef)?.first?.findNextSibling(CForm::class) as? CSymbol)?.name ?: NS_USER
+      val namespace = ((imports.firstOrNull() as? CDef)?.first?.findNext(CForm::class) as? CSymbol)?.name ?: NS_USER
       val state = State(namespace, definitions, imports)
       myState = state
       return state
@@ -107,7 +107,7 @@ class ClojurePsiImplUtil {
     @JvmStatic fun getReference(o: CSymbol): PsiQualifiedReference = CSymbolReference(o)
     @JvmStatic fun getName(o: CSymbol): String = o.lastChild.text
     @JvmStatic fun getTextOffset(o: CSymbol): Int = o.lastChild.textRange.startOffset
-    @JvmStatic fun getQualifier(o: CSymbol): CSymbol? = o.lastChild.findPrevSibling(CSymbol::class)
+    @JvmStatic fun getQualifier(o: CSymbol): CSymbol? = o.lastChild.findPrev(CSymbol::class)
 
     @JvmStatic fun getQualifiedName(o: CSymbol): String {
       val offset = o.qualifier?.textRange?.startOffset ?: o.findChild(ClojureToken::class)!!.textRange.startOffset
@@ -182,7 +182,7 @@ open class CDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?
     }
   }
 
-  override val nameSymbol: CSymbol? get() = first.findNextSibling(CSymbol::class)
+  override val nameSymbol: CSymbol? get() = first.findNext(CSymbol::class)
 
   override fun getNameIdentifier() = nameSymbol?.lastChild
   override fun getNavigationElement() = this

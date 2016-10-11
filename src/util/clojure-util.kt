@@ -48,19 +48,21 @@ fun <T : Any> Any?.forceCast(): T? = this as? T
 fun <E> E.elementOf(c: Collection<E>) = c.contains(this)
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 
-val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
 fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getStubOrPsiParentOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findChild(c: KClass<T>) = PsiTreeUtil.getChildOfType(this, c.java)
-fun <T : PsiElement> PsiElement?.findNextSibling(c: KClass<T>) = PsiTreeUtil.getNextSiblingOfType(this, c.java)
-fun <T : PsiElement> PsiElement?.findPrevSibling(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
-fun PsiElement?.nextForm() = findNextSibling(CForm::class)
-fun PsiElement?.prevForm() = findPrevSibling(CForm::class)
-fun PsiElement?.parentForm() = findParent(CForm::class).let { if (it?.parent is CKeyword) it?.parent else it }
+fun <T : PsiElement> PsiElement?.findNext(c: KClass<T>) = PsiTreeUtil.getNextSiblingOfType(this, c.java)
+fun <T : PsiElement> PsiElement?.findPrev(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
+
+val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
+val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
+val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
+val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
+val PsiElement?.parentForm: PsiElement? get() = findParent(CForm::class).let { if (it?.parent is CKeyword) it?.parent else it }
 
 fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi?: null
-fun PsiElement?.findNextSibling(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi ?: null
-fun PsiElement?.findPrevSibling(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi ?: null
+fun PsiElement?.findNext(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi ?: null
+fun PsiElement?.findPrev(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi ?: null
 
 fun VirtualFile.toIoFile() = VfsUtil.virtualToIoFile(this)
 
@@ -74,7 +76,8 @@ fun ASTNode?.iterate(): JBIterable<ASTNode> =
 fun PsiElement?.iterate(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
 
-fun PsiElement?.iterateForms(): JBIterable<CForm> = iterate().filter(CForm::class)
+fun <T: Any> PsiElement?.iterate(c: KClass<T>): JBIterable<T> = iterate().filter(c)
+fun PsiElement?.iterateForms(): JBIterable<CForm> = iterate(CForm::class)
 
 fun PsiElement?.iterateRCAware(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverserRCAware().expandAndSkip(Conditions.equalTo(this)).traverse()
@@ -117,10 +120,9 @@ fun ASTNode?.cljTraverser(): SyntaxTraverser<ASTNode> = org.intellij.clojure.uti
 
 fun PsiElement?.listOrVec(): CPForm? = this as? CList ?: this as? CVec
 
-fun CForm.valueRange(): TextRange = firstChild
-    .siblings()
-    .skipWhile { it is CReaderMacro || it is CMetadata || (it !is ClojureToken && it !is CForm) }
-    .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset)} ?: textRange
+val PsiElement.valueRange: TextRange get() = firstChild.siblings()
+      .skipWhile { it is CReaderMacro || it is CMetadata || (it !is ClojureToken && it !is CForm) }
+      .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset) } ?: textRange
 
 fun <T> JBIterable<T>.sort(comparator: Comparator<T>? = null) = JBIterable.from(addAllTo(TreeSet<T>(comparator)))
 

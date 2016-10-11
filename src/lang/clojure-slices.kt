@@ -39,7 +39,7 @@ class ClojureSliceSupportProvider : SliceLanguageSupportProvider {
   override fun createRootUsage(element: PsiElement, params: SliceAnalysisParams) = ClojureSliceUsage(element, params)
 
   override fun getExpressionAtCaret(atCaret: PsiElement, dataFlowToThis: Boolean) =
-      (atCaret.parentForm() as? CSForm)?.let {
+      (atCaret.parentForm as? CSForm)?.let {
         when (it) {
           is CSymbol -> it.let { sym -> (sym.reference.resolve() as? PomTargetPsiElement)?.let {
             if ((it.target as? CTarget)?.key?.type?.let { it == "let-binding" || it == "argument"} ?: false) it
@@ -93,7 +93,7 @@ class ClojureSliceUsage : SliceUsage {
       }
     }
     else {
-      val list = element.parents().filter(CList::class).filter { it.iterate().filter(CReaderMacro::class).isEmpty }.first() ?: return
+      val list = element.parents().filter(CList::class).filter { it.iterate(CReaderMacro::class).isEmpty }.first() ?: return
       val type = listType(list) ?: return
       when {
         type == "let" && findBindingsVec(list, "let").isAncestorOf(element) -> {
@@ -108,7 +108,7 @@ class ClojureSliceUsage : SliceUsage {
           if (argIndex < 0) return
           val argCount = list.iterateForms().size() - 1
           for (prototype in prototypes(def)) {
-            val vec = prototype.iterate().filter(CVec::class).first() ?: continue
+            val vec = prototype.iterate(CVec::class).first() ?: continue
             val partition = vec.iterateForms().partition(JBIterable.SeparatorOption.SKIP, { (it is CSymbol) && it.text == "&" })
             val sizes = partition.transform { it.size() }.toList()
             val arg = when {
@@ -131,14 +131,14 @@ class ClojureSliceUsage : SliceUsage {
       uniqueProcessor.process(ClojureSliceUsage(element, this))
       return
     }
-    val list = element.parents().filter(CList::class).filter { it.iterate().filter(CReaderMacro::class).isEmpty }.transform {
+    val list = element.parents().filter(CList::class).filter { it.iterate(CReaderMacro::class).isEmpty }.transform {
       if (it.parent is CDef && it.iterateForms().first() is CVec) it.parent as CDef else it
     }.first() ?: return
     val type = listType(list) ?: return
     when {
       type == "let" && findBindingsVec(list, "let").isAncestorOf(element) -> {
         val bindings = findBindingsVec(list, "let")
-        bindings.iterateForms().find { it.isAncestorOf(element) }.nextForm()?.let {
+        bindings.iterateForms().find { it.isAncestorOf(element) }.nextForm?.let {
           uniqueProcessor.process(ClojureSliceUsage(it, this))
         }
       }
@@ -151,7 +151,7 @@ class ClojureSliceUsage : SliceUsage {
         val sizes = partition.transform { it.size() }.toList()
         val otherSizes = BitSet()
         for (prototype in prototypes(def).filter { it != vec.parent }) {
-          val vec1 = prototype.iterate().filter(CVec::class).first() ?: continue
+          val vec1 = prototype.iterate(CVec::class).first() ?: continue
           val partition1 = vec1.iterateForms().partition(JBIterable.SeparatorOption.SKIP, { (it is CSymbol) && it.text == "&" })
           otherSizes.set(partition1[0]?.size() ?: continue)
         }
