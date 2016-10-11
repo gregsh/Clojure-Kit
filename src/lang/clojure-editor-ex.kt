@@ -51,9 +51,18 @@ import org.intellij.clojure.util.*
 class ClojureAnnotator : Annotator {
 
   override fun annotate(element: PsiElement, holder: AnnotationHolder) {
+    val callable = element is CSForm && element.parentForm.let {
+      it is CList && it.firstForm == element && it.iterate(CReaderMacro::class).isEmpty
+    }
+    if (callable) {
+      holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
+    }
     when (element) {
       is CKeyword -> {
-        holder.createInfoAnnotation(element.lastChild.textRange, null).textAttributes = ClojureColors.KEYWORD
+        if (callable) {
+          holder.createInfoAnnotation(element.lastChild, null).textAttributes = ClojureColors.CALLABLE
+        }
+        holder.createInfoAnnotation(element.lastChild, null).textAttributes = ClojureColors.KEYWORD
       }
       is CSymbol -> {
         val resolve = element.reference.resolve()
@@ -83,10 +92,6 @@ class ClojureAnnotator : Annotator {
       is CMetadata -> {
         holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.METADATA
       }
-//      is CReaderMacro -> {
-//        val targetForm = element.parent as? CForm
-//        holder.createInfoAnnotation(targetForm, null).textAttributes = ClojureColors.READER_MACRO
-//      }
     }
   }
 }
