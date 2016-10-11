@@ -57,9 +57,8 @@ object ClojureTokens {
   @JvmField val COMMENTS = TokenSet.create(LINE_COMMENT)
   @JvmField val STRINGS = TokenSet.create(C_STRING, C_STRING_UNCLOSED)
 
-  @JvmField val SYNTACTIC = TokenSet.create(C_AT, C_COLON, C_COLONCOLON, C_HAT,
-      C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_QUOTE,
-      C_SYNTAX_QUOTE, C_TILDE)
+  @JvmField val SHARPS = TokenSet.create(C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_QUOTE)
+  @JvmField val MACROS = TokenSet.orSet(SHARPS, TokenSet.create(C_AT, C_COLON, C_COLONCOLON, C_HAT, C_SYNTAX_QUOTE, C_TILDE))
 
   @JvmField val PARENS = TokenSet.create(C_PAREN1, C_PAREN2, C_BRACE1, C_BRACE2, C_BRACKET1, C_BRACKET2)
   @JvmField val LIST_ALIKE = TokenSet.create(C_FUN, C_LIST, C_MAP, C_SET, C_VEC)
@@ -148,7 +147,7 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
   override fun spaceExistanceTypeBetweenTokens(left: ASTNode, right: ASTNode): ParserDefinition.SpaceRequirements {
     val lt = left.elementType
     val rt = right.elementType
-    if (ClojureTokens.SYNTACTIC.contains(lt) || rt == ClojureTypes.C_COMMA) {
+    if (rt == ClojureTypes.C_COMMA || ClojureTokens.MACROS.contains(lt)) {
       return ParserDefinition.SpaceRequirements.MUST_NOT
     }
     if (lt == ClojureTypes.C_DOT || lt == ClojureTypes.C_DOTDASH ||

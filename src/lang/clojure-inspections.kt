@@ -25,7 +25,11 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CReaderCondImpl
+import org.intellij.clojure.psi.impl.ClojureDefinitionService
+import org.intellij.clojure.psi.impl.matches
+import org.intellij.clojure.psi.impl.resolveInfo
 import org.intellij.clojure.tools.Tool
+import org.intellij.clojure.util.findChild
 import org.intellij.clojure.util.parents
 
 /**
@@ -72,10 +76,12 @@ class ClojureResolveInspection : LocalInspectionTool() {
         if (resolve != null) return
         if (qualifier == null && !isCljS && ClojureConstants.TYPE_META_ALIASES.contains(o.name)) return
         if (qualifier == null && isCljS && ClojureConstants.CLJS_TYPES.contains(o.name)) return
-        val quotesAndComments = o.parents().filter {
-          it is CMetadata || (it as? CForm)?.firstChild is CReaderMacro || (it as? CList)?.first?.name == "comment"
-        }
-        if (!quotesAndComments.isEmpty) return
+        if (o.parent is CSymbol && o.parent.parent is CKeyword) return
+        val quotesAndComments = o.parents().filter { it is CMetadata
+            || it is CForm && it !is CReaderCondImpl && it.findChild(CReaderMacro::class) != null
+            || it is CList && it.first.resolveInfo().matches(ClojureDefinitionService.COMMENT_SYM)
+        }.first()
+        if (quotesAndComments != null) return
         holder.registerProblem(reference, "unable to resolve '${reference.referenceName}'", ProblemHighlightType.GENERIC_ERROR_OR_WARNING)
       }
     }

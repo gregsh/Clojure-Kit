@@ -42,6 +42,8 @@ import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.lang.ClojureColors
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CTarget
+import org.intellij.clojure.psi.impl.ClojureDefinitionService
+import org.intellij.clojure.psi.impl.matches
 import org.intellij.clojure.psi.impl.prototypes
 import org.intellij.clojure.util.*
 
@@ -88,10 +90,16 @@ class ClojureAnnotator : Annotator {
         if (attrs != null) {
           holder.createInfoAnnotation(element.valueRange, null).textAttributes = attrs
         }
+        if (callable && target.key.matches(ClojureDefinitionService.COMMENT_SYM)) {
+          holder.createInfoAnnotation(element.parentForm!!, null).textAttributes = ClojureColors.FORM_COMMENT
+        }
       }
       is CMetadata -> {
         holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.METADATA
       }
+    }
+    if (element is CForm && element.iterate(CReaderMacro::class).find { it.firstChild.elementType == ClojureTypes.C_SHARP_COMMENT } != null) {
+      holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
     }
   }
 }

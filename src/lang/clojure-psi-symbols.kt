@@ -26,6 +26,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.pom.Navigatable
 import com.intellij.pom.PomRenameableTarget
 import com.intellij.pom.PomTarget
+import com.intellij.pom.PomTargetPsiElement
 import com.intellij.pom.references.PomService
 import com.intellij.psi.PsiAnchor
 import com.intellij.psi.PsiElement
@@ -42,13 +43,14 @@ import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
 import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
 import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
+import org.intellij.clojure.util.elementOf
 import org.intellij.clojure.util.findParent
 
 /**
  * @author gregsh
  */
 private val SOURCE_KEY: Key<PsiAnchor> = Key.create("C_SOURCE_KEY")
-private val POM_MAP_KEY: Key<Map<ClojureDefinitionService.SymKey, PsiElement>> = Key.create("C_POM_MAP_KEY")
+private val POM_MAP_KEY: Key<Map<SymKey, PsiElement>> = Key.create("C_POM_MAP_KEY")
 
 private object NULL_TARGET : PomTarget {
   override fun canNavigate() = false
@@ -57,14 +59,22 @@ private object NULL_TARGET : PomTarget {
   override fun isValid() = true
 }
 
+data class SymKey(override val name: String, override val namespace: String, override val type: String) : DefInfo
+
+fun DefInfo?.matches(info: DefInfo?) = this != null && info != null && name == info.name &&
+    (type == info.type && namespace == info.namespace ||
+        namespace.elementOf(ClojureConstants.CORE_NAMESPACES) &&
+            info.namespace.elementOf(ClojureConstants.CORE_NAMESPACES))
+
+fun CSymbol?.resolveInfo(): DefInfo? = ((this?.reference?.resolve() as? PomTargetPsiElement)?.target as? CTarget)?.key
+
 class ClojureDefinitionService(val project: Project) {
   companion object {
-    @JvmStatic fun getInstance(project: Project) =
-        ServiceManager.getService(project, ClojureDefinitionService::class.java)!!
+    @JvmStatic fun getInstance(project: Project) = ServiceManager.getService(project, ClojureDefinitionService::class.java)!!
 
-    @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope {
-      return EverythingGlobalScope()
-    }
+    @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope = EverythingGlobalScope(project)
+
+    @JvmStatic val COMMENT_SYM = SymKey("comment", ClojureConstants.CLOJURE_CORE, "defmacro")
   }
 
   val java = JavaHelper.getJavaHelper(project)
@@ -124,8 +134,6 @@ class ClojureDefinitionService(val project: Project) {
     return o.findParent(CFun::class)!!.map[SymKey(o.name, "", "argument")]!!.let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
-  internal data class SymKey(override val name: String, override val namespace: String, override val type: String) : DefInfo
-
   private fun createPomMap(): Map<SymKey, PsiElement> {
 
     return object : FactoryMap<SymKey, PsiElement>() {
@@ -144,6 +152,7 @@ class ClojureDefinitionService(val project: Project) {
   }
 
 }
+
 internal class CTargetPresentation : PresentationProvider<CTarget>() {
   override fun getName(t: CTarget?) = t?.key?.name
   override fun getTypeName(t: CTarget?) = t?.key?.type
@@ -152,7 +161,9 @@ internal class CTargetPresentation : PresentationProvider<CTarget>() {
 }
 
 @Presentation(provider=CTargetPresentation::class)
-internal class CTarget(val project: Project, val map: Map<ClojureDefinitionService.SymKey, PsiElement>, val key: ClojureDefinitionService.SymKey) : PsiTarget, PomRenameableTarget<Any> {
+internal class CTarget(val project: Project,
+                       val map: Map<SymKey, PsiElement>,
+                       val key: SymKey) : PsiTarget, PomRenameableTarget<Any> {
   override fun canNavigate() = true
   override fun canNavigateToSource() = true
   override fun isValid() = true

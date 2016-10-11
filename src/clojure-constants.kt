@@ -37,6 +37,7 @@ object ClojureConstants {
 
   @JvmStatic val CLOJURE_CORE = "clojure.core"
   @JvmStatic val CLJS_CORE = "cljs.core"
+  @JvmStatic val CORE_NAMESPACES = hashSetOf(CLOJURE_CORE, CLJS_CORE)
 
   @JvmStatic val SPECIAL_FORMS = "\\s+".toRegex().split("""
     def if do quote var
