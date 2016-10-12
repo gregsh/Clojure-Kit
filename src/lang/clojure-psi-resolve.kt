@@ -569,6 +569,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
   val defaultNS = if (isCljs) ClojureConstants.CLJS_CORE else ClojureConstants.CLOJURE_CORE
   var importDefaultNS = true /* && defaultNS != namespace*/
   val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
+  val isKeywordNS = isQualifier && place.parent?.parent is CKeyword
   val traverser = lazy(LazyThreadSafetyMode.NONE) { cljTraverserRCAware().expand {
     ((it as? CList)?.findChild(CForm::class) as? CSForm)?.let {
       val name = if (it is CSymbol) it.name else if (it is CKeyword) it.name else ""
@@ -676,7 +677,10 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
           if (!processor.execute(service.getAlias(alias, namespace, o as CSymbol), state)) return false
         }
         "import" -> {
-          if (o is CSymbol) {
+          if (isKeywordNS) {
+            // do nothing
+          }
+          else if (o is CSymbol) {
             val target = if (isCljs) service.getDefinition(StringUtil.getShortName(o.name), StringUtil.getPackageName(o.name), JS_OBJ)
             else service.java.findClass(o.name)
             target?.let { if (!processor.execute(it, state)) return false }
