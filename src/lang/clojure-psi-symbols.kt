@@ -126,12 +126,18 @@ class ClojureDefinitionService(val project: Project) {
         it is CDef || it.first == null
       } ?: false) "argument" else "let-binding")]
     }
-    else map[SymKey(o.name, "", "symbol")])!!
+    else map[SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")])!!
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
   fun getFnParam(o: CSymbol): PsiElement {
-    return o.findParent(CFun::class)!!.map[SymKey(o.name, "", "argument")]!!.let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
+    return o.findParent(CFun::class)!!.map[SymKey(o.name, "", "argument")]!!
+        .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
+  }
+
+  fun getLocalBinding(o: CSymbol, parent: CForm): PsiElement {
+    return parent.map[SymKey(o.name, "", "let-binding")]!!
+        .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
   private fun createPomMap(): Map<SymKey, PsiElement> {

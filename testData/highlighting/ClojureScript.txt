@@ -1,11 +1,24 @@
-/cljs/analyzer.cljc                      0 errors, 7 warnings
+/cljs/analyzer.cljc                      0 errors, 20 warnings
+      1981: unable to resolve 'cljs.tagged_literals'
+      2002: unable to resolve 'JSValue'
       16740: unable to resolve 'vm'
       16803: unable to resolve 'vm'
       16843: unable to resolve 'vm'
-      89604: unable to resolve 'find-macros-ns'
-      89733: unable to resolve 'find-macros-ns'
+      17273: unable to resolve 'load-file'
+      98158: unable to resolve 'JSValue'
       100490: unable to resolve '*alias-map*'
       100513: unable to resolve '*alias-map*'
+      101438: unable to resolve 'indexing-push-back-reader'
+      101751: unable to resolve '*data-readers*'
+      101823: unable to resolve '*alias-map*'
+      102071: unable to resolve 'resolve-symbol'
+      102139: unable to resolve 'read'
+      102778: unable to resolve 'indexing-push-back-reader'
+      103136: unable to resolve '*data-readers*'
+      103208: unable to resolve '*alias-map*'
+      103450: unable to resolve 'read'
+      111681: unable to resolve '*alias-map*'
+      111704: unable to resolve '*alias-map*'
 /cljs/analyzer/api.cljc                  0 errors, 0 warnings
 /cljs/analyzer/macros.clj                0 errors, 0 warnings
 /cljs/analyzer/utils.clj                 0 errors, 0 warnings
@@ -17,17 +30,19 @@
       58620: unable to resolve 'read-str'
       70115: unable to resolve 'getResources'
       86775: unable to resolve 'poll'
-/cljs/compiler.cljc                      0 errors, 0 warnings
+/cljs/compiler.cljc                      0 errors, 4 warnings
+      42107: unable to resolve 'write-str'
+      42154: unable to resolve 'read-str'
+      43267: unable to resolve '*alias-map*'
+      43293: unable to resolve '*alias-map*'
 /cljs/compiler/api.clj                   0 errors, 0 warnings
 /cljs/compiler/macros.clj                0 errors, 0 warnings
-/cljs/core.cljc                          0 errors, 3 warnings
+/cljs/core.cljc                          0 errors, 4 warnings
       59263: unable to resolve 'parts'
       59405: unable to resolve 'parts'
       59559: unable to resolve 'parts'
-/cljs/core.cljs                          0 errors, 24 warnings
-      24188: unable to resolve 'imul'
-      24221: unable to resolve 'imul'
-      24276: unable to resolve 'imul'
+      83541: unable to resolve 'IllegalArgumentException'
+/cljs/core.cljs                          0 errors, 7 warnings
       31371: unable to resolve 'cljs.core.Var'
       72928: unable to resolve 'append'
       86717: unable to resolve 'push'
@@ -35,20 +50,6 @@
       236931: unable to resolve 'res'
       236977: unable to resolve 'res'
       236991: unable to resolve 'i'
-      291963: unable to resolve 'this'
-      291991: unable to resolve 'this'
-      292026: unable to resolve 'this'
-      292059: unable to resolve 'this'
-      292104: unable to resolve 'this'
-      292175: unable to resolve 'this'
-      292224: unable to resolve 'this'
-      292270: unable to resolve 'this'
-      292320: unable to resolve 'this'
-      292374: unable to resolve 'this'
-      292423: unable to resolve 'this'
-      292449: unable to resolve 'this'
-      292715: unable to resolve 'this'
-      292729: unable to resolve 'this'
 /cljs/core/macros.clj                    0 errors, 3 warnings
       1132: unable to resolve 'source-logging-push-back-reader'
       1222: unable to resolve 'read-line'
@@ -195,24 +196,10 @@
 /cljs/test.cljs                          0 errors, 0 warnings
 /cljs/util.cljc                          0 errors, 0 warnings
 /clojure/browser/dom.cljs                0 errors, 0 warnings
-/clojure/browser/event.cljs              0 errors, 3 warnings
-      823: unable to resolve 'EventTarget'
-      1010: unable to resolve 'EventType'
-      1293: unable to resolve 'EventType'
-/clojure/browser/net.cljs                0 errors, 13 warnings
-      1052: unable to resolve 'EventType'
-      1349: unable to resolve 'XhrIo'
-      2045: unable to resolve 'EventType'
-      2320: unable to resolve 'CfgFields'
-      2396: unable to resolve 'XhrIo'
-      2532: unable to resolve 'CrossPageChannel'
-      3836: unable to resolve 'Uri'
-      3914: unable to resolve 'CrossPageChannel'
-      3974: unable to resolve 'CrossPageChannel'
-      4371: unable to resolve 'WebSocket'
+/clojure/browser/event.cljs              0 errors, 0 warnings
+/clojure/browser/net.cljs                0 errors, 2 warnings
       4767: unable to resolve 'toLowerCase'
       4831: unable to resolve 'WebSocket.EventType'
-      5043: unable to resolve 'WebSocket'
 /clojure/browser/repl.cljs               0 errors, 4 warnings
       5232: unable to resolve 'script'
       5259: unable to resolve 'script'
@@ -229,4 +216,4 @@
       5845: unable to resolve 'toString'
 /clojure/walk.cljs                       0 errors, 0 warnings
 /clojure/zip.cljs                        0 errors, 0 warnings
-Total: 178 warnings in 53 files (1.19M chars)
+Total: 165 warnings in 53 files (1.19M chars)

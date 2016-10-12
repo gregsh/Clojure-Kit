@@ -23,6 +23,7 @@ import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.pom.Navigatable
 import com.intellij.pom.PomTargetPsiElement
@@ -34,12 +35,11 @@ import com.intellij.psi.stubs.StubIndex
 import com.intellij.util.ConcurrencyUtil
 import com.intellij.util.containers.*
 import org.intellij.clojure.ClojureConstants
-import org.intellij.clojure.ClojureConstants.CLJS_CORE
 import org.intellij.clojure.ClojureConstants.CLOJURE_CORE
+import org.intellij.clojure.ClojureConstants.JS_OBJ
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.java.JavaHelper
-import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.CKeywordStub
@@ -176,7 +176,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val service = ClojureDefinitionService.getInstance(myElement.project)
     val major = myElement.findParent(CStubBase::class)
     if (major is CKeyword) {
-      return service.getKeyword(major)
+      if (major.symbol == myElement) {
+        return service.getKeyword(major)
+      }
     }
     else if (major is CDef) {
       if (major.nameSymbol == myElement) {
@@ -215,10 +217,14 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           is CKeyword -> if (nsQualifier) null else
             if (refText == it.symbol.name) service.getKeyword(it)
             else null
-          is CSymbol -> if (refText == it.name) service.getSymbol(it) else null
-          is PsiNamedElement -> if (refText == state.get(RENAMED_KEY) || refText == it.name ||
-              it is PsiQualifiedNamedElement && refText == it.qualifiedName) it else null
-//          is PomTargetPsiElement -> if (refText == (it.target as? PomNamedTarget)?.name) it else null
+          is CSymbol -> if (nsQualifier) null else
+            if (refText == it.name) service.getSymbol(it) else null
+          is PsiNamedElement -> {
+            if (refText == state.get(RENAMED_KEY) || refText == it.name ||
+                it is PsiQualifiedNamedElement && refText == it.qualifiedName ||
+                ((it as? PomTargetPsiElement)?.target as? CTarget)?.key?.run { type == JS_OBJ && refText == "$namespace.$name" } ?: false) it
+            else null
+          }
           else -> null
         }
         if (target != null) {
@@ -248,23 +254,25 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
   fun processDeclarations(service: ClojureDefinitionService, refText: String?, state: ResolveState, processor: PsiScopeProcessor): Boolean {
     val element = element
     val qualifier = qualifier
-    val containingFile = element.containingFile.originalFile as ClojureFileImpl
-    val language = containingFile.language
     // constructor reference 'java.lang.String.'
     if (qualifier != null && refText == ".") return processor.execute(NULL_FORM, state)
+    val containingFile = element.containingFile.originalFile as ClojureFileImpl
+    val language = containingFile.placeLanguage(element)
     val isCljs = language == ClojureScriptLanguage
 
     if (element.parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_SLASH) {
       if (!containingFile.processFileImports(containingFile.imports, processor, state, element)) return false
-      if (!isCljs) {
+      val isKeywordNS = element.parent?.parent is CKeyword
+      if (!isCljs && !isKeywordNS) {
         findClass(refText, service)?.let { return processor.execute(it, state) }
       }
-      if ((service.getNamespace(element).navigationElement as? Navigatable)?.canNavigate() ?: false) {
-        if (!processor.execute(service.getNamespace(element), state)) return false
-      }
-      if (isCljs && refText == ClojureConstants.JS_GOOG) {
+      if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.elementOf(it) || refText.prefixedBy(it) }) {
         return processor.execute(NULL_FORM, state)
       }
+      if (isKeywordNS || (service.getNamespace(element).navigationElement as? Navigatable)?.canNavigate() ?: false) {
+        if (!processor.execute(service.getNamespace(element), state)) return false
+      }
+      return true
     }
     if (element.parent.let { it is CReaderMacro && it.firstChild.elementType == ClojureTypes.C_SHARP_NS}) {
       return when (element.prevSibling.elementType) {
@@ -285,7 +293,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           if (target.key.namespace == CLOJURE_CORE && ClojureConstants.SPECIAL_FORMS.contains(refText)) {
             return processor.execute(element, state)
           }
-          if (isCljs && target.key.namespace.startsWith(ClojureConstants.JS_GOOG_DOT)) return processor.execute(NULL_FORM, state)
+          if (isCljs && target.key.namespace.prefixedBy(ClojureConstants.JS_NAMESPACES)) return processor.execute(NULL_FORM, state)
           if (!containingFile.processNamespace(target.key.namespace, true, state, processor)) return false
         }
       }
@@ -433,13 +441,22 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           }
         }
       }
+      else if (isCljs && type == "this-as") {
+        (o.iterateForms()[1] as? CSymbol)?.let {
+          if (!processor.execute(service.getLocalBinding(it, o), state)) return false
+        }
+      }
+
       prevO = o
     }
 
     if (!containingFile.processDeclarations(processor, state, prevO, element)) return false
     if (!containingFile.processNamespace(containingFile.namespace, false, state, processor)) return false
-    if (!containingFile.processSpecialForms(refText, element, service, state, processor)) return false
-    findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
+    if (!processSpecialForms(language, refText, element, service, state, processor)) return false
+    if (!isCljs) findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
+    else if (refText == "js" && myElement.parent is CConstructor || refText == "Object") {
+      return processor.execute(service.getDefinition(refText, "js", JS_OBJ), state)
+    }
     return true
   }
 
@@ -490,12 +507,14 @@ fun ClojureFile.processNamespace(namespace: String, forced: Boolean, state: Reso
   return true
 }
 
-fun ClojureFile.processSpecialForms(refText: String?, place: PsiElement, service: ClojureDefinitionService, state: ResolveState, processor: PsiScopeProcessor): Boolean {
-  val useSpecialForms = true // language != ClojureScriptLanguage
+fun processSpecialForms(language: Language, refText: String?, place: PsiElement, service: ClojureDefinitionService, state: ResolveState, processor: PsiScopeProcessor): Boolean {
+  val isCljs = language == ClojureScriptLanguage
+  val forms = if (isCljs) ClojureConstants.CLJS_SPECIAL_FORMS else ClojureConstants.SPECIAL_FORMS
+  val defaultNS = if (isCljs) ClojureConstants.CLJS_CORE else ClojureConstants.CLOJURE_CORE
   // special unqualified forms
   if (refText != null) {
-    if (useSpecialForms && ClojureConstants.SPECIAL_FORMS.contains(refText)) {
-      return processor.execute(service.getDefinition(refText, CLOJURE_CORE, "defn"), state)
+    if (forms.contains(refText)) {
+      return processor.execute(service.getDefinition(refText, defaultNS, "def"), state)
     }
     // reserved bindings '*ns*' and etc.
     if (refText.startsWith("*") && refText.endsWith("*")) {
@@ -503,7 +522,7 @@ fun ClojureFile.processSpecialForms(refText: String?, place: PsiElement, service
     }
   }
   else {
-    ClojureConstants.SPECIAL_FORMS.forEach { if (!processor.execute(service.getDefinition(it, CLOJURE_CORE, "defn"), state)) return false }
+    forms.forEach { if (!processor.execute(service.getDefinition(it, defaultNS, "def"), state)) return false }
   }
   return true
 }
@@ -545,18 +564,16 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
                                                 place: PsiElement): Boolean {
   val service = ClojureDefinitionService.getInstance(project)
   val startOffset = place.textRange.startOffset
+  val language = placeLanguage(place)
   val isCljs = language == ClojureScriptLanguage
-  val defaultNS = when (language) {
-    is ClojureLanguage -> CLOJURE_CORE
-    is ClojureScriptLanguage -> CLJS_CORE
-    else -> null
-  }
-  var importDefaultNS = defaultNS != null/* && defaultNS != namespace*/
-  val traverser = cljTraverserRCAware().expand {
+  val defaultNS = if (isCljs) ClojureConstants.CLJS_CORE else ClojureConstants.CLOJURE_CORE
+  var importDefaultNS = true /* && defaultNS != namespace*/
+  val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
+  val traverser = lazy(LazyThreadSafetyMode.NONE) { cljTraverserRCAware().expand {
     ((it as? CList)?.findChild(CForm::class) as? CSForm)?.let {
       val name = if (it is CSymbol) it.name else if (it is CKeyword) it.name else ""
       ClojureConstants.NS_ALIKE_SYMBOLS.contains(name) } ?: false
-  }.filter { it is CForm }
+  }.filter { it is CForm } }
 
   fun importInfo(o: CForm, st: String): ImportInfo {
     val iterator = (if (o is CSymbol) o.siblings() else o.iterateRCAware()).filter(CForm::class).iterator()
@@ -618,10 +635,10 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
       }
       if (useFilterNot) {
         if (inRanges) importDefaultNS = false
-        if (!processNamespace(namespace, false, state, processor)) return false
+        if (!isQualifier && !processNamespace(namespace, false, state, processor)) return false
       }
       else if (info.ranges != null) {
-        if (!processNamespace(namespace, false, state, object : PsiScopeProcessor by processor {
+        if (!isQualifier && !processNamespace(namespace, false, state, object : PsiScopeProcessor by processor {
           override fun execute(element: PsiElement, state: ResolveState): Boolean {
             val name = (element as? CDef)?.name ?: return true
             if (info.refer.contains(name)) return processor.execute(element, state)
@@ -634,7 +651,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
       }
       return true
     }
-    val git = traverser.withRoot(import).traverse().skip(1).iterator() as TreeTraversal.TracingIt<PsiElement>
+    val git = traverser.value.withRoot(import).traverse().skip(1).iterator() as TreeTraversal.TracingIt<PsiElement>
     f@ for (o in git) {
       if (inThisImport && o is CPForm && !o.textRange.containsOffset(startOffset)) continue@f
       if (curP != null && git.parent() != curP) st = prevState
@@ -659,21 +676,24 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
           if (!processor.execute(service.getAlias(alias, namespace, o as CSymbol), state)) return false
         }
         "import" -> {
-          if (isCljs) {
-            if (inThisImport && o.isAncestorOf(place)) return processor.execute(NULL_FORM, state)
-          }
-          else if (o is CSymbol) {
-            service.java.findClass(o.name)?.let { if (!processor.execute(it, state)) return false }
+          if (o is CSymbol) {
+            val target = if (isCljs) service.getDefinition(StringUtil.getShortName(o.name), StringUtil.getPackageName(o.name), JS_OBJ)
+            else service.java.findClass(o.name)
+            target?.let { if (!processor.execute(it, state)) return false }
           }
           else if (o is CList || o is CVec) {
             val first = o.findChild(CForm::class) as? CSymbol
             val packageName = first?.name ?: continue@f
             val packageItems = o.iterateRCAware().skipWhile { it != first }.skip(1).filter(CSymbol::class)
             if (inThisImport && first?.textRange?.containsOffset(startOffset) ?: false) {
-              return service.java.findPackage(packageName, packageItems.first()?.name)?.let { processor.execute(it, state) } ?: true
+              val target = packageName.let { if (isCljs) service.getDefinition(it, it, JS_OBJ)
+              else service.java.findPackage(it, packageItems.first()?.name) }
+              return target?.let { processor.execute(it, state) } ?: true
             }
             for (item in packageItems) {
-              service.java.findClass("$packageName.${item.name}")?.let { if (!processor.execute(it, state)) return false }
+              val target = if (isCljs) service.getDefinition(item.name, packageName, JS_OBJ)
+              else service.java.findClass("$packageName.${item.name}")
+              target?.let { if (!processor.execute(it, state)) return false }
             }
           }
         }
@@ -689,7 +709,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
               if (item is CSymbol) {
                 val namespace = "$prefix${item.name}"
                 if (!processor.execute(service.getNamespace(namespace), stateRenamed(prefix, item))) return false
-                if (!processNamespace(namespace, false, state, processor)) return false
+                if (!isQualifier && !processNamespace(namespace, false, state, processor)) return false
               }
               else if (item is CVec) {
                 if (!processVec(item, prefix)) return false
@@ -701,9 +721,17 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
     }
   }
   if (importDefaultNS) {
-    if (!processNamespace(defaultNS!!, false, state, processor)) return false
+    if (!isQualifier && !processNamespace(defaultNS, false, state, processor)) return false
   }
   return true
+}
+
+fun ClojureFileImpl.placeLanguage(place: PsiElement): Language {
+  val lang = language
+  if (lang == ClojureScriptLanguage) return lang
+  if (FileUtilRt.getExtension(name) != ClojureConstants.CLJC) return lang
+  val macroMapKey = place.parents().filter { it.parent is CReaderCondImpl }.first()?.prevForm as? CKeyword
+  return if (macroMapKey?.name == ClojureConstants.CLJS) ClojureScriptLanguage else lang
 }
 
 private val EMPTY_IMPORT = ImportInfo(null, null, emptySet(), emptySet(), emptySet(), emptyMap(), null)

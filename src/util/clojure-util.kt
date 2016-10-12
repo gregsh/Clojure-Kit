@@ -29,7 +29,6 @@ import com.intellij.psi.impl.source.tree.TreeUtil
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.ObjectUtils
-import com.intellij.util.containers.FilteredTraverserBase
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureTokens
@@ -46,6 +45,7 @@ import kotlin.reflect.KClass
 fun <T : Any> Any?.forceCast(): T? = this as? T
 
 fun <E> E.elementOf(c: Collection<E>) = c.contains(this)
+fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
@@ -108,11 +108,9 @@ fun cljLightTraverser(text: CharSequence,
 
 
 fun PsiElement?.cljTraverser(): SyntaxTraverser<PsiElement> = org.intellij.clojure.util.cljTraverser().withRoot(this)
-fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverser().forceDisregard(
-    object : FilteredTraverserBase.EdgeFilter<PsiElement>() {
-      override fun value(t: PsiElement?) = t is CReaderCondImpl ||
-          (edgeSource as? CReaderCondImpl)?.let { it.splicing && t is CPForm }?: false
-    }).forceIgnore { it.parent is CReaderCondImpl && (it !is CForm || it is CKeyword) }
+fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverser().forceDisregard {
+  it is CReaderCondImpl || it is CPForm && (it.parent as? CReaderCondImpl)?.splicing ?: false
+}.forceIgnore { it.parent is CReaderCondImpl && (it !is CForm || it is CKeyword) }
 
 fun PsiElement?.cljTopLevelTraverser(): SyntaxTraverser<PsiElement> = cljTraverser().expand { it !is CForm || it is CReaderCondImpl }
 

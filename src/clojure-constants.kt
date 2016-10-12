@@ -90,12 +90,14 @@ object ClojureConstants {
   @JvmStatic val BOOT_BUILD_BOOT = "build.boot"
 
   // clojurescript-specific
-  @JvmStatic val JS_GOOG = "goog"
-  @JvmStatic val JS_GOOG_DOT = "$JS_GOOG."
+  @JvmStatic val JS_OBJ = "- js -"
+  @JvmStatic val JS_NAMESPACES = hashSetOf("js", "Math", "goog")
 
+  //core.cljs/special-symbol?
   @JvmStatic val CLJS_SPECIAL_FORMS = "\\s+".toRegex().split("""
-    js js* clj->js js->clj
-    ns
+    if def fn* do let* loop* letfn* throw try catch finally
+    recur new set! ns deftype* defrecord* . js* quote var
+
     Infinity -Infinity
     """.trim()).toSet()
 

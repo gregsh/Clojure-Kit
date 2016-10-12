@@ -19,15 +19,11 @@ package org.intellij.clojure.inspections
 
 import com.intellij.codeInspection.*
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.io.FileUtilRt
 import com.intellij.psi.PsiElement
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.CReaderCondImpl
-import org.intellij.clojure.psi.impl.ClojureDefinitionService
-import org.intellij.clojure.psi.impl.matches
-import org.intellij.clojure.psi.impl.resolveInfo
+import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.tools.Tool
 import org.intellij.clojure.util.findChild
 import org.intellij.clojure.util.parents
@@ -56,9 +52,6 @@ class ClojureResolveInspection : LocalInspectionTool() {
   override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): ClojureVisitor {
     if (Tool.choose(holder.file.name) != null) return ClojureVisitor()
 
-    val language = holder.file.language
-    val isCljS = language == ClojureScriptLanguage
-    val isCljC = FileUtilRt.getExtension(holder.file.name) == "cljc"
     return object : ClojureVisitor() {
       override fun visitSymbol(o: CSymbol) {
         val reference = o.reference
@@ -68,10 +61,8 @@ class ClojureResolveInspection : LocalInspectionTool() {
         val qualifier = reference.qualifier?.apply {
           if (this.reference?.resolve() == null) return }
 
-        if ((isCljS || isCljC && !o.parents().filter { it is CReaderCondImpl }.isEmpty)) {
-          val text = o.text
-          if (ClojureConstants.CLJS_SPECIAL_FORMS.contains(text)) return
-        }
+        val language = (holder.file as ClojureFileImpl).placeLanguage(o)
+        val isCljS = language == ClojureScriptLanguage
 
         if (resolve != null) return
         if (qualifier == null && !isCljS && ClojureConstants.TYPE_META_ALIASES.contains(o.name)) return

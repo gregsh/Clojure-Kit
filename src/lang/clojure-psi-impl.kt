@@ -258,9 +258,11 @@ abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, 
   private var myDef: DefInfo? = null
 
   internal open fun calcDef(): DefInfo {
+    val symbol = symbol
     val name = symbol.name
-    val ns: () -> String = symbol.qualifier?.name?.let { { it } } ?:
-        if (text.startsWith("::")) {{ (containingFile as ClojureFile).namespace }} else
+    val isUserNS = symbol.prevSibling.elementType == ClojureTypes.C_COLONCOLON
+    val ns: () -> String = symbol.qualifier?.let {{ it.resolveInfo()?.namespace ?: it.name }} ?:
+        if (isUserNS) {{ (containingFile as ClojureFile).namespace }} else
         {{ (parent as? CMap)?.resolveNsPrefix() ?: "_"}}
     return object : DefInfo {
       override val type: String get() = "keyword"
