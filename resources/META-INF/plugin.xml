@@ -3,7 +3,7 @@
   <id>org.jetbrains.idea.clojure</id>
   <version>0.4.3</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="162.1812" until-build="164.*"/>
+  <idea-version since-build="162.1812" until-build="171.*"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript</description>
