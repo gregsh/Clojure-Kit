@@ -27,6 +27,7 @@ import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.KProperty
@@ -41,35 +42,62 @@ private object clientID {
   operator fun getValue(thisRef: Any?, property: KProperty<*>) = id.incrementAndGet()
 }
 
-class NReplClient(val host: String, val port: Int) {
+class NReplClient {
 
-  private var transport: Transport = BAD_TRANSPORT
+  private var transport: Transport = NOT_CONNECTED
+  val isConnected: Boolean get() = transport != NOT_CONNECTED
+  fun ping() = isConnected &&
+      try { evalAsync("42").get(5, TimeUnit.SECONDS)["value"] == "42" }
+      catch (e: IOException) { transport = NOT_CONNECTED; false }
+      catch (e: Exception) { false }
 
   private val nextId: Long by clientID
   private val callbacks = ConcurrentHashMap<Long, CompletableFuture<Map<String, Any?>>>()
   private val partialResponses = HashMap<Long, MutableMap<String, Any?>>()
 
-  lateinit private var mainSession: String
-  lateinit private var toolingSession: String
-  lateinit var clientInfo: Map<String, Any?>
+  var mainSession = ""
+    private set
+  var toolSession = ""
+    private set
+  var clientInfo = emptyMap<String, Any?>()
+    private set
 
-  fun connect() {
+  fun connect(host: String, port: Int) {
     try {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
       mainSession = createSession()
-      toolingSession = createSession()
+      toolSession = createSession()
       clientInfo = describeSession(mainSession)
     }
     catch(e: Exception) {
       val t = transport
-      transport = BAD_TRANSPORT
+      transport = NOT_CONNECTED
       LOG.warn(e)
-      if (t != BAD_TRANSPORT) t.close()
+      if (t != NOT_CONNECTED) t.close()
       throw e
     }
   }
 
-  val valid: Boolean get() = host != "" && port != -1 && transport != BAD_TRANSPORT
+
+  fun disconnect() {
+    transport.use {
+      try {
+        listOf(mainSession, toolSession).let {
+          mainSession = ""; toolSession = ""
+          for (session in it) {
+            try {
+              closeSession(session)
+            }
+            catch(e: Exception) {
+            }
+          }
+        }
+      }
+      finally {
+        transport = NOT_CONNECTED
+      }
+    }
+  }
 
   private fun request(vararg m: kotlin.Pair<String, Any>) = request(mutableMapOf(*m))
   private fun request(m: MutableMap<String, Any>) = requestAsync(m).get()!!
@@ -117,8 +145,6 @@ class NReplClient(val host: String, val port: Int) {
     }
   }
 
-  fun disconnect() = transport.close()
-
   fun createSession() = request("op" to "clone").let { it["new-session"] as String }
   fun closeSession(session: String) = request("op" to "close", "session" to session)
   fun describeSession(session: String = mainSession) = request("op" to "describe", "session" to session)
@@ -129,7 +155,7 @@ class NReplClient(val host: String, val port: Int) {
 
 fun dumpObject(o: Any?) = StringBuilder().let { sb ->
   fun dump(o: Any?, off: String) {
-    fun newLine(index: Int) = if (index > 0 || off.length > 0) sb.append("\n").append(off) else sb
+    fun newLine(index: Int) = if (index > 0 || !off.isEmpty()) sb.append("\n").append(off) else sb
     when (o) {
       is Map<*, *> -> {
         o.keys.forEachIndexed { i, key -> newLine(i).append(key).append(": "); dump(o[key] as Any, off + "  ") }
@@ -152,7 +178,7 @@ abstract class Transport : Closeable {
   override fun close() = Unit
 }
 
-val BAD_TRANSPORT = object : Transport() {
+val NOT_CONNECTED = object : Transport() {
   override fun recv(timeout: Long) = throw IllegalStateException()
   override fun send(message: Any) = throw IllegalStateException()
 }
@@ -268,7 +294,7 @@ class BEncodeInput(stream: InputStream) {
       val b = read_ch()
       if (b == delim) return result
       if (b == '-' && result == 0L && !negate) negate = true
-      else if (b >= '0' || b <= '9') result = result * 10 + (b - '0').toInt()
+      else if (b >= '0' || b <= '9') result = result * 10 + (b - '0')
       else throw IOException("Invalid long. Unexpected $b encountered.")
     }
   }
@@ -354,7 +380,7 @@ class BEncodeOutput(val _stream: OutputStream) {
   }
 
   private fun compare(b1: ByteArray, b2: ByteArray): Int {
-    for (i in 0..Math.min(b1.size, b2.size)) {
+    for (i in 0..Math.min(b1.size, b2.size) - 1) {
       (b1[i] - b2[i]).let { if (it != 0) return it }
     }
     return b1.size - b2.size

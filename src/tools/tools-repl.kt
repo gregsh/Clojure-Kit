@@ -18,35 +18,39 @@
 package org.intellij.clojure.tools
 
 import com.intellij.execution.ExecutionManager
-import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.Executor
+import com.intellij.execution.configurations.CommandLineState
+import com.intellij.execution.configurations.RunProfile
+import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.console.IdeConsoleRootType
 import com.intellij.execution.console.LanguageConsoleImpl
 import com.intellij.execution.console.LanguageConsoleView
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.impl.ConsoleViewImpl
 import com.intellij.execution.impl.ConsoleViewUtil
-import com.intellij.execution.process.OSProcessHandler
-import com.intellij.execution.process.ProcessTerminatedListener
-import com.intellij.execution.runners.ExecutionUtil
+import com.intellij.execution.process.*
+import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
-import com.intellij.execution.ui.actions.CloseAction
 import com.intellij.ide.scratch.ScratchFileService
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.util.ActionCallback
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
+import com.intellij.remote.BaseRemoteProcessHandler
+import com.intellij.remote.RemoteProcess
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.lang.ClojureFileType
@@ -57,25 +61,28 @@ import org.intellij.clojure.psi.CForm
 import org.intellij.clojure.psi.ClojureElementType
 import org.intellij.clojure.psi.ClojureFile
 import org.intellij.clojure.util.*
-import java.awt.BorderLayout
+import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import java.util.*
-import javax.swing.JPanel
 
 /**
  * @author gregsh
  */
 class ReplExecuteAction : DumbAwareAction() {
   override fun update(e: AnActionEvent) {
-    val file = CommonDataKeys.PSI_FILE.getData(e.dataContext) as? ClojureFile
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext)
+    val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
+    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? ClojureFile
     e.presentation.isEnabledAndVisible = e.project != null && file != null && editor != null &&
         ScratchFileService.getInstance().getRootType(file.virtualFile) !is IdeConsoleRootType
   }
 
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
-    val file = CommonDataKeys.PSI_FILE.getData(e.dataContext) as? ClojureFile ?: return
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext) ?: return
+    val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
+    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? ClojureFile ?: return
     PsiDocumentManager.getInstance(project).commitAllDocuments()
     val text = if (editor.selectionModel.hasSelection()) {
       editor.selectionModel.getSelectedText(true) ?: ""
@@ -96,110 +103,205 @@ class ReplExecuteAction : DumbAwareAction() {
   }
 }
 
+fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
+fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
+
 class ReplActionPromoter : ActionPromoter {
   override fun promote(actions: MutableList<AnAction>, context: DataContext) =
-      actions.find { it is ReplExecuteAction }?.let { listOf(it) } ?: null
+      actions.find { it is ReplExecuteAction }?.let { listOf(it) }
 }
 
-val PROJECT_PATH_KEY: Key<String> = Key.create("")
 fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: String) {
   val projectDir = JBIterable.generate(PsiUtilCore.getVirtualFile(file)) { it.parent }.find {
     it.isDirectory && Tool.find(it.toIoFile()) != null
   }
-  val executionManager = ExecutionManager.getInstance(project)
-  val existing = executionManager.contentManager.allDescriptors.run {
+  ExecutionManager.getInstance(project).contentManager.allDescriptors.run {
     find { (it.executionConsole as? LanguageConsoleView)?.virtualFile == PsiUtilCore.getVirtualFile(file) } ?:
-        find { it.processHandler.let { it != null && !it.isProcessTerminated && (projectDir?.path ?: "") == it.getUserData(PROJECT_PATH_KEY) } }
+        find { projectDir == ReplConnection.getFor(it)?.projectDir }
+  }?.apply {
+    val rc = ReplConnection.getFor(this)!!.apply { ensureStarted() }
+    processHandler = rc.processHandler
+    attachedContent!!.run { manager.setSelectedContent(this) }
+    rc.consoleView.consoleEditor.let {
+      if (editor == it || !it.document.text.trim().isEmpty() && editor == rc.consoleView.historyViewer) {
+        val command = WriteAction.compute<String, Exception> { it.document.run { val s = getText(); setText(""); s } }
+        rc.sendCommand(command)
+      }
+      else {
+        rc.sendCommand(text)
+      }
+    }
+    return
   }
-  val descriptor = existing ?: startNewProcess(project, projectDir) ?: return
-  if (descriptor.processHandler.let { it == null || it.isProcessTerminated || it.isProcessTerminating }) {
-    ExecutionUtil.restart(descriptor)
-  }
-  val consoleView = descriptor.executionConsole as LanguageConsoleView
-  val textAdjusted = if (editor == consoleView.consoleEditor) {
-    editor.selectionModel.setSelection(0, editor.document.textLength); editor.document.text
-  }
-  else text
-  descriptor.attachedContent?.run { manager.setSelectedContent(this) }
-  (descriptor.processHandler as ClojureProcessHandler).sendCommand(textAdjusted)
-}
 
-fun startNewProcess(project: Project, projectDir: VirtualFile?): RunContentDescriptor? {
-  val executor = DefaultRunExecutor.getRunExecutorInstance()
   val title = if (projectDir == null) "Clojure REPL"
   else ProjectFileIndex.SERVICE.getInstance(project).getContentRootForFile(projectDir).let {
     if (it == null || it == projectDir) "[${projectDir.name}] REPL" else "[${VfsUtil.getRelativePath(projectDir, it)}] REPL"
   }
-  val consoleView = LanguageConsoleImpl(project, title, ClojureLanguage)
-  consoleView.consoleEditor.setFile(consoleView.virtualFile)
 
-  val workingDir = (projectDir ?: project.baseDir).toIoFile()
-  val tool = Tool.find(workingDir) ?: Lein
-  val processHandler = tool.runRepl(workingDir.path) { cmd -> ClojureProcessHandler(consoleView, cmd) }
-  processHandler.putUserData(PROJECT_PATH_KEY, projectDir?.path ?: "")
+  val env = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(),
+      object : RunProfile {
+        var initialText: String? = text
+        override fun getState(executor: Executor, env: ExecutionEnvironment): RunProfileState {
+          return object : CommandLineState(env) {
+            val connection = ReplConnection(projectDir, newConsoleView(project, title))
+            override fun startProcess(): ProcessHandler {
+              connection.ensureStarted()
+              initialText?.apply { initialText = null; connection.sendCommand(this) }
 
-  val toolbarActions = DefaultActionGroup()
-  val panel = JPanel(BorderLayout())
-  panel.add(consoleView.component, BorderLayout.CENTER)
-  panel.add(ActionManager.getInstance().createActionToolbar(ActionPlaces.UNKNOWN, toolbarActions, false).component, BorderLayout.WEST)
+              return connection.processHandler!!
+            }
 
-  val descriptor = RunContentDescriptor(consoleView, processHandler, panel, consoleView.title)
-  Disposer.register(descriptor, consoleView)
-  Disposer.register(descriptor, Disposable { processHandler.destroyProcess() })
+            override fun createConsole(executor: Executor) = connection.consoleView
+          }
+        }
 
-  toolbarActions.add(CloseAction(executor, descriptor, project))
-  consoleView.createConsoleActions().forEach { action -> toolbarActions.add(action) }
-
-  ExecutionManager.getInstance(project).contentManager.showRunContent(executor, descriptor)
-  ToolWindowManager.getInstance(project).getToolWindow(executor.id).activate(null, false, false)
-
-  processHandler.startNotify()
-  return descriptor
+        override fun getIcon() = null
+        override fun getName() = title
+      })
+      .build()
+  ExecutionManager.getInstance(project).restartRunProfile(env)
 }
 
-class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCommandLine) : OSProcessHandler(cmd) {
+private fun newConsoleView(project: Project, title: String): LanguageConsoleImpl {
+  return LanguageConsoleImpl(project, title, ClojureLanguage).apply {
+    consoleEditor.setFile(virtualFile)
+  }
+}
 
-  var repl: NReplClient? = null
-  val whenConnected = ActionCallback()
+private val CONNECTION_KEY: Key<ReplConnection> = Key.create("CONNECTION_KEY")
+
+open class ReplConnection(val projectDir: VirtualFile?, val consoleView: LanguageConsoleView) {
+  val repl = NReplClient()
+  var whenConnected = ActionCallback().doWhenDone { dumpReplInfo() }
+  var processHandler: ProcessHandler? = null
+
+  companion object {
+    fun getFor(descriptor: RunContentDescriptor?): ReplConnection? =
+        (descriptor?.executionConsole as? LanguageConsoleView)?.consoleEditor?.getUserData(CONNECTION_KEY)
+  }
 
   init {
-    ProcessTerminatedListener.attach(this)
-    consoleView.attachToProcess(this)
-    consoleView.prompt = null
+    @Suppress("LeakingThis")
+    consoleView.consoleEditor.putUserData(CONNECTION_KEY, this@ReplConnection)
   }
 
-  override fun isSilentlyDestroyOnClose() = false
-
-  override fun notifyProcessTerminated(exitCode: Int) {
-    consoleView.isEditable = false
-    repl?.disconnect()
-    super.notifyProcessTerminated(exitCode)
-  }
-
-  override fun notifyTextAvailable(text: String, outputType: Key<*>) {
-    when {
-      repl == null && text.startsWith("nREPL server started on port ") -> {
-        repl = super.notifyTextAvailable(text, outputType).run { createNRepl(text) }
-        if (repl!!.valid) whenConnected.setDone() else whenConnected.setRejected()
+  fun ensureStarted() {
+    processHandler?.apply {
+      if (isProcessTerminated || isProcessTerminated) {
+        consoleView.println()
+        processHandler = null
+        whenConnected = ActionCallback()
       }
-      else -> super.notifyTextAvailable(text, outputType)
+      else return
+    }
+
+    processHandler = newProcessHandler()?.apply {
+      ProcessTerminatedListener.attach(this)
+      consoleView.attachToProcess(this)
+      consoleView.isEditable = true
+      addProcessListener(object : ProcessAdapter() {
+        override fun processTerminated(event: ProcessEvent?) {
+          consoleView.isEditable = false
+          repl.disconnect()
+        }
+      })
+
     }
   }
 
-  fun sendCommand(text: String) = whenConnected.doWhenDone cb@ {
+  protected open fun newProcessHandler(): ProcessHandler? {
+    val workingDir = (projectDir ?: consoleView.project.baseDir).toIoFile()
+    val port = try { FileUtil.loadFile(File(workingDir, ".nrepl-port")).toInt() } catch (e: Exception) { -1 }
+    val existingRemoteStr = if (port > 0) "Connected to nREPL server running on port $port and host localhost" else null
+
+    return newRemoteProcess(existingRemoteStr) ?: newLocalProcess(workingDir)
+  }
+
+  protected fun newLocalProcess(workingDir: File): ProcessHandler {
+    val tool = Tool.find(workingDir) ?: Lein
+    return OSProcessHandler(tool.getRepl().withWorkDirectory(workingDir.path)).apply {
+      addProcessListener(object : ProcessAdapter() {
+        override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+          val text = event.text ?: return
+          if (!text.startsWith("nREPL server started on port ")) return
+          (event.source as ProcessHandler).removeProcessListener(this)
+          executeTask {
+            if (connect(text)) whenConnected.setDone() else whenConnected.setRejected()
+          }
+        }
+      })
+    }
+  }
+
+  private fun newRemoteProcess(addressString : String?): ProcessHandler? {
+    if (addressString == null || !connect(addressString)) return null
+    val emptyIn = object : InputStream() { override fun read() = -1 }
+    val emptyOut = object : OutputStream() { override fun write(b: Int) = Unit }
+    val pingLock = Object()
+    val process = object : RemoteProcess() {
+
+      override fun destroy() {
+        repl.evalAsync("(System/exit 0)", repl.toolSession)
+      }
+
+      override fun exitValue(): Int {
+        if (repl.isConnected) throw IllegalThreadStateException()
+        else return 0
+      }
+
+      override fun isDisconnected() = !repl.isConnected
+
+      override fun waitFor(): Int {
+        while (repl.isConnected) {
+          repl.ping()
+          if (!repl.isConnected) break
+          synchronized(pingLock) { pingLock.wait(5000L) }
+        }
+        return exitValue()
+      }
+
+      override fun getLocalTunnel(remotePort: Int) = null
+      override fun getOutputStream() = emptyOut
+      override fun getErrorStream() = emptyIn
+      override fun getInputStream() = emptyIn
+      override fun killProcessTree() = false
+    }
+    return object : BaseRemoteProcessHandler<RemoteProcess>(process, addressString, null) {
+      override fun detachIsDefault() = true
+
+      override fun detachProcessImpl() {
+        executeTask {
+          repl.disconnect()
+          synchronized(pingLock) { pingLock.notifyAll() }
+        }
+        super.detachProcessImpl()
+      }
+
+      override fun startNotify() {
+        super.startNotify()
+        whenConnected.setDone()
+      }
+    }
+  }
+
+  fun sendCommand(text: String) = whenConnected.doWhenDone {
     val trimmed = text.trim()
-    consoleView.print("\n" + (consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
-    ConsoleViewUtil.printAsFileType(consoleView, trimmed + "\n", ClojureFileType)
-    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
-    val repl = repl
-    if (repl == null || !repl.valid) {
-      consoleView.print("Not connected\n", ConsoleViewContentType.ERROR_OUTPUT)
+    consoleView.println()
+    consoleView.print((consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
+    if (!trimmed.isEmpty()) {
+      ConsoleViewUtil.printAsFileType(consoleView, trimmed + "\n", ClojureFileType)
+    }
+    if (trimmed.isEmpty()) {
+    }
+    else if (!repl.isConnected) {
+      consoleView.printerr("Not connected")
     }
     else if (text.startsWith("/")) {
       val idx = text.indexOfFirst { Character.isWhitespace(it) }
       val op = if (idx == -1) text.substring(1) else text.substring(1, idx)
       if (op.elementOf(setOf("", "help", "?"))) {
-        consoleView.print("operations: " + dumpObject(repl.clientInfo["ops"]), ConsoleViewContentType.ERROR_OUTPUT)
+        consoleView.printerr("operations: " + dumpObject(repl.clientInfo["ops"]))
       }
       else {
         val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
@@ -209,17 +311,16 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
         }
         repl.rawAsync(map).whenComplete { result, e ->
           onCommandCompleted(result, e)
-          consoleView.requestScrollingToEnd()
         }
       }
     }
     else repl.evalAsync(trimmed).whenComplete { result, e ->
       onCommandCompleted(result, e)
     }
+    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
   }
 
   private fun onCommandCompleted(result: Map<String, Any?>?, e: Throwable?) {
-    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
     if (e != null) {
       consoleView.print(ExceptionUtil.getThrowableText(e), ConsoleViewContentType.ERROR_OUTPUT)
     }
@@ -232,33 +333,37 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
       }
       error?.let { msg ->
         val adjusted = msg.indexOf(", compiling:(").let { if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) }
-        if (value != null) consoleView.print("\n", ConsoleViewContentType.NORMAL_OUTPUT)
+        if (value != null) consoleView.println()
         consoleView.print(adjusted, ConsoleViewContentType.ERROR_OUTPUT)
       }
       if (value == null && error == null) {
         consoleView.print(dumpObject(result), ConsoleViewContentType.NORMAL_OUTPUT)
       }
     }
-    consoleView.requestScrollingToEnd()
+    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
   }
 
-  private fun createNRepl(nReplStarted: String): NReplClient {
-    val matcher = "port (\\S+).* host (\\S+)".toRegex().find(nReplStarted) ?: return NReplClient("", -1)
-    val repl = NReplClient(matcher.groupValues[2], StringUtil.parseInt(matcher.groupValues[1], -1))
+  private fun connect(portHost: String): Boolean {
+    val remote = portHost.startsWith("Connected")
+    val matcher = "port (\\S+).* host (\\S+)".toRegex().find(portHost) ?: return false
     try {
-      repl.connect()
-      val info = repl.clientInfo
-      consoleView.prompt = ((info["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
-      consoleView.print("session description:\n" + dumpObject(info) + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
+      repl.connect(matcher.groupValues[2], StringUtil.parseInt(matcher.groupValues[1], -1))
+      consoleView.prompt = ((repl.clientInfo["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
       repl.evalAsync("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
           " (clojure.core/map clojure.core/require clojure.main/repl-requires))").whenComplete { map, throwable ->
         onCommandCompleted(null, throwable)
       }
     }
     catch(e: Exception) {
-      consoleView.print(ExceptionUtil.getThrowableText(e) + "\n", ConsoleViewContentType.ERROR_OUTPUT)
+      if (!remote) {
+        consoleView.printerr(ExceptionUtil.getThrowableText(e))
+      }
     }
-    return repl
+    return repl.isConnected
+  }
+
+  private fun dumpReplInfo() {
+    consoleView.println("session description:\n${dumpObject(repl.clientInfo)}")
   }
 
 }

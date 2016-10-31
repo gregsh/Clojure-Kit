@@ -17,8 +17,10 @@
 
 package org.intellij.clojure.tools
 
-import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.*
+import com.intellij.execution.process.OSProcessHandler
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -35,8 +37,6 @@ import com.intellij.openapi.roots.ex.ProjectRootManagerEx
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.EmptyRunnable
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.openapi.vfs.JarFileSystem
@@ -44,11 +44,9 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.ProjectScope
-import com.intellij.util.EnvironmentUtil
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.io.SafeFileOutputStream
-import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.parser.ClojureTokens.wsOrComment
@@ -64,72 +62,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * @author gregsh
  */
-object Repo {
-  val path = File(File(com.intellij.util.SystemProperties.getUserHome(), ".m2"), "repository")
-}
-
-interface Tool {
-  fun runDeps(workingDir: String, consumer: (String?) -> Unit): ProcessHandler
-  fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler): ProcessHandler
-
-  companion object {
-    fun choose(file: File) = choose(file.name)
-    fun choose(fileName: String) = when (fileName) {
-      Lein.projectFile -> Lein
-      Boot.projectFile -> Boot
-      else -> null
-    }
-    fun find(dir: File) = when {
-      File(dir, Lein.projectFile).exists() -> Lein
-      File(dir, Boot.projectFile).exists() -> Boot
-      else -> null
-    }
-  }
-}
-
-object Lein : Tool {
-  val projectFile = ClojureConstants.LEIN_PROJECT_CLJ
-  val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
-    val path = "$it${File.separator}lein${if (SystemInfo.isWindows) ".bat" else ""}"
-    if (File(path).exists()) path else null
-  }.firstOrNull() ?: "lein"
-
-  override fun runDeps(workingDir: String, consumer: (String?) -> Unit) =
-      runDeps(GeneralCommandLine(path, "deps", ":tree")
-          .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
-
-  override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
-      consumer(GeneralCommandLine(path,
-          "update-in", ":dependencies", "conj [org.clojure/tools.nrepl]", "--",
-          "update-in", ":plugins", "conj [cider/cider-nrepl]", "--",
-          "update-in", ":middleware", "conj [cider-nrepl.plugin/middleware]", "--",
-          "repl", ":headless")
-          .withWorkDirectory(workingDir)
-          .withCharset(CharsetToolkit.UTF8_CHARSET))
-
-}
-
-object Boot : Tool {
-  val projectFile = ClojureConstants.BOOT_BUILD_BOOT
-  val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
-    val path = "$it${File.separator}boot${if (SystemInfo.isWindows) ".bat" else ""}"
-    if (File(path).exists()) path else null
-  }.firstOrNull() ?: "boot"
-
-  override fun runDeps(workingDir: String, consumer: (String?) -> Unit) =
-      runDeps(GeneralCommandLine(path, "--no-colors", "show", "-d")
-          .withWorkDirectory(FileUtil.toSystemDependentName(workingDir)), consumer)
-
-  override fun runRepl(workingDir: String, consumer: (GeneralCommandLine) -> ProcessHandler) =
-      consumer(GeneralCommandLine(path,
-          "--no-colors",
-          "-d", "org.clojure/tools.nrepl",
-          "-d", "cider/cider-nrepl",
-          "repl", "-m", "cider.nrepl/cider-middleware", "-s", "wait")
-      .withWorkDirectory(workingDir)
-      .withCharset(CharsetToolkit.UTF8_CHARSET))
-}
-
 private class ClojureProjectDeps(val project: Project) {
   class PostStartup : StartupActivity {
     override fun runActivity(project: Project) {
@@ -230,15 +162,8 @@ private class ClojureProjectDeps(val project: Project) {
           indicator.isIndeterminate = false
           indicator.fraction = (100.0 * index / files.size)
           indicator.text = file.path
-          val list = ArrayList<String>()
-          Tool.choose(file)!!.runDeps(file.parentFile.path) { gav ->
-            if (gav == null) {
-              mapping[file.path] = ArrayList(list)
-            }
-            else {
-              list.add(gav)
-            }
-          }.waitFor()
+          val tool = Tool.choose(file) ?: continue
+          mapping[file.path] = ArrayList<String>().apply { collectDeps(tool, this, file.parentFile.path) }
         }
       }
 
@@ -252,23 +177,21 @@ private class ClojureProjectDeps(val project: Project) {
       }
     })
   }
-
 }
 
-private fun runDeps(cmd: GeneralCommandLine, consumer: (String?) -> Unit): ProcessHandler {
-  val process = OSProcessHandler(cmd.withCharset(CharsetToolkit.UTF8_CHARSET))
+private fun collectDeps(tool: Tool, result: ArrayList<String>, path: String): Unit {
+  val process = OSProcessHandler(tool.getDeps().withWorkDirectory(path).withCharset(CharsetToolkit.UTF8_CHARSET))
   process.addProcessListener(object : ProcessAdapter() {
-    override fun processTerminated(event: ProcessEvent) = consumer(null)
     override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
       if (outputType != ProcessOutputTypes.STDOUT) return
       val trimmed = event.text.trimEnd()
       val idx = trimmed.indexOf("[")
       if (idx == -1 || !trimmed.endsWith("]")) return
-      consumer(StringUtil.repeat(" ", idx) + trimmed.substring(idx))
+      result.add(StringUtil.repeat(" ", idx) + trimmed.substring(idx))
     }
   })
   process.startNotify()
-  return process
+  process.waitFor()
 }
 
 private fun gavToJar(gav: String) : VirtualFile? {

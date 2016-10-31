@@ -42,7 +42,7 @@ import kotlin.reflect.KClass
  */
 
 @Suppress("UNCHECKED_CAST")
-fun <T : Any> Any?.forceCast(): T? = this as? T
+inline fun <reified T : Any> Any?.forceCast(): T? = this as? T
 
 fun <E> E.elementOf(c: Collection<E>) = c.contains(this)
 fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
