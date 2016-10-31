@@ -205,7 +205,7 @@ class ClojureProcessHandler(val consoleView: LanguageConsoleView, cmd: GeneralCo
         val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
         val map = LinkedHashMap<String, String>().apply {
           put("op", op)
-          s.traverse().skip(1).partition(2, true).forEach { put(s.api.textOf(it[0]).toString(), s.api.textOf(it[1]).toString()) }
+          s.traverse().skip(1).split(2, true).forEach { put(s.api.textOf(it[0]).toString(), s.api.textOf(it[1]).toString()) }
         }
         repl.rawAsync(map).whenComplete { result, e ->
           onCommandCompleted(result, e)

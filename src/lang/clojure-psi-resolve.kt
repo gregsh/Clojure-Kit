@@ -604,7 +604,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
         refer.iterateRCAware().filter(CSymbol::class).transform { it.text }.toSet(),
         only.iterateRCAware().filter(CSymbol::class).transform { it.text }.toSet(),
         exclude.iterateRCAware().filter(CSymbol::class).transform { it.text }.toSet(),
-        rename?.partition(2, true)?.reduce(HashMap()) { map, o -> if (o.size == 2) map.put(o[0].name, o[1]); map } ?: emptyMap(),
+        rename?.split(2, true)?.reduce(HashMap()) { map, o -> if (o.size == 2) map.put(o[0].name, o[1]); map } ?: emptyMap(),
         if (ranges.isEmpty()) null else ranges)
     return info
   }
