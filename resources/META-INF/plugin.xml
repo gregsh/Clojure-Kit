@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin version="2">
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.4.3</version>
+  <version>0.4.4-SNAPSHOT</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="162.1812" until-build="171.*"/>
+  <idea-version since-build="162.2525" until-build="173.*"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript</description>
@@ -15,12 +15,9 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>Language: basic language support for Clojure and ClojureScript</li>
-      <li>Editor: colors, completion, navigation, parameter info, quickdoc and live templates</li>
-      <li>CodeInsight: 'Analyze data flow to/from here'</li>
-      <li>Structural editing: slurp/barf/splice/rise/kill and smart delete/backspace</li>
-      <li>Leiningen/Boot: resolve project dependencies to local '~/.m2/' repository</li>
-      <li>REPL: 'lein' and 'boot' REPLs</li>
+      <li>ClojureScript: resolve/find ::aliased/keywords</li>
+      <li>Editor: (comment), #_ and quoted-symbol literal coloring</li>
+      <li>REPL: detect running nrepl via .nrepl-port file</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>

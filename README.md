@@ -17,6 +17,12 @@ Compatible with versions 2016.2 and up, and:
 
 Change log
 ==========
+0.4.4
+
+* ClojureScript: resolve/find ::aliased/keywords
+* Editor: (comment), #_ and quoted-symbol literal coloring
+* REPL: detect running nrepl via .nrepl-port file
+
 0.4.3
 
 * Language: basic language support for Clojure and ClojureScript

@@ -12,7 +12,7 @@ plugins {
   id 'org.jetbrains.intellij' version "0.1.9"
 }
 
-version = "${version}.${buildNumber}"
+version = "${version}"
 defaultTasks 'clean', 'artifacts', 'test'
 
 allprojects {
