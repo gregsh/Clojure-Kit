@@ -260,21 +260,28 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val language = containingFile.placeLanguage(element)
     val isCljs = language == ClojureScriptLanguage
 
-    if (element.parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_SLASH) {
+    val parent = element.parent
+    if (parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_SLASH) {
+      if (parent.parent is CKeyword) {
+        return when (parent.prevSibling.elementType) {
+          ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
+          ClojureTypes.C_COLONCOLON -> containingFile.processFileImports(containingFile.imports, processor, state, element)
+          else -> true
+        }
+      }
       if (!containingFile.processFileImports(containingFile.imports, processor, state, element)) return false
-      val isKeywordNS = element.parent?.parent is CKeyword
-      if (!isCljs && !isKeywordNS) {
+      if (!isCljs) {
         findClass(refText, service)?.let { return processor.execute(it, state) }
       }
       if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.elementOf(it) || refText.prefixedBy(it) }) {
         return processor.execute(NULL_FORM, state)
       }
-      if (isKeywordNS || (service.getNamespace(element).navigationElement as? Navigatable)?.canNavigate() ?: false) {
+      if ((service.getNamespace(element).navigationElement as? Navigatable)?.canNavigate() ?: false) {
         if (!processor.execute(service.getNamespace(element), state)) return false
       }
       return true
     }
-    if (element.parent.let { it is CReaderMacro && it.firstChild.elementType == ClojureTypes.C_SHARP_NS}) {
+    if (parent.let { it is CReaderMacro && it.firstChild.elementType == ClojureTypes.C_SHARP_NS}) {
       return when (element.prevSibling.elementType) {
         ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
         ClojureTypes.C_COLONCOLON -> containingFile.processFileImports(
@@ -299,7 +306,6 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       }
       else if (resolve is PsiQualifiedNamedElement && !service.java.getMemberTypes(target).isEmpty()) {
         // java.class/method-or-field
-        val parent = element.parent
         val processFields = parent !is CLForm || parent.first != element
         val processMethods = !processFields || element.firstChild is CReaderMacro
         if (processFields) {
@@ -572,7 +578,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
   val isKeywordNS = isQualifier && place.parent?.parent is CKeyword
   val traverser = lazy(LazyThreadSafetyMode.NONE) { cljTraverserRCAware().expand {
     ((it as? CList)?.findChild(CForm::class) as? CSForm)?.let {
-      val name = if (it is CSymbol) it.name else if (it is CKeyword) it.name else ""
+      val name = (it as? CSymbol)?.name ?: (it as? CKeyword)?.name ?: ""
       ClojureConstants.NS_ALIKE_SYMBOLS.contains(name) } ?: false
   }.filter { it is CForm } }
 
