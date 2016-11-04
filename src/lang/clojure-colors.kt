@@ -125,10 +125,10 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
 
     val tokenType0 = baseLexer.tokenType
 
-    if (tokenType0 === C_QUOTE || ClojureTokens.SHARPS.contains(tokenType0)) {
+    if (tokenType0 === C_QUOTE) {
       advanceAs(baseLexer, tokenType0)
       skipWs(baseLexer)
-      if (tokenType0 === C_QUOTE && baseLexer.tokenType === C_SYM) advanceSymbolAs(baseLexer, QUOTED_SYM)
+      if (baseLexer.tokenType === C_SYM) advanceSymbolAs(baseLexer, QUOTED_SYM)
       else advanceLexer(baseLexer)
     }
     else if (tokenType0 === C_COLON || tokenType0 === C_COLONCOLON) {
