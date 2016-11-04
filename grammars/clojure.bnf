@@ -83,9 +83,8 @@ private root_entry ::= not_eof form {pin=1 recoverWhile=root_entry_recover}
 private root_entry_recover ::= form_recover | ')' | '}' | ']'
 private not_eof ::= !<<eof>>
 
-form ::= form_prefix form_prefix * form_upper | form_inner {
-  pin(".*")=1
-  methods=[form="" metas="metadata" readerMacros="reader_macro"]}
+form ::= form_prefix form_prefix * form_upper | form_inner
+  {pin(".*")=1 methods=[form="" metas="metadata" readerMacros="reader_macro"]}
 private form_prefix ::= metadata | reader_macro
 private external form_recover ::= formRecover
 
@@ -103,24 +102,25 @@ set ::= '#' '{' set_body '}'
 vec ::= '[' vec_body ']'
 map ::= '{' map_body '}'
 fun ::= '#' <<nospace>> '(' list_body ')'
-symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified '.'? {
-  methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference] }
-keyword ::= (colon | coloncolon) <<nospace>> symbol_qualified {
-  methods=[getName getNamespace getTextOffset]}
+symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified '.'?
+  {methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference]}
+keyword ::= (':' | '::') <<nospace>> symbol_qualified
+  {methods=[getName getNamespace getTextOffset]}
 private symbol_qualified ::= symbol_plain symbol_nsq?
 symbol_plain ::=  sym
 left symbol_nsq ::= '/' sym
-literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char {
-  methods=[getLiteralType getLiteralText]}
+literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char
+  {methods=[getLiteralType getLiteralText]}
 regexp ::= '#' <<nospace>> string {extends=literal}
 constructor ::= '#' symbol (vec | map)
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
 reader_macro ::= "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
 private reader_cond ::= ('#?' | '#?@') &'(' {pin(".*")=1}
-private map_ns_prefix ::= "#:" (colon <<nospace>> symbol_plain
-  | alias_condition coloncolon <<nospace>> symbol_plain
-  | coloncolon ) &'{' {pin(".*")=1}
-private alias_condition ::= &(coloncolon sym)
+private map_ns_prefix ::= "#:" (':' <<nospace>> symbol_plain
+  | alias_condition '::' <<nospace>> symbol_plain
+  | '::' ) &'{'
+  {pin(".*")=1}
+private alias_condition ::= &('::' sym)
 
 private meta items ::= <<items_entry <<recover>> <<param>>>> * {recoverWhile="<<recover>>"}
 private meta items_entry ::= (not_eof <<recover>>) <<param>> {pin=1 recoverWhile=form_recover}
