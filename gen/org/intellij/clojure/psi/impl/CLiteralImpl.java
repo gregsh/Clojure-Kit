@@ -10,7 +10,6 @@ import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
 import com.intellij.psi.tree.IElementType;
-import kotlin.jvm.JvmStatic;
 
 public class CLiteralImpl extends CSFormImpl implements CLiteral {
 
@@ -27,13 +26,11 @@ public class CLiteralImpl extends CSFormImpl implements CLiteral {
     else super.accept(visitor);
   }
 
-  @JvmStatic
   @Nullable
   public IElementType getLiteralType() {
     return ClojurePsiImplUtil.getLiteralType(this);
   }
 
-  @JvmStatic
   @NotNull
   public String getLiteralText() {
     return ClojurePsiImplUtil.getLiteralText(this);

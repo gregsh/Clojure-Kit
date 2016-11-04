@@ -9,14 +9,13 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
-import kotlin.jvm.JvmStatic;
 import org.intellij.clojure.psi.stubs.CKeywordStub;
 import org.intellij.clojure.psi.stubs.CKeywordElementType;
 
 public class CKeywordImpl extends CKeywordBase implements CKeyword {
 
-  public CKeywordImpl(CKeywordStub stub, CKeywordElementType nodeType, ASTNode node) {
-    super(stub, nodeType, node);
+  public CKeywordImpl(CKeywordStub stub, CKeywordElementType type, ASTNode node) {
+    super(stub, type, node);
   }
 
   public CKeywordImpl(CKeywordStub stub) {
@@ -42,19 +41,16 @@ public class CKeywordImpl extends CKeywordBase implements CKeyword {
     return notNullChild(PsiTreeUtil.getChildOfType(this, CSymbol.class));
   }
 
-  @JvmStatic
   @NotNull
   public String getName() {
     return ClojurePsiImplUtil.getName(this);
   }
 
-  @JvmStatic
   @NotNull
   public String getNamespace() {
     return ClojurePsiImplUtil.getNamespace(this);
   }
 
-  @JvmStatic
   public int getTextOffset() {
     return ClojurePsiImplUtil.getTextOffset(this);
   }

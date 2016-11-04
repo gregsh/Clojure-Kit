@@ -14,8 +14,8 @@ import org.intellij.clojure.psi.stubs.CListElementType;
 
 public class CListImpl extends CListBase implements CList {
 
-  public CListImpl(CListStub stub, CListElementType nodeType, ASTNode node) {
-    super(stub, nodeType, node);
+  public CListImpl(CListStub stub, CListElementType type, ASTNode node) {
+    super(stub, type, node);
   }
 
   public CListImpl(CListStub stub) {

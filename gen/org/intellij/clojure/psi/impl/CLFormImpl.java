@@ -9,7 +9,6 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
-import kotlin.jvm.JvmStatic;
 
 public class CLFormImpl extends CPFormImpl implements CLForm {
 
@@ -26,7 +25,6 @@ public class CLFormImpl extends CPFormImpl implements CLForm {
     else super.accept(visitor);
   }
 
-  @JvmStatic
   @Nullable
   public CSymbol getFirst() {
     return ClojurePsiImplUtil.getFirst(this);

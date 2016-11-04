@@ -6,22 +6,18 @@ import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.StubBasedPsiElement;
 import org.intellij.clojure.psi.stubs.CKeywordStub;
-import kotlin.jvm.JvmStatic;
 
 public interface CKeyword extends CSForm, StubBasedPsiElement<CKeywordStub> {
 
   @NotNull
   CSymbol getSymbol();
 
-  @JvmStatic
   @NotNull
   String getName();
 
-  @JvmStatic
   @NotNull
   String getNamespace();
 
-  @JvmStatic
   int getTextOffset();
 
 }

@@ -10,7 +10,6 @@ import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
 import com.intellij.psi.PsiQualifiedReference;
-import kotlin.jvm.JvmStatic;
 
 public class CSymbolImpl extends CSFormImpl implements CSymbol {
 
@@ -27,30 +26,25 @@ public class CSymbolImpl extends CSFormImpl implements CSymbol {
     else super.accept(visitor);
   }
 
-  @JvmStatic
   @NotNull
   public String getName() {
     return ClojurePsiImplUtil.getName(this);
   }
 
-  @JvmStatic
   @NotNull
   public String getQualifiedName() {
     return ClojurePsiImplUtil.getQualifiedName(this);
   }
 
-  @JvmStatic
   @Nullable
   public CSymbol getQualifier() {
     return ClojurePsiImplUtil.getQualifier(this);
   }
 
-  @JvmStatic
   public int getTextOffset() {
     return ClojurePsiImplUtil.getTextOffset(this);
   }
 
-  @JvmStatic
   @NotNull
   public PsiQualifiedReference getReference() {
     return ClojurePsiImplUtil.getReference(this);

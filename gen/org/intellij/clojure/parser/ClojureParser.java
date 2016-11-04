@@ -83,7 +83,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   };
 
   /* ********************************************************** */
-  // &(coloncolon sym)
+  // &('::' sym)
   static boolean alias_condition(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "alias_condition")) return false;
     boolean r;
@@ -93,7 +93,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r;
   }
 
-  // coloncolon sym
+  // '::' sym
   private static boolean alias_condition_0(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "alias_condition_0")) return false;
     boolean r;
@@ -260,7 +260,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // (colon | coloncolon) <<nospace>> symbol_qualified
+  // (':' | '::') <<nospace>> symbol_qualified
   public static boolean keyword(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "keyword")) return false;
     if (!nextTokenIs(b, "<keyword>", C_COLON, C_COLONCOLON)) return false;
@@ -273,7 +273,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r;
   }
 
-  // colon | coloncolon
+  // ':' | '::'
   private static boolean keyword_0(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "keyword_0")) return false;
     boolean r;
@@ -378,9 +378,9 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // "#:" (colon <<nospace>> symbol_plain
-  //   | alias_condition coloncolon <<nospace>> symbol_plain
-  //   | coloncolon ) &'{'
+  // "#:" (':' <<nospace>> symbol_plain
+  //   | alias_condition '::' <<nospace>> symbol_plain
+  //   | '::' ) &'{'
   static boolean map_ns_prefix(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "map_ns_prefix")) return false;
     if (!nextTokenIs(b, C_SHARP_NS)) return false;
@@ -394,9 +394,9 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r || p;
   }
 
-  // colon <<nospace>> symbol_plain
-  //   | alias_condition coloncolon <<nospace>> symbol_plain
-  //   | coloncolon
+  // ':' <<nospace>> symbol_plain
+  //   | alias_condition '::' <<nospace>> symbol_plain
+  //   | '::'
   private static boolean map_ns_prefix_1(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "map_ns_prefix_1")) return false;
     boolean r;
@@ -408,7 +408,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r;
   }
 
-  // colon <<nospace>> symbol_plain
+  // ':' <<nospace>> symbol_plain
   private static boolean map_ns_prefix_1_0(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "map_ns_prefix_1_0")) return false;
     boolean r, p;
@@ -421,7 +421,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r || p;
   }
 
-  // alias_condition coloncolon <<nospace>> symbol_plain
+  // alias_condition '::' <<nospace>> symbol_plain
   private static boolean map_ns_prefix_1_1(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "map_ns_prefix_1_1")) return false;
     boolean r, p;
@@ -640,8 +640,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!nextTokenIs(b, C_SHARP)) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_, C_SET, null);
-    r = consumeToken(b, C_SHARP);
-    r = r && consumeToken(b, C_BRACE1);
+    r = consumeTokens(b, 2, C_SHARP, C_BRACE1);
     p = r; // pin = '[\(\[\{]'
     r = r && report_error_(b, set_body(b, l + 1));
     r = p && consumeToken(b, C_BRACE2) && r;
@@ -732,8 +731,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!nextTokenIs(b, C_SLASH)) return false;
     boolean r;
     Marker m = enter_section_(b, l, _LEFT_, C_SYMBOL, null);
-    r = consumeToken(b, C_SLASH);
-    r = r && consumeToken(b, C_SYM);
+    r = consumeTokens(b, 0, C_SLASH, C_SYM);
     exit_section_(b, l, m, r, false, null);
     return r;
   }

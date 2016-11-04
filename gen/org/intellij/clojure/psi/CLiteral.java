@@ -5,15 +5,12 @@ import java.util.List;
 import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
-import kotlin.jvm.JvmStatic;
 
 public interface CLiteral extends CSForm {
 
-  @JvmStatic
   @Nullable
   IElementType getLiteralType();
 
-  @JvmStatic
   @NotNull
   String getLiteralText();
 
