@@ -63,6 +63,7 @@ class NReplClient {
     private set
 
   fun connect(host: String, port: Int) {
+    if (isConnected) throw IllegalStateException("Already connected")
     try {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
       mainSession = createSession()
@@ -70,10 +71,9 @@ class NReplClient {
       clientInfo = describeSession(mainSession)
     }
     catch(e: Exception) {
-      val t = transport
-      transport = NOT_CONNECTED
-      LOG.warn(e)
-      if (t != NOT_CONNECTED) t.close()
+      if (e is SocketException) LOG.warn("nrepl://$host:$port failed: $e")
+      else LOG.warn("nrepl://$host:$port failed", e)
+      if (transport != NOT_CONNECTED) disconnect()
       throw e
     }
   }
@@ -82,19 +82,17 @@ class NReplClient {
   fun disconnect() {
     transport.use {
       try {
-        listOf(mainSession, toolSession).let {
+        listOf(mainSession, toolSession).forEach { session ->
           mainSession = ""; toolSession = ""
-          for (session in it) {
-            try {
-              closeSession(session)
-            }
-            catch(e: Exception) {
-            }
+          if (session != "") {
+            try { closeSessionAsync(session) } catch(e: Exception) { }
           }
         }
       }
       finally {
         transport = NOT_CONNECTED
+        try { it.close() } catch(e: Exception) { }
+        clearCallbacks((it as? AsyncTransport)?.closed?.get() ?: Throwable("disconnected"))
       }
     }
   }
@@ -113,20 +111,22 @@ class NReplClient {
   }
 
   private fun runCallbacks(o: Any): Unit {
-    val m = o.forceCast<Map<String, Any?>>() ?: return
+    val m = o.forceCast<Map<String, Any?>>() ?: clearCallbacks(o as? Throwable ?: Throwable(o.toString())).run { return }
     val id = m["id"] as? Long ?: return
-    val combined = if (m["status"].let { it is List<*> && it.firstOrNull() == "done" }) {
-      (partialResponses.remove(id) ?: HashMap()).apply { join(m) }
+    if (m["status"].let { it is List<*> && it.firstOrNull() == "done" }) {
+      val combined = (partialResponses.remove(id) ?: HashMap()).apply { join(m) }
+      callbacks.remove(id)?.complete(combined)
     }
     else {
       partialResponses[id] = (partialResponses[id] ?: LinkedHashMap()).apply { join(m) }
-      return
     }
-    try {
-      callbacks.remove(id)?.complete(combined)
-    }
-    catch(e: Exception) {
-      LOG.warn(e)
+  }
+
+  private fun clearCallbacks(reason: Throwable) {
+    val cb = HashMap(callbacks)
+    callbacks.clear()
+    for (value in cb.values) {
+      value.completeExceptionally(reason)
     }
   }
 
@@ -146,7 +146,7 @@ class NReplClient {
   }
 
   fun createSession() = request("op" to "clone").let { it["new-session"] as String }
-  fun closeSession(session: String) = request("op" to "close", "session" to session)
+  fun closeSessionAsync(session: String) = requestAsync("op" to "close", "session" to session)
   fun describeSession(session: String = mainSession) = request("op" to "describe", "session" to session)
 
   fun evalAsync(code: String, session: Any = mainSession) = requestAsync("op" to "eval", "session" to session, "code" to code)
@@ -201,8 +201,7 @@ class AsyncTransport(private val delegate: Transport, private val responseHandle
         responseHandler(response)
       }
       catch (t: Throwable) {
-        closed.set(t)
-        LOG.error(t)
+        try { LOG.error(t) } catch (s: Throwable) { }
       }
     }
   }!!

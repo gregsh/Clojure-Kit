@@ -212,7 +212,7 @@ open class ReplConnection(val projectDir: VirtualFile?, val consoleView: Languag
 
   protected open fun newProcessHandler(): ProcessHandler? {
     val workingDir = (projectDir ?: consoleView.project.baseDir).toIoFile()
-    val port = try { FileUtil.loadFile(File(workingDir, ".nrepl-port")).toInt() } catch (e: Exception) { -1 }
+    val port = try { FileUtil.loadFile(File(workingDir, ".nrepl-port")).trim().toInt() } catch (e: Exception) { -1 }
     val existingRemoteStr = if (port > 0) "Connected to nREPL server running on port $port and host localhost" else null
 
     return newRemoteProcess(existingRemoteStr) ?: newLocalProcess(workingDir)
