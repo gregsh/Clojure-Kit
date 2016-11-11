@@ -103,7 +103,7 @@ class ClojureDeleteHandler(val original: EditorWriteActionHandler) : EditorWrite
       if (!kill(editor, caret, dataContext, true)) original.executeWriteAction(editor, caret, dataContext) else Unit
 }
 
-class ClojureTypedHandler() : TypedHandlerDelegate() {
+class ClojureTypedHandler : TypedHandlerDelegate() {
 
   override fun charTyped(c: Char, project: Project?, editor: Editor, file: PsiFile): Result {
     if (file !is ClojureFile) return Result.CONTINUE
@@ -117,7 +117,7 @@ class ClojureTypedHandler() : TypedHandlerDelegate() {
       }
     }
     else {
-      val r = file.findElementAt(offset - 1).findParent(CForm::class)?.textRange
+      val r = file.findElementAt(offset - 1).parentForm?.textRange
       if (r != null && r.startOffset == offset - 1) {
         editor.document.insertString(r.endOffset + 1, "$pair")
       }

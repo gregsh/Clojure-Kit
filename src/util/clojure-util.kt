@@ -58,7 +58,8 @@ val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
 val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
 val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
 val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
-val PsiElement?.parentForm: PsiElement? get() = findParent(CForm::class).let { if (it?.parent is CKeyword) it?.parent else it }
+val PsiElement?.parentForm: PsiElement? get() = findParent(CForm::class).let { if (it?.parent.let { it is CKeyword || it is CSymbol }) it?.parent else it }
+val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm }).filter(CForm::class.java)
 
 fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi?: null
 fun PsiElement?.findNext(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi ?: null
