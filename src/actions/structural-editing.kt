@@ -26,14 +26,16 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorWriteActionHandler
+import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
+import com.intellij.psi.tree.IElementType
 import org.intellij.clojure.parser.ClojureTokens
-import org.intellij.clojure.psi.CForm
 import org.intellij.clojure.psi.CPForm
 import org.intellij.clojure.psi.ClojureFile
+import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.util.*
 
 /**
@@ -109,6 +111,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
     if (file !is ClojureFile) return Result.CONTINUE
     val pair = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else return Result.CONTINUE
     val offset = editor.caretModel.offset
+    if (isNotBalanced(editor, offset)) return Result.CONTINUE
     val text = editor.document.immutableCharSequence
     if (offset < text.length && text[offset] == pair) {
       val c2 = if (offset + 1 < text.length) text[offset + 1] else null
@@ -128,7 +131,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
 
 private fun slurp(form: CPForm, forward: Boolean): Unit {
   val children = form.iterateForms()
-  val target = (if (forward) form.findNext(CForm::class) else form.findPrev(CForm::class)) ?: return
+  val target = (if (forward) form.nextForm else form.prevForm) ?: return
   val copy = target.copy()
   target.delete()
   if (forward) form.addAfter(copy, children.last()) else form.addBefore(copy, children.first())
@@ -180,6 +183,7 @@ private fun kill(editor: Editor, caret: Caret?, dataContext: DataContext, forwar
   val psiFile = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) as? ClojureFile ?: return false
   val elementAt = psiFile.findElementAt(if (forward) offset else offset - 1).let { if (ClojureTokens.PARENS.contains(it.elementType)) it else null }
   val form = elementAt.findParent(CPForm::class) ?: return false
+  if (isNotBalanced(editor)) return false
   val r = form.textRange
   val replacement = if (forward && r.startOffset == offset || !forward && r.endOffset == offset) ""
   else {
@@ -187,6 +191,32 @@ private fun kill(editor: Editor, caret: Caret?, dataContext: DataContext, forwar
     editor.document.immutableCharSequence.substring(paren1.startOffset + 1, r.endOffset - 1)
   }
   editor.document.replaceString(r.startOffset, r.endOffset, replacement)
-  if (!forward) (caret ?: editor.caretModel.currentCaret).apply { moveToOffset(getOffset() - 1) }
   return true
+}
+
+private fun isNotBalanced(editor: Editor, skipAtOffset: Int = -1): Boolean {
+  val counter = ParenCounter()
+  val iterator = (editor as EditorEx).highlighter.createIterator(0)
+  while (!iterator.atEnd()) {
+    if (skipAtOffset == -1 || skipAtOffset != iterator.end) {
+      counter.visit(iterator.tokenType)
+    }
+    iterator.advance()
+  }
+  return !counter.isBalanced
+}
+
+private class ParenCounter(var parens: Int = 0, var braces: Int = 0, var brackets: Int = 0) {
+  val isBalanced: Boolean get() = parens == 0 && braces == 0 && brackets == 0
+
+  fun visit(t: IElementType): Unit {
+    when (t) {
+      ClojureTypes.C_PAREN1 -> parens++
+      ClojureTypes.C_PAREN2 -> parens--
+      ClojureTypes.C_BRACE1 -> braces++
+      ClojureTypes.C_BRACE2 -> braces--
+      ClojureTypes.C_BRACKET1 -> brackets++
+      ClojureTypes.C_BRACKET2 -> brackets--
+    }
+  }
 }
