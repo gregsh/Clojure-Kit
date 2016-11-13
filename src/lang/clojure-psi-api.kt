@@ -18,6 +18,7 @@
 package org.intellij.clojure.psi
 
 import com.intellij.lang.ASTNode
+import com.intellij.psi.NavigatablePsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.PsiQualifiedNamedElement
@@ -44,6 +45,7 @@ interface ClojureFile : PsiFile {
   val imports: JBIterable<CList>
 }
 
+interface CElement : NavigatablePsiElement
 interface CNamed : CForm, PsiNameIdentifierOwner, PsiQualifiedNamedElement {
   val def: DefInfo
   val nameSymbol: CSymbol?
@@ -53,7 +55,7 @@ interface CNamed : CForm, PsiNameIdentifierOwner, PsiQualifiedNamedElement {
   override fun getName(): String
 }
 
-interface CDef : CList, CNamed { }
+interface CDef : CList, CNamed
 
 interface DefInfo {
   val type: String

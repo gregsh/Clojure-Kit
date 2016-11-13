@@ -5,7 +5,7 @@ import java.util.List;
 import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
 
-public interface CReaderMacro extends PsiElement {
+public interface CReaderMacro extends CElement {
 
   @Nullable
   CSymbol getSymbol();

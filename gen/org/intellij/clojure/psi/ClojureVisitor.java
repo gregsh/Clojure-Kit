@@ -3,7 +3,6 @@ package org.intellij.clojure.psi;
 
 import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.PsiElement;
 
 public class ClojureVisitor extends PsiElementVisitor {
 
@@ -12,7 +11,7 @@ public class ClojureVisitor extends PsiElementVisitor {
   }
 
   public void visitForm(@NotNull CForm o) {
-    visitPsiElement(o);
+    visitElement(o);
   }
 
   public void visitFun(@NotNull CFun o) {
@@ -40,7 +39,7 @@ public class ClojureVisitor extends PsiElementVisitor {
   }
 
   public void visitMetadata(@NotNull CMetadata o) {
-    visitPsiElement(o);
+    visitElement(o);
   }
 
   public void visitPForm(@NotNull CPForm o) {
@@ -48,7 +47,7 @@ public class ClojureVisitor extends PsiElementVisitor {
   }
 
   public void visitReaderMacro(@NotNull CReaderMacro o) {
-    visitPsiElement(o);
+    visitElement(o);
   }
 
   public void visitRegexp(@NotNull CRegexp o) {
@@ -71,8 +70,8 @@ public class ClojureVisitor extends PsiElementVisitor {
     visitPForm(o);
   }
 
-  public void visitPsiElement(@NotNull PsiElement o) {
-    visitElement(o);
+  public void visitElement(@NotNull CElement o) {
+    super.visitElement(o);
   }
 
 }

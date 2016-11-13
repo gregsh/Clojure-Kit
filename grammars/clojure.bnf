@@ -12,6 +12,7 @@
   psiImplUtilClass='org.intellij.clojure.psi.impl.ClojurePsiImplUtil'
   psiClassPrefix='C'
   psiVisitorName='ClojureVisitor'
+  implements='org.intellij.clojure.psi.CElement'
 
   elementTypeHolderClass='org.intellij.clojure.psi.ClojureTypes'
   elementTypeClass="org.intellij.clojure.psi.ClojureNodeType"

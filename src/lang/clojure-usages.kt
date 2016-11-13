@@ -88,11 +88,11 @@ class ClojureElementDescriptionProvider : ElementDescriptionProvider {
 class ClojureGotoSymbolContributor : ChooseByNameContributor {
   override fun getItemsByName(name: String, pattern: String?, project: Project, includeNonProjectItems: Boolean): Array<NavigatablePsiElement> {
     val scope = if (!includeNonProjectItems) GlobalSearchScope.projectScope(project) else null
-    val elements = JBIterable.empty<PsiElement>()
+    val elements = JBIterable.empty<NavigatablePsiElement>()
         .append(StubIndex.getElements(DEF_INDEX_KEY, name, project, scope, CDef::class.java))
         .append(StubIndex.getElements(NS_INDEX_KEY, name, project, scope, ClojureFile::class.java))
         .append(StubIndex.getElements(KEYWORD_INDEX_KEY, name, project, scope, CKeyword::class.java).firstOrNull())
-    return (elements as JBIterable<NavigatablePsiElement>).toList().toTypedArray()
+    return elements.toList().toTypedArray()
   }
 
   override fun getNames(project: Project, includeNonProjectItems: Boolean): Array<String> = StubIndex.getInstance().let {
