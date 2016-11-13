@@ -44,6 +44,7 @@ object ClojureColors {
   @JvmField val LINE_COMMENT = createTextAttributesKey("C_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT)
   @JvmField val FORM_COMMENT = createTextAttributesKey("C_FORM_COMMENT"/*, DefaultLanguageHighlighterColors.BLOCK_COMMENT*/)
   @JvmField val STRING = createTextAttributesKey("C_STRING", DefaultLanguageHighlighterColors.STRING)
+  @JvmField val CHARACTER = createTextAttributesKey("C_CHARACTER", DefaultLanguageHighlighterColors.STRING)
   @JvmField val NUMBER = createTextAttributesKey("C_NUMBER", DefaultLanguageHighlighterColors.NUMBER)
   @JvmField val KEYWORD = createTextAttributesKey("C_KEYWORD", DefaultLanguageHighlighterColors.MARKUP_ATTRIBUTE)
   @JvmField val SYMBOL = createTextAttributesKey("C_SYMBOL", DefaultLanguageHighlighterColors.IDENTIFIER)
@@ -84,6 +85,7 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
       TokenType.BAD_CHARACTER -> pack(ClojureColors.ILLEGAL)
       ClojureTokens.LINE_COMMENT -> pack(ClojureColors.LINE_COMMENT)
       C_STRING -> pack(ClojureColors.STRING)
+      C_CHAR -> pack(ClojureColors.CHARACTER)
       C_NUMBER, C_HEXNUM, C_RDXNUM, C_RATIO -> pack(ClojureColors.NUMBER)
       C_BOOL -> pack(ClojureColors.BOOLEAN)
       C_NIL -> pack(ClojureColors.NIL)
@@ -213,6 +215,7 @@ class ClojureColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Comments//Line comment", ClojureColors.LINE_COMMENT),
         AttributesDescriptor("Comments//Form comment", ClojureColors.FORM_COMMENT),
         AttributesDescriptor("Literals//String", ClojureColors.STRING),
+        AttributesDescriptor("Literals//Character", ClojureColors.CHARACTER),
         AttributesDescriptor("Literals//Number", ClojureColors.NUMBER),
         AttributesDescriptor("Literals//Boolean", ClojureColors.BOOLEAN),
         AttributesDescriptor("Literals//nil", ClojureColors.NIL),
