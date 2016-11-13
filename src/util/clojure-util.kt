@@ -60,10 +60,11 @@ val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
 val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
 val PsiElement?.parentForm: PsiElement? get() = findParent(CForm::class).let { if (it?.parent.let { it is CKeyword || it is CSymbol }) it?.parent else it }
 val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm }).filter(CForm::class.java)
+val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)
 
-fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi?: null
-fun PsiElement?.findNext(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi ?: null
-fun PsiElement?.findPrev(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi ?: null
+fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi
+fun PsiElement?.findNext(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi
+fun PsiElement?.findPrev(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi
 
 fun VirtualFile.toIoFile() = VfsUtil.virtualToIoFile(this)
 
@@ -78,13 +79,12 @@ fun PsiElement?.iterate(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
 
 fun <T: Any> PsiElement?.iterate(c: KClass<T>): JBIterable<T> = iterate().filter(c)
-fun PsiElement?.iterateForms(): JBIterable<CForm> = iterate(CForm::class)
 
 fun PsiElement?.iterateRCAware(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverserRCAware().expandAndSkip(Conditions.equalTo(this)).traverse()
 
 fun PsiElement?.siblings(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else JBIterable.generate(this, { SyntaxTraverser.psiApi().next(it) }).notNulls()
+    if (this == null) JBIterable.empty() else JBIterable.generate(this, { it.nextSibling }).notNulls()
 
 fun PsiElement?.parents(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else SyntaxTraverser.psiApi().parents(this)

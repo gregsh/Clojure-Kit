@@ -124,7 +124,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
     val sb = StringBuilder("<html>")
     sb.append("<b>(${def.def.type}</b> ${def.def.namespace}/${def.def.name}<b>${if (def is CLForm) " …" else ""})</b>").append("<br>")
     val docString = if (def.def.type == ClojureConstants.TYPE_PROTOCOL_METHOD) nameSymbol.findNext(CLiteral::class)
-    else nameSymbol.findNext(CForm::class) as? CLiteral
+    else nameSymbol.nextForm as? CLiteral
     docString?.let {
       if (it.literalType == ClojureTypes.C_STRING) {
         sb.append("<br>").append(StringUtil.unquoteString(it.literalText)).append("<br>")
@@ -137,7 +137,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         else sb.append(StringUtil.unquoteString(form.text))
       }
     }
-    appendMap(docString.findNext(CForm::class))
+    appendMap(docString.nextForm)
     for (m in nameSymbol.metas) {
       appendMap(m.form)
     }
@@ -218,7 +218,7 @@ class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
 
 class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList, CVec, CForm> {
   override fun updateParameterInfo(parameterOwner: CList, context: UpdateParameterInfoContext) =
-      context.setCurrentParameter(parameterOwner.iterateForms().skip(1)
+      context.setCurrentParameter(parameterOwner.childForms.skip(1)
           .filter { !it.textMatches("&") }
           .indexOf { it.textRange.containsOffset(context.offset) })
 
@@ -237,7 +237,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
           .parents()
           .find { it is CList && it.findChild(ClojureTypes.C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset }?.let {
         (((it as CList).first as? CSymbol)?.reference?.resolve()?.navigationElement as? CList)?.run {
-          context.itemsToShow = prototypes(this).transform { it.iterateForms().find { it is CVec } }.notNulls().toList().toTypedArray()
+          context.itemsToShow = prototypes(this).transform { it.childForms.find { it is CVec } }.notNulls().toList().toTypedArray()
         }
         it as CList
       }
@@ -251,7 +251,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
     val sb = StringBuilder()
     val highlight = intArrayOf(-1, -1)
     var i = 0
-    proto.iterateForms().forEach { o ->
+    proto.childForms.forEach { o ->
       if (i > 0) sb.append(" ")
       if (o.textMatches("&")) {
         sb.append("&")
@@ -270,7 +270,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
   }
 
   override fun getArgumentListClass(): Class<CList> = CList::class.java
-  override fun getActualParameters(o: CList) = o.iterateForms().skip(1).toList().toTypedArray()
+  override fun getActualParameters(o: CList) = o.childForms.skip(1).toList().toTypedArray()
   override fun couldShowInLookup() = true
   override fun getParametersForLookup(item: LookupElement?, context: ParameterInfoContext?) = emptyArray<Any>()
   override fun getParameterCloseChars(): String = ")"

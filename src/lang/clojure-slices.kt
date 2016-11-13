@@ -98,18 +98,18 @@ class ClojureSliceUsage : SliceUsage {
       when {
         type == "let" && findBindingsVec(list, "let").isAncestorOf(element) -> {
           val bindings = findBindingsVec(list, "let")
-          destruct(bindings.iterateForms().takeWhile { !it.isAncestorOf(element) }.last()).filter(CSymbol::class).forEach {
+          destruct(bindings.childForms.takeWhile { !it.isAncestorOf(element) }.last()).filter(CSymbol::class).forEach {
             uniqueProcessor.process(ClojureSliceUsage(it, this))
           }
         }
         else -> {
           val def = list.first?.reference?.resolve()?.navigationElement as? CDef ?: return
-          val argIndex = list.iterateForms().indexOf(element) - 1
+          val argIndex = list.childForms.indexOf(element) - 1
           if (argIndex < 0) return
-          val argCount = list.iterateForms().size() - 1
+          val argCount = list.childForms.size() - 1
           for (prototype in prototypes(def)) {
             val vec = prototype.iterate(CVec::class).first() ?: continue
-            val partition = vec.iterateForms().split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
+            val partition = vec.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
             val sizes = partition.transform { it.size() }.toList()
             val arg = when {
               sizes.size == 1 && sizes[0] == argCount -> partition[0]!![argIndex]
@@ -132,33 +132,33 @@ class ClojureSliceUsage : SliceUsage {
       return
     }
     val list = element.parents().filter(CList::class).filter { it.iterate(CReaderMacro::class).isEmpty }.transform {
-      if (it.parent is CDef && it.iterateForms().first() is CVec) it.parent as CDef else it
+      if (it.parent is CDef && it.childForms.first() is CVec) it.parent as CDef else it
     }.first() ?: return
     val type = listType(list) ?: return
     when {
       type == "let" && findBindingsVec(list, "let").isAncestorOf(element) -> {
         val bindings = findBindingsVec(list, "let")
-        bindings.iterateForms().find { it.isAncestorOf(element) }.nextForm?.let {
+        bindings.childForms.find { it.isAncestorOf(element) }.nextForm?.let {
           uniqueProcessor.process(ClojureSliceUsage(it, this))
         }
       }
       else -> {
         val def = list as? CDef ?: return
         val vec = element.parents().takeWhile { it != def }.filter(CVec::class).last() ?: return
-        val partition = vec.iterateForms().split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
+        val partition = vec.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
         val argIndex = partition.flatten { it }.indexOf { it.isAncestorOf(element) }
         if (argIndex < 0) return
         val sizes = partition.transform { it.size() }.toList()
         val otherSizes = BitSet()
         for (prototype in prototypes(def).filter { it != vec.parent }) {
           val vec1 = prototype.iterate(CVec::class).first() ?: continue
-          val partition1 = vec1.iterateForms().split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
+          val partition1 = vec1.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
           otherSizes.set(partition1[0]?.size() ?: continue)
         }
         ReferencesSearch.search(def, params.scope.toSearchScope()).forEach { usage ->
           usage.element.parents().filter(CList::class).first()?.let { list ->
             if (list.first.let { it == usage.element || it?.name == "." && it == usage.element.parent }) {
-              val params = list.iterateForms().skip(1)
+              val params = list.childForms.skip(1)
               val argCount = params.size()
               val arg: Any? = when {
                 sizes.size == 1 && sizes[0] == argCount -> params[argIndex]

@@ -130,7 +130,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
 }
 
 private fun slurp(form: CPForm, forward: Boolean): Unit {
-  val children = form.iterateForms()
+  val children = form.childForms
   val target = (if (forward) form.nextForm else form.prevForm) ?: return
   val copy = target.copy()
   target.delete()
@@ -142,7 +142,7 @@ private fun slurp(form: CPForm, forward: Boolean): Unit {
 }
 
 private fun barf(form: CPForm, forward: Boolean): Unit {
-  val children = form.iterateForms()
+  val children = form.childForms
   val target = (if (forward) children.last() else children.first()) ?: return
   val copy = target.copy()
   target.delete()

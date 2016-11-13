@@ -85,7 +85,7 @@ class ClojureFileImpl(viewProvider: FileViewProvider, language: Language) :
       val definitions = cljTraverser().filter(CDef::class.java).toList()
       val imports = cljTopLevelTraverser().filter(CList::class.java)
           .filter { (it as CList).first?.name?.let { ClojureConstants.NS_ALIKE_SYMBOLS.contains(it)} ?: false }.toList()
-      val namespace = ((imports.firstOrNull() as? CDef)?.first?.findNext(CForm::class) as? CSymbol)?.name ?: NS_USER
+      val namespace = ((imports.firstOrNull() as? CDef)?.first?.nextForm as? CSymbol)?.name ?: NS_USER
       val state = State(namespace, definitions, imports)
       myState = state
       return state
