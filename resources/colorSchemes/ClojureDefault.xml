@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+  <option name="C_DYNAMIC">
+    <value>
+      <option name="FOREGROUND" value="20999d"/>
+    </value>
+  </option>
+  <option name="C_FN_ARGUMENT">
+    <value>
+      <option name="FOREGROUND" value="660e7a"/>
+    </value>
+  </option>
+  <option name="C_FORM_COMMENT">
+    <value>
+      <option name="BACKGROUND" value="e9e9e9"/>
+    </value>
+  </option>
+  <option name="C_LET_BINDING">
+    <value>
+      <option name="FOREGROUND" value="660e7a"/>
+      <option name="FONT_TYPE" value="1"/>
+    </value>
+  </option>
+</list>

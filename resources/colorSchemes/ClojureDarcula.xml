@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<list>
+  <option name="C_DYNAMIC">
+    <value>
+      <option name="FOREGROUND" value="507874"/>
+    </value>
+  </option>
+  <option name="C_FN_ARGUMENT">
+    <value>
+      <option name="FOREGROUND" value="b389c5"/>
+      <option name="EFFECT_COLOR" value="b389c5"/>
+      <option name="EFFECT_TYPE" value="1"/>
+    </value>
+  </option>
+  <option name="C_FORM_COMMENT">
+    <value>
+      <option name="BACKGROUND" value="3d3d3d"/>
+    </value>
+  </option>
+  <option name="C_KEYWORD">
+    <value>
+      <option name="FOREGROUND" value="ffc66d"/>
+    </value>
+  </option>
+  <option name="C_LET_BINDING">
+    <value>
+      <option name="FOREGROUND" value="9876aa"/>
+      <option name="FONT_TYPE" value="1"/>
+    </value>
+  </option>
+</list>

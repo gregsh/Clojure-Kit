@@ -35,6 +35,8 @@
     <lang.substitutor language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureLanguageSubstitutor"/>
     <lang.syntaxHighlighterFactory language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureSyntaxHighlighterFactory"/>
     <colorSettingsPage implementation="org.intellij.clojure.lang.ClojureColorSettingsPage"/>
+    <additionalTextAttributes scheme="Default" file="colorSchemes/ClojureDefault.xml"/>
+    <additionalTextAttributes scheme="Darcula" file="colorSchemes/ClojureDarcula.xml"/>
     <lang.braceMatcher language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureBraceMatcher"/>
 
     <spellchecker.support language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureSpellCheckingStrategy"/>
