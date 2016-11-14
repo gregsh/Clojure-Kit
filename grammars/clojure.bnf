@@ -60,6 +60,7 @@
     sharp="#"
     hat="^"
     tilde="~"
+    tilde_at="~@"
     at="@"
 
     dot='.'
@@ -115,7 +116,7 @@ literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char
 regexp ::= '#' <<nospace>> string {extends=literal}
 constructor ::= '#' symbol (vec | map)
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
-reader_macro ::= "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
+reader_macro ::= "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
 private reader_cond ::= ('#?' | '#?@') &'(' {pin(".*")=1}
 private map_ns_prefix ::= "#:" (':' <<nospace>> symbol_plain
   | alias_condition '::' <<nospace>> symbol_plain

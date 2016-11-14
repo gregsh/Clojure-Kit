@@ -59,6 +59,7 @@ public interface ClojureTypes {
   IElementType C_SYM = new ClojureTokenType("sym");
   IElementType C_SYNTAX_QUOTE = new ClojureTokenType("`");
   IElementType C_TILDE = new ClojureTokenType("~");
+  IElementType C_TILDE_AT = new ClojureTokenType("~@");
 
   class Factory {
     public static PsiElement createElement(ASTNode node) {

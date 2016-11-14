@@ -188,10 +188,10 @@ public class _ClojureLexer implements FlexLexer {
     "\1\31\3\32\1\33\1\34\1\35\1\36\1\37\1\40"+
     "\1\41\1\42\1\43\1\44\1\0\10\45\1\6\1\0"+
     "\3\6\1\0\1\6\2\0\1\46\1\5\1\46\1\0"+
-    "\1\31\3\5\1\47\1\14\3\0\1\50\7\0\2\6"+
-    "\1\5\1\6\2\5\1\6\1\0\1\6\1\51\1\52"+
-    "\1\46\1\53\1\0\1\54\1\5\1\55\2\5\1\0"+
-    "\1\32\7\0\2\6\1\5\1\6\1\51\1\54\1\56"+
+    "\1\31\3\5\1\47\1\50\3\0\1\51\7\0\2\6"+
+    "\1\5\1\6\2\5\1\6\1\0\1\6\1\52\1\53"+
+    "\1\46\1\54\1\0\1\55\1\5\1\56\2\5\1\0"+
+    "\1\32\7\0\2\6\1\5\1\6\1\52\1\55\1\57"+
     "\14\0";
 
   private static int [] zzUnpackAction() {
@@ -719,193 +719,197 @@ public class _ClojureLexer implements FlexLexer {
           case 1: 
             { return BAD_CHARACTER;
             }
-          case 47: break;
+          case 48: break;
           case 2: 
             { return WHITE_SPACE;
             }
-          case 48: break;
+          case 49: break;
           case 3: 
             { return ClojureTokens.LINE_COMMENT;
             }
-          case 49: break;
+          case 50: break;
           case 4: 
             { return C_STRING_UNCLOSED;
             }
-          case 50: break;
+          case 51: break;
           case 5: 
             { yybegin(SYMBOL1); return C_SYM;
             }
-          case 51: break;
+          case 52: break;
           case 6: 
             { return C_NUMBER;
             }
-          case 52: break;
+          case 53: break;
           case 7: 
             { return C_SYM;
             }
-          case 53: break;
+          case 54: break;
           case 8: 
             { return C_QUOTE;
             }
-          case 54: break;
+          case 55: break;
           case 9: 
             { yybegin(SYMBOL0); return C_COLON;
             }
-          case 55: break;
+          case 56: break;
           case 10: 
             { yybegin(DISPATCH);
             }
-          case 56: break;
+          case 57: break;
           case 11: 
             { return C_HAT;
             }
-          case 57: break;
+          case 58: break;
           case 12: 
             { return C_TILDE;
             }
-          case 58: break;
+          case 59: break;
           case 13: 
             { return C_AT;
             }
-          case 59: break;
+          case 60: break;
           case 14: 
             { return C_PAREN1;
             }
-          case 60: break;
+          case 61: break;
           case 15: 
             { return C_PAREN2;
             }
-          case 61: break;
+          case 62: break;
           case 16: 
             { return C_BRACKET1;
             }
-          case 62: break;
+          case 63: break;
           case 17: 
             { return C_BRACKET2;
             }
-          case 63: break;
+          case 64: break;
           case 18: 
             { return C_BRACE1;
             }
-          case 64: break;
+          case 65: break;
           case 19: 
             { return C_BRACE2;
             }
-          case 65: break;
+          case 66: break;
           case 20: 
             { return C_COMMA;
             }
-          case 66: break;
+          case 67: break;
           case 21: 
             { return C_SYNTAX_QUOTE;
             }
-          case 67: break;
+          case 68: break;
           case 22: 
             { yybegin(YYINITIAL); yypushback(yylength());
             }
-          case 68: break;
+          case 69: break;
           case 23: 
             { yybegin(YYINITIAL); return C_DOT;
             }
-          case 69: break;
+          case 70: break;
           case 24: 
             { yybegin(SYMBOL2); return C_SLASH;
             }
-          case 70: break;
+          case 71: break;
           case 25: 
             { yybegin(YYINITIAL); return BAD_CHARACTER;
             }
-          case 71: break;
+          case 72: break;
           case 26: 
             { yybegin(YYINITIAL); return C_SYM;
             }
-          case 72: break;
+          case 73: break;
           case 27: 
             { yybegin(YYINITIAL); yypushback(yylength()); return BAD_CHARACTER;
             }
-          case 73: break;
+          case 74: break;
           case 28: 
             { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP;
             }
-          case 74: break;
+          case 75: break;
           case 29: 
             { yybegin(YYINITIAL); yypushback(1); return C_SHARP;
             }
-          case 75: break;
+          case 76: break;
           case 30: 
             { yybegin(YYINITIAL); return C_SHARP_QUOTE;
             }
-          case 76: break;
+          case 77: break;
           case 31: 
             { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP_NS;
             }
-          case 77: break;
+          case 78: break;
           case 32: 
             { yybegin(YYINITIAL); return C_SHARP_HAT;
             }
-          case 78: break;
+          case 79: break;
           case 33: 
             { yybegin(YYINITIAL); return C_SHARP_EQ;
             }
-          case 79: break;
+          case 80: break;
           case 34: 
             { yybegin(YYINITIAL); return C_SHARP_COMMENT;
             }
-          case 80: break;
+          case 81: break;
           case 35: 
             { yybegin(YYINITIAL); return C_SHARP_QMARK;
             }
-          case 81: break;
+          case 82: break;
           case 36: 
             { return C_STRING;
             }
-          case 82: break;
+          case 83: break;
           case 37: 
             { return C_CHAR;
             }
-          case 83: break;
+          case 84: break;
           case 38: 
             // lookahead expression with fixed base length
             zzMarkedPos = Character.offsetByCodePoints
                 (zzBufferL/*, zzStartRead, zzEndRead - zzStartRead*/, zzStartRead, 1);
             { yybegin(SYMBOL0); return C_DOT;
             }
-          case 84: break;
+          case 85: break;
           case 39: 
             { yybegin(SYMBOL0); return C_COLONCOLON;
             }
-          case 85: break;
-          case 40: 
-            { yybegin(YYINITIAL); return C_SHARP_QMARK_AT;
-            }
           case 86: break;
-          case 41: 
-            { return C_RDXNUM;
+          case 40: 
+            { return C_TILDE_AT;
             }
           case 87: break;
-          case 42: 
-            { return C_RATIO;
+          case 41: 
+            { yybegin(YYINITIAL); return C_SHARP_QMARK_AT;
             }
           case 88: break;
+          case 42: 
+            { return C_RDXNUM;
+            }
+          case 89: break;
           case 43: 
+            { return C_RATIO;
+            }
+          case 90: break;
+          case 44: 
             // lookahead expression with fixed base length
             zzMarkedPos = Character.offsetByCodePoints
                 (zzBufferL/*, zzStartRead, zzEndRead - zzStartRead*/, zzStartRead, 2);
             { yybegin(SYMBOL0); return C_DOTDASH;
             }
-          case 89: break;
-          case 44: 
+          case 91: break;
+          case 45: 
             { return C_HEXNUM;
             }
-          case 90: break;
-          case 45: 
+          case 92: break;
+          case 46: 
             { return C_NIL;
             }
-          case 91: break;
-          case 46: 
+          case 93: break;
+          case 47: 
             { return C_BOOL;
             }
-          case 92: break;
+          case 94: break;
           default:
             zzScanError(ZZ_NO_MATCH);
           }

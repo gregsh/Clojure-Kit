@@ -95,7 +95,11 @@ class ClojureAnnotator : Annotator {
         }
       }
       is CMetadata -> {
-        holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.METADATA
+        element.firstForm.let {
+          if (it is CSymbol) {
+            holder.createInfoAnnotation(it, null).textAttributes = ClojureColors.METADATA
+          }
+        }
       }
     }
     if (element is CForm && element.iterate(CReaderMacro::class).find { it.firstChild.elementType == ClojureTypes.C_SHARP_COMMENT } != null) {

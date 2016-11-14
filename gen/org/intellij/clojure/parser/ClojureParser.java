@@ -544,13 +544,14 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // "'" | "~" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
+  // "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
   public static boolean reader_macro(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "reader_macro")) return false;
     boolean r;
     Marker m = enter_section_(b, l, _NONE_, C_READER_MACRO, "<form>");
     r = consumeToken(b, C_QUOTE);
     if (!r) r = consumeToken(b, C_TILDE);
+    if (!r) r = consumeToken(b, C_TILDE_AT);
     if (!r) r = consumeToken(b, C_AT);
     if (!r) r = consumeToken(b, C_SYNTAX_QUOTE);
     if (!r) r = consumeToken(b, C_SHARP_COMMENT);

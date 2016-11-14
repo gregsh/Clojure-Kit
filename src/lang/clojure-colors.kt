@@ -22,6 +22,7 @@ import com.intellij.lang.LanguageUtil
 import com.intellij.lexer.Lexer
 import com.intellij.lexer.LookAheadLexer
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
+import com.intellij.openapi.editor.HighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.openapi.editor.colors.TextAttributesKey.createTextAttributesKey
 import com.intellij.openapi.editor.markup.TextAttributes
@@ -40,9 +41,8 @@ import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.ClojureTypes.*
 
 object ClojureColors {
-  @JvmField val ILLEGAL = createTextAttributesKey("C_ILLEGAL", DefaultLanguageHighlighterColors.INVALID_STRING_ESCAPE)
   @JvmField val LINE_COMMENT = createTextAttributesKey("C_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT)
-  @JvmField val FORM_COMMENT = createTextAttributesKey("C_FORM_COMMENT"/*, DefaultLanguageHighlighterColors.BLOCK_COMMENT*/)
+  @JvmField val FORM_COMMENT = createTextAttributesKey("C_FORM_COMMENT")
   @JvmField val STRING = createTextAttributesKey("C_STRING", DefaultLanguageHighlighterColors.STRING)
   @JvmField val CHARACTER = createTextAttributesKey("C_CHARACTER", DefaultLanguageHighlighterColors.STRING)
   @JvmField val NUMBER = createTextAttributesKey("C_NUMBER", DefaultLanguageHighlighterColors.NUMBER)
@@ -53,10 +53,12 @@ object ClojureColors {
   @JvmField val CALLABLE = createTextAttributesKey("C_CALLABLE", DefaultLanguageHighlighterColors.KEYWORD)
 
   @JvmField val COMMA = createTextAttributesKey("C_COMMA", DefaultLanguageHighlighterColors.COMMA)
-  @JvmField val DOT = createTextAttributesKey("C_DOT", DefaultLanguageHighlighterColors.DOT)
+  @JvmField val DOT = createTextAttributesKey("C_DOT", DefaultLanguageHighlighterColors.KEYWORD)
   @JvmField val SLASH = createTextAttributesKey("C_SLASH", DefaultLanguageHighlighterColors.DOT)
   @JvmField val QUOTE = createTextAttributesKey("C_QUOTE", DefaultLanguageHighlighterColors.STRING)
-  @JvmField val SYNTAX_QUOTE = createTextAttributesKey("C_SYNTAX_QUOTE", DefaultLanguageHighlighterColors.DOT)
+  @JvmField val SYNTAX_QUOTE = createTextAttributesKey("C_SYNTAX_QUOTE", DefaultLanguageHighlighterColors.OPERATION_SIGN)
+  @JvmField val UNQUOTE = createTextAttributesKey("C_UNQUOTE", DefaultLanguageHighlighterColors.OPERATION_SIGN)
+  @JvmField val DEREF = createTextAttributesKey("C_DEREF", DefaultLanguageHighlighterColors.OPERATION_SIGN)
   @JvmField val PARENS = createTextAttributesKey("C_PARENS", DefaultLanguageHighlighterColors.PARENTHESES)
   @JvmField val BRACES = createTextAttributesKey("C_BRACES", DefaultLanguageHighlighterColors.BRACES)
   @JvmField val BRACKETS = createTextAttributesKey("C_BRACKETS", DefaultLanguageHighlighterColors.BRACKETS)
@@ -82,7 +84,7 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
 
   override fun getTokenHighlights(tokenType: IElementType?): Array<out TextAttributesKey> {
     return when (tokenType) {
-      TokenType.BAD_CHARACTER -> pack(ClojureColors.ILLEGAL)
+      TokenType.BAD_CHARACTER -> pack(HighlighterColors.BAD_CHARACTER)
       ClojureTokens.LINE_COMMENT -> pack(ClojureColors.LINE_COMMENT)
       C_STRING -> pack(ClojureColors.STRING)
       C_CHAR -> pack(ClojureColors.CHARACTER)
@@ -97,7 +99,10 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
       C_SLASH -> pack(ClojureColors.SLASH)
       C_QUOTE -> pack(ClojureColors.QUOTE)
       C_SYNTAX_QUOTE -> pack(ClojureColors.SYNTAX_QUOTE)
-      C_SHARP, C_SHARP_COMMENT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_NS -> pack(ClojureColors.READER_MACRO)
+      C_TILDE, C_TILDE_AT -> pack(ClojureColors.UNQUOTE)
+      C_AT -> pack(ClojureColors.DEREF)
+      C_HAT, C_SHARP_HAT -> pack(ClojureColors.METADATA)
+      C_SHARP, C_SHARP_COMMENT, C_SHARP_EQ, C_SHARP_NS -> pack(ClojureColors.READER_MACRO)
       C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_QUOTE -> pack(ClojureColors.READER_MACRO)
       C_PAREN1, C_PAREN2 -> pack(ClojureColors.PARENS)
       C_BRACE1, C_BRACE2 -> pack(ClojureColors.BRACES)
@@ -127,27 +132,34 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
 
     val tokenType0 = baseLexer.tokenType
 
-    if (tokenType0 === C_QUOTE) {
-      advanceAs(baseLexer, tokenType0)
-      skipWs(baseLexer)
-      if (baseLexer.tokenType === C_SYM) advanceSymbolAs(baseLexer, QUOTED_SYM)
-      else advanceLexer(baseLexer)
-    }
-    else if (tokenType0 === C_COLON || tokenType0 === C_COLONCOLON) {
-      advanceAs(baseLexer, tokenType0)
-      if (baseLexer.tokenType === C_SYM) {
-        advanceAs(baseLexer, KEYWORD)
-        if (baseLexer.tokenType === C_SLASH) advanceAs(baseLexer, KEYWORD)
-        if (baseLexer.tokenType === C_SYM) advanceAs(baseLexer, KEYWORD)
+    when (tokenType0) {
+      C_SHARP -> {
+        baseLexer.advance()
+        when (baseLexer.tokenType) {
+          C_STRING, C_PAREN1, C_BRACE1 -> advanceAs(baseLexer, baseLexer.tokenType)
+          else -> addToken(baseLexer.tokenStart, C_SHARP)
+        }
       }
-    }
-    else if (tokenType0 === C_PAREN1) {
-      advanceAs(baseLexer, tokenType0)
-      skipWs(baseLexer)
-      advanceSymbolAs(baseLexer, CALLABLE)
-    }
-    else {
-      super.lookAhead(baseLexer)
+      C_QUOTE -> {
+        advanceAs(baseLexer, tokenType0)
+        skipWs(baseLexer)
+        if (baseLexer.tokenType === C_SYM) advanceSymbolAs(baseLexer, QUOTED_SYM)
+        else advanceLexer(baseLexer)
+      }
+      C_COLON, C_COLONCOLON -> {
+        advanceAs(baseLexer, tokenType0)
+        if (baseLexer.tokenType === C_SYM) {
+          advanceAs(baseLexer, KEYWORD)
+          if (baseLexer.tokenType === C_SLASH) advanceAs(baseLexer, KEYWORD)
+          if (baseLexer.tokenType === C_SYM) advanceAs(baseLexer, KEYWORD)
+        }
+      }
+      C_PAREN1 -> {
+        advanceAs(baseLexer, tokenType0)
+        skipWs(baseLexer)
+        advanceSymbolAs(baseLexer, CALLABLE)
+      }
+      else -> super.lookAhead(baseLexer)
     }
   }
 
@@ -155,9 +167,9 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
     w@ while (true) {
       val tokenType = baseLexer.tokenType
       when (tokenType) {
-        C_DOT, C_DOTDASH, C_SLASH, C_SYM -> advanceAs(baseLexer, type)
+        C_DOT, C_DOTDASH -> advanceAs(baseLexer, tokenType)
+        C_SLASH, C_SYM -> advanceAs(baseLexer, type)
         C_COLON, C_COLONCOLON -> advanceAs(baseLexer, type)
-        C_SLASH -> advanceAs(baseLexer, tokenType)
         else -> break@w
       }
     }
@@ -174,34 +186,37 @@ class ClojureColorSettingsPage : ColorSettingsPage {
 
   override fun getDemoText() =
       """
-(ns <meta>^{<k>:doc</k> "The core Clojure language."
-       <k>:author</k> "Rich Hickey"}</meta>
+(ns ^{<k>:doc</k> "The core Clojure language."
+       <k>:author</k> "Rich Hickey"}
   <ns>clojure.core</ns>)
 
 <ign>(comment "clojure code fragments below")</ign>
 (alias c <sym>'clojure.core</sym>)
 
-(def
- <meta>^{<k>:arglists</k> '([& items])
-   <k>:doc</k> "Creates a new list containing the items."
-   <k>:added</k> "1.0"}</meta>
-  list (. clojure.lang.PersistentList creator))
+(defn mod
+  "Modulus of num and div. Truncates toward negative infinity."
+  {<k>:added</k> "1.0"
+   <k>:static</k> true}
+  [<arg>num</arg> <arg>div</arg>]
+  (let [<bnd>m</bnd> (rem <arg>num</arg> <arg>div</arg>)]
+    (if (or (zero? <bnd>m</bnd>) (= (pos? <arg>num</arg>) (pos? <arg>div</arg>)))
+      <bnd>m</bnd>
+      (+ <bnd>m</bnd> <arg>div</arg>))))
 
-(def
- <meta>^{<k>:arglists</k> '([x seq])
-    <k>:doc</k> "Returns a new seq where x is the first element and seq is
-    the rest."
-   <k>:added</k> "1.0"
-   <k>:static</k> true}</meta>
+; field access
+(.-x (java.awt.Point. 1 2))
 
- cons (fn* <meta>^<k>:static</k></meta> cons [<arg>x</arg> <arg>seq</arg>] (. clojure.lang.RT (cons <arg>x</arg> <arg>seq</arg>))))
+; reader conditionals and dynamic resolve
+#?(:clj     Double/NaN
+   :cljs    <dyn>js</dyn>/NaN
+   :default nil)
   """
 
   override fun getAdditionalHighlightingTagToDescriptorMap() = hashMapOf(
       "ns" to ClojureColors.NAMESPACE,
       "k" to ClojureColors.KEYWORD,
       "sym" to ClojureColors.QUOTED_SYM,
-      "meta" to ClojureColors.METADATA,
+      "dyn" to ClojureColors.DYNAMIC,
       "reader" to ClojureColors.READER_MACRO,
       "arg" to ClojureColors.FN_ARGUMENT,
       "bnd" to ClojureColors.LET_BINDING,
@@ -210,10 +225,9 @@ class ClojureColorSettingsPage : ColorSettingsPage {
 
   companion object {
     private val ATTRS = arrayOf(
-        AttributesDescriptor("Illegal symbol", ClojureColors.ILLEGAL),
-        AttributesDescriptor("Symbol", ClojureColors.SYMBOL),
         AttributesDescriptor("Comments//Line comment", ClojureColors.LINE_COMMENT),
         AttributesDescriptor("Comments//Form comment", ClojureColors.FORM_COMMENT),
+        AttributesDescriptor("Literals//Symbol", ClojureColors.SYMBOL),
         AttributesDescriptor("Literals//String", ClojureColors.STRING),
         AttributesDescriptor("Literals//Character", ClojureColors.CHARACTER),
         AttributesDescriptor("Literals//Number", ClojureColors.NUMBER),
@@ -226,10 +240,12 @@ class ClojureColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Punctuation//Slash", ClojureColors.SLASH),
         AttributesDescriptor("Punctuation//Quote", ClojureColors.QUOTE),
         AttributesDescriptor("Punctuation//Syntax quote", ClojureColors.SYNTAX_QUOTE),
+        AttributesDescriptor("Punctuation//Unquote", ClojureColors.UNQUOTE),
+        AttributesDescriptor("Punctuation//Dereference", ClojureColors.DEREF),
         AttributesDescriptor("Grouping//Parens", ClojureColors.PARENS),
         AttributesDescriptor("Grouping//Braces", ClojureColors.BRACES),
         AttributesDescriptor("Grouping//Brackets", ClojureColors.BRACKETS),
-        AttributesDescriptor("Entities//Callable item", ClojureColors.CALLABLE),
+        AttributesDescriptor("Entities//Callable (list head)", ClojureColors.CALLABLE),
         AttributesDescriptor("Entities//Function argument", ClojureColors.FN_ARGUMENT),
         AttributesDescriptor("Entities//Local binding", ClojureColors.LET_BINDING),
         AttributesDescriptor("Entities//Namespace", ClojureColors.NAMESPACE),
