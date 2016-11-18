@@ -60,7 +60,9 @@ object ClojureTokens {
   @JvmField val SHARPS = TokenSet.create(C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_QUOTE)
   @JvmField val MACROS = TokenSet.orSet(SHARPS, TokenSet.create(C_AT, C_COLON, C_COLONCOLON, C_HAT, C_SYNTAX_QUOTE, C_TILDE))
 
-  @JvmField val PARENS = TokenSet.create(C_PAREN1, C_PAREN2, C_BRACE1, C_BRACE2, C_BRACKET1, C_BRACKET2)
+  @JvmField val PAREN1_ALIKE = TokenSet.create(C_PAREN1, C_BRACE1, C_BRACKET1)
+  @JvmField val PAREN2_ALIKE = TokenSet.create(C_PAREN2, C_BRACE2, C_BRACKET2)
+  @JvmField val PAREN_ALIKE = TokenSet.orSet(PAREN1_ALIKE, PAREN2_ALIKE)
   @JvmField val LIST_ALIKE = TokenSet.create(C_FUN, C_LIST, C_MAP, C_SET, C_VEC)
 
   @JvmStatic fun wsOrComment(t: IElementType?) = t != null && (WHITESPACES.contains(t) || COMMENTS.contains(t))

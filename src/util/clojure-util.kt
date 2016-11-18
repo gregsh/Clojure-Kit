@@ -49,7 +49,7 @@ fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.star
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
-fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getStubOrPsiParentOfType(this, c.java)
+fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = if (c.isInstance(this)) this as T else PsiTreeUtil.getStubOrPsiParentOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findChild(c: KClass<T>) = PsiTreeUtil.getChildOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findNext(c: KClass<T>) = PsiTreeUtil.getNextSiblingOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findPrev(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
@@ -58,8 +58,9 @@ val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
 val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
 val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
 val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
-val PsiElement?.parentForm: PsiElement? get() = findParent(CForm::class).let { if (it?.parent.let { it is CKeyword || it is CSymbol }) it?.parent else it }
-val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm }).filter(CForm::class.java)
+val PsiElement?.parentForm: CForm? get() = findParent(CForm::class).let { it?.parent.let {
+  it as? CKeyword ?: (it as? CSymbol)?.parent as? CKeyword } ?: it }
+val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm })
 val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)
 
 fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi

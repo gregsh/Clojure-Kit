@@ -24,18 +24,20 @@ import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Caret
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.actionSystem.EditorWriteActionHandler
 import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.ProperTextRange
+import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.IElementType
 import org.intellij.clojure.parser.ClojureTokens
-import org.intellij.clojure.psi.CPForm
-import org.intellij.clojure.psi.ClojureFile
-import org.intellij.clojure.psi.ClojureTypes
+import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
 
 /**
@@ -45,54 +47,61 @@ abstract class EditActionBase : DumbAwareAction() {
   override fun update(e: AnActionEvent) {
     e.presentation.isEnabled =
         e.getData(LangDataKeys.EDITOR) != null &&
-        e.getData(LangDataKeys.PSI_FILE) is ClojureFile
+            e.getData(LangDataKeys.PSI_FILE) is ClojureFile
   }
 
   override fun actionPerformed(e: AnActionEvent) {
     val editor = e.getData(LangDataKeys.EDITOR)
     val file = e.getData(LangDataKeys.PSI_FILE) as? ClojureFile
     if (editor != null && file != null) {
-      val list = file.findElementAt(editor.caretModel.offset).findParent(CPForm::class)
-      if (list == null) {
-        HintManager.getInstance().showErrorHint(editor, "Place caret inside a list-like form")
-      }
-      else {
-        WriteCommandAction.runWriteCommandAction(e.project) {
-          actionPerformed(list, file, editor)
-        }
+      PsiDocumentManager.getInstance(file.project).commitDocument(editor.document)
+      actionFun(file, editor)?.let {
+        WriteCommandAction.runWriteCommandAction(file.project) { it() }
       }
     }
+  }
+
+  abstract fun actionFun(file: ClojureFile, editor: Editor): (() -> Unit)?
+}
+
+abstract class CPFormActionBase : EditActionBase() {
+  override fun actionFun(file: ClojureFile, editor: Editor): (() -> Unit)? {
+    val form = file.findElementAt(editor.caretModel.offset).findParent(CPForm::class) ?: run {
+      HintManager.getInstance().showErrorHint(editor, "Place caret inside a list-like form")
+      return null
+    }
+    return { actionPerformed(form, file, editor) }
   }
 
   abstract fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor)
 }
 
-class SlurpBwdAction : EditActionBase() {
-  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = slurp(form, false)
+class SlurpBwdAction : CPFormActionBase() {
+  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = slurp(form, editor, false)
 }
 
-class SlurpFwdAction : EditActionBase() {
-  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = slurp(form, true)
+class SlurpFwdAction : CPFormActionBase() {
+  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = slurp(form, editor, true)
 }
 
-class BarfBwdAction : EditActionBase() {
-  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = barf(form, false)
+class BarfBwdAction : CPFormActionBase() {
+  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = barf(form, editor, false)
 }
 
-class BarfFwdAction : EditActionBase() {
-  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = barf(form, true)
+class BarfFwdAction : CPFormActionBase() {
+  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = barf(form, editor, true)
 }
 
-class SpliceAction : EditActionBase() {
+class SpliceAction : CPFormActionBase() {
   override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = splice(form, editor)
 }
 
 class RiseAction : EditActionBase() {
-  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = rise(form, editor)
+  override fun actionFun(file: ClojureFile, editor: Editor) = { rise(file, editor) }
 }
 
 class KillAction : EditActionBase() {
-  override fun actionPerformed(form: CPForm, file: ClojureFile, editor: Editor) = form.delete()
+  override fun actionFun(file: ClojureFile, editor: Editor) = { kill(file, editor) }
 }
 
 class ClojureBackspaceHandler(val original: EditorWriteActionHandler) : EditorWriteActionHandler(true) {
@@ -112,7 +121,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
     val pair = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else return Result.CONTINUE
     val offset = editor.caretModel.offset
     if (isNotBalanced(editor, offset)) return Result.CONTINUE
-    val text = editor.document.immutableCharSequence
+    val text = editor.document.charsSequence
     if (offset < text.length && text[offset] == pair) {
       val c2 = if (offset + 1 < text.length) text[offset + 1] else null
       if (c2 != null && c2 != ')' && c2 != ']' && c2 != '}' && !Character.isWhitespace(c2)) {
@@ -129,51 +138,122 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
   }
 }
 
-private fun slurp(form: CPForm, forward: Boolean): Unit {
-  val children = form.childForms
-  val target = (if (forward) form.nextForm else form.prevForm) ?: return
-  val copy = target.copy()
-  target.delete()
-  if (forward) form.addAfter(copy, children.last()) else form.addBefore(copy, children.first())
-
-  if (children.isEmpty) {
-    form.delete()
+private fun slurp(form: CPForm, editor: Editor, forward: Boolean): Unit {
+  val target = (if (forward) form.nextForm else form.prevForm)?.textRange ?: return
+  val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
+  if (parens.size != 2) return
+  val range = form.textRange
+  val s = editor.document.charsSequence
+  val isEmpty = parens[0].endOffset == parens[1].startOffset
+  if (forward) {
+    editor.document.replaceString(range.startOffset, target.endOffset, StringBuilder()
+        .append(s.subSequence(range.startOffset, parens[1].startOffset))
+        .append(s.subSequence(if (isEmpty) target.startOffset else parens[1].endOffset, target.endOffset))
+        .append(s.subSequence(parens[1].startOffset, parens[1].endOffset)))
+  }
+  else {
+    editor.document.replaceString(target.startOffset, range.endOffset, StringBuilder()
+        .append(s.subSequence(parens[0].startOffset, parens[0].endOffset))
+        .append(s.subSequence(target.startOffset, if (isEmpty) target.endOffset else parens[0].startOffset))
+        .append(s.subSequence(parens[0].endOffset, range.endOffset)))
   }
 }
 
-private fun barf(form: CPForm, forward: Boolean): Unit {
-  val children = form.childForms
-  val target = (if (forward) children.last() else children.first()) ?: return
-  val copy = target.copy()
-  target.delete()
-  if (forward) form.parent.addAfter(copy, form) else form.parent.addBefore(copy, form)
+private fun barf(form: CPForm, editor: Editor, forward: Boolean): Unit {
+  val target = form.childForms.run { if (forward) last() else first() }?.textRange ?: return
+  val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
+  if (parens.size != 2) return
 
-  if (children.isEmpty) {
-    form.delete()
+  val range = form.textRange
+  val s = editor.document.charsSequence
+
+  val nonWsIdx0 = if (forward) target.startOffset else target.endOffset
+  val delta = if (forward) -1 else 1
+  var nonWsIdx = nonWsIdx0
+  while (range.contains(nonWsIdx + delta) && s[nonWsIdx + (if (forward) delta else 0)].isWhitespace()) nonWsIdx += delta
+  val addSpace = nonWsIdx0 == nonWsIdx
+
+  if (forward) {
+    editor.document.replaceString(range.startOffset, range.endOffset, StringBuilder()
+        .append(s.subSequence(range.startOffset, nonWsIdx))
+        .append(s.subSequence(parens[1].startOffset, parens[1].endOffset))
+        .append(if (addSpace) " " else "")
+        .append(s.subSequence(nonWsIdx, target.endOffset)))
+  }
+  else {
+    editor.document.replaceString(range.startOffset, range.endOffset, StringBuilder()
+        .append(s.subSequence(target.startOffset, nonWsIdx))
+        .append(if (addSpace) " " else "")
+        .append(s.subSequence(parens[0].startOffset, parens[0].endOffset))
+        .append(s.subSequence(nonWsIdx, range.endOffset)))
   }
 }
 
 private fun splice(form: CPForm, editor: Editor) {
-  val r = form.textRange
-  val paren1 = form.iterate().find { ClojureTokens.PARENS.contains(it.elementType) }!!.textRange
-  val replacement = editor.document.immutableCharSequence.substring(paren1.startOffset + 1, r.endOffset - 1)
-  editor.document.replaceString(r.startOffset, r.endOffset, replacement)
+  val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
+  val range = (form.parent as? CMetadata ?: form).textRange
+  val replacement = when (parens.size) {
+    2 -> ProperTextRange(parens[0].endOffset, parens[1].startOffset)
+    1 -> ProperTextRange(parens[0].endOffset, range.endOffset)
+    else -> return
+  }.subSequence(editor.document.charsSequence).trim { it != '\n' && it.isWhitespace() }
+  editor.document.replaceString(range.startOffset, range.endOffset, replacement)
 }
 
-private fun rise(form: CPForm, editor: Editor) {
-  val text = editor.document.immutableCharSequence
-  var diff = 0
+private fun rise(file: ClojureFile, editor: Editor) {
+  val ranges = ArrayList<TextRange>()
   editor.caretModel.runForEachCaret { caret ->
-    if (caret.hasSelection()) {
-      editor.document.replaceString(caret.selectionStart, caret.selectionEnd,
-          "(${text.subSequence(caret.selectionStart - diff, caret.selectionEnd - diff)})")
+    if (!caret.hasSelection()) {
+      file.formAt(caret.offset)?.let { ranges.add(it.textRange) }
     }
     else {
-      val r = form.findElementAt(editor.caretModel.offset - form.textRange.startOffset).parentForm!!.textRange
-      editor.document.replaceString(r.startOffset + diff, r.endOffset + diff, "(${r.subSequence(text)})")
+      ranges.add(ProperTextRange(
+          file.findElementAt(caret.selectionStart).parentForm?.textRange?.startOffset ?: caret.selectionStart,
+          file.findElementAt(caret.selectionEnd - 1).parentForm?.textRange?.endOffset ?: caret.selectionEnd))
     }
+  }
+  val s = editor.document.immutableCharSequence
+  var diff = 0
+  ranges.forEach { r ->
+    editor.document.replaceString(r.startOffset + diff, r.endOffset + diff, "(${r.subSequence(s)})")
     diff += 2
   }
+}
+
+private fun kill(file: ClojureFile, editor: Editor) {
+  val ranges = ArrayList<TextRange>()
+  editor.caretModel.runForEachCaret { caret ->
+    if (!caret.hasSelection()) {
+      file.formAt(caret.offset)?.
+          let { it.findParent(CPForm::class) ?: it }?.
+          let { it.parent as? CMetadata ?: it }?.
+          let { ranges.add(it.textRange) }
+    }
+    else {
+      ranges.add(ProperTextRange(
+          file.findElementAt(caret.selectionStart).parentForm?.textRange?.startOffset ?: caret.selectionStart,
+          file.findElementAt(caret.selectionEnd - 1).parentForm?.textRange?.endOffset ?: caret.selectionEnd))
+    }
+  }
+  var diff = 0
+  ranges.forEach { r ->
+    diff += kill(r.shiftRight(-diff), editor.document)
+  }
+}
+
+private fun kill(range: TextRange, document: Document): Int {
+  val s = document.immutableCharSequence
+  var o1 = range.startOffset
+  var o2 = range.endOffset
+  var nl1 = false
+  var nl2 = false
+  while (o1 > 0 && s[o1 - 1].run { nl1 = this == '\n'; !nl1 && isWhitespace() }) o1--
+  while (o2 < s.length && s[o2].run { nl2 = this == '\n'; !nl2 && isWhitespace() }) o2++
+  if (nl1 && nl2) o2++
+  else if (nl2) o2 = range.endOffset
+  else o1 = range.startOffset
+  document.replaceString(o1, o2, "")
+  return o2 - o1
 }
 
 private fun kill(editor: Editor, caret: Caret?, dataContext: DataContext, forward: Boolean): Boolean {
@@ -181,17 +261,29 @@ private fun kill(editor: Editor, caret: Caret?, dataContext: DataContext, forwar
   val offset = caret?.offset ?: editor.caretModel.offset
   val project = LangDataKeys.PROJECT.getData(dataContext) ?: return false
   val psiFile = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) as? ClojureFile ?: return false
-  val elementAt = psiFile.findElementAt(if (forward) offset else offset - 1).let { if (ClojureTokens.PARENS.contains(it.elementType)) it else null }
+  val elementAt = psiFile.findElementAt(if (forward) offset else offset - 1)
   val form = elementAt.findParent(CPForm::class) ?: return false
   if (isNotBalanced(editor)) return false
-  val r = form.textRange
-  val replacement = if (forward && r.startOffset == offset || !forward && r.endOffset == offset) ""
-  else {
-    val paren1 = form.iterate().find { ClojureTokens.PARENS.contains(it.elementType) }!!.textRange
-    editor.document.immutableCharSequence.substring(paren1.startOffset + 1, r.endOffset - 1)
+  val paren1 = ClojureTokens.PAREN1_ALIKE.contains(elementAt.elementType)
+  val paren2 = ClojureTokens.PAREN2_ALIKE.contains(elementAt.elementType)
+  if (!paren1 && !paren2) {
+    if (!forward || elementAt == null || elementAt.textRange.startOffset != form.textRange.startOffset) return false
+    kill(elementAt.let { it.parent as? CMetadata ?: form }.textRange, editor.document)
+    return true
   }
-  editor.document.replaceString(r.startOffset, r.endOffset, replacement)
+  if (forward && paren1 || !forward && paren2) {
+    kill(form.let { it.parent as? CMetadata ?: it }.textRange, editor.document)
+  }
+  else {
+    splice(form, editor)
+  }
   return true
+}
+
+private fun ClojureFile.formAt(offset: Int): CForm? {
+  return findElementAt(offset)?.let { e ->
+    if (offset > 0 && e is PsiWhiteSpace) findElementAt(offset - 1) else e
+  }.parentForm
 }
 
 private fun isNotBalanced(editor: Editor, skipAtOffset: Int = -1): Boolean {

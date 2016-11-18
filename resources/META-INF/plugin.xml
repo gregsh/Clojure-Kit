@@ -103,16 +103,16 @@
     </action>
     <action id="clojure.editor.slurp-fwd" class="org.intellij.clojure.actions.SlurpFwdAction"
             text="Slurp Forwards" description="Swallow the element following the current form">
-      <keyboard-shortcut keymap="$default" first-keystroke="alt shift J"/>
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift L"/>
     </action>
     <group id="ClojureStructuralEditingActionGroup" text="Clojure" popup="true">
       <action id="clojure.editor.barf-bwd" class="org.intellij.clojure.actions.BarfBwdAction"
               text="Barf Backwards" description="Spit out the first element in the current form">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift K"/>
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift J"/>
       </action>
       <action id="clojure.editor.barf-fwd" class="org.intellij.clojure.actions.BarfFwdAction"
               text="Barf Forwards" description="Spit out the last element in the current form">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift L"/>
+        <keyboard-shortcut keymap="$default" first-keystroke="alt shift K"/>
       </action>
       <action id="clojure.editor.splice" class="org.intellij.clojure.actions.SpliceAction"
               text="Splice Form" description="Splice the current form into it’s parent">

@@ -112,7 +112,7 @@ class ClojureFormattingBlock(node: ASTNode,
     val nodeType = node.elementType
     if (nodeType is IFileElementType) return ChildAttributes(Indent.getNoneIndent(), null)
     if (ClojureTokens.LIST_ALIKE.contains(nodeType)) {
-      if (children.asSequence().take(newChildIndex).find { ClojureTokens.PARENS.contains(it.node.elementType) } != null) {
+      if (children.asSequence().take(newChildIndex).find { ClojureTokens.PAREN_ALIKE.contains(it.node.elementType) } != null) {
         return ChildAttributes(Indent.getNormalIndent(true), childAlignment)
       }
     }
@@ -139,7 +139,7 @@ class ClojureFormattingBlock(node: ASTNode,
     if (psi is CSymbol) {
       if (psi1 is CMetadata) return dependentSpacing1()
     }
-    if (block2.sequenceIndex > 0 && !ClojureTokens.PARENS.contains(child2.node.elementType)) {
+    if (block2.sequenceIndex > 0 && !ClojureTokens.PAREN_ALIKE.contains(child2.node.elementType)) {
       val spaceIfShort = if (block1.textRange.length <= context.SHORT_REALLY) context.spaceOnly else null
       when (psi) {
         is CMap -> {
@@ -240,7 +240,7 @@ class ClojureFormattingBlock(node: ASTNode,
       }
       if (type == TokenType.WHITE_SPACE || type == TokenType.ERROR_ELEMENT) return@f null
       val index = if (afterLeftParen) nextIndex()
-      else { if (ClojureTokens.PARENS.contains(type)) afterLeftParen = true; -1 }
+      else { if (ClojureTokens.PAREN_ALIKE.contains(type)) afterLeftParen = true; -1 }
       val align = if (index < minAlignIndex) metaAlign else useMapAlign(it, index)
       ClojureFormattingBlock(it, context, wrap, align, alignmentStrategy, index)
     }).notNulls().toList()
