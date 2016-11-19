@@ -39,6 +39,7 @@ import com.intellij.psi.tree.IElementType
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
+import java.util.*
 
 /**
  * @author gregsh

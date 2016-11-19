@@ -82,7 +82,7 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
 
   private val testAction: AnAction
     get() = getTestName(false).let { name ->
-      allActions.find { name.contains(StringUtil.trimEnd(it::class.simpleName!!, "Action")) }!!
+      allActions.find { name.contains(StringUtil.trimEnd(it.javaClass.simpleName!!, "Action")) }!!
     }
 
   private fun AnAction.run(before: String, after: String?) {
