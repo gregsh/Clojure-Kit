@@ -24,8 +24,8 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
 
   fun testKillNL1() = doTest("(a b\n (c d <caret>e f)\n g h)", "(a b\n g h)")
 
-  fun testRiseMulti1() = doTest("((<caret>a) (<caret>b))", "(((a)) ((b)))")
-  fun testKillMulti1() = doTest("((<caret>a) (<caret>b))", "()")
+  fun testRiseMulti1() = doTest("((<caret>a) (<caret>b))", "((a) (b))") // no-op
+  fun testKillMulti1() = doTest("((<caret>a) (<caret>b))", "((a) (b))") // no-op
 
   fun testSlurpFwdMeta1() = doTest("(a b (c d <caret>e f) ^{ } g h)", "(a b (c d e f ^{ } g) h)")
   fun testSlurpBwdMeta1() = doTest("(a ^{ } b (c d <caret>e f) g h)", "(a (^{ } b c d e f) g h)")
@@ -39,6 +39,7 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testBackspace2() = doTest("(a b (<caret>c d e f) g h)", "(a b c d e f g h)")
   fun testBackspace3() = doTest("(a b (<selection>c</selection> d e f) g h)", "(a b ( d e f) g h)")
   fun testBackspace4() = doTest("(a b (c d e f)<caret>) g h)", "(a b (c d e f) g h)")
+  fun testBackspace5() = doTest("(a b (c d<selection> e f) </selection>g h)", "(a b (c dg h)")
   fun testDelete1() = doTest("(a b <caret>(c d e f) g h)", "(a b g h)")
   fun testDelete2() = doTest("(a b (c d e f<caret>) g h)", "(a b c d e f g h)")
   fun testDelete3() = doTest("(a b (c d e <selection>f</selection>) g h)", "(a b (c d e ) g h)")
