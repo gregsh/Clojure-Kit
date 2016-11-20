@@ -207,7 +207,7 @@ private fun rise(file: ClojureFile, document: Document, caret: Caret) {
 
 private fun kill(file: ClojureFile, document: Document, caret: Caret) {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.
-      let { it.findParent(CPForm::class) ?: it }?.
+      let { it as? CPForm ?: it.findParent(CPForm::class) ?: it }?.
       let { it.parent as? CMetadata ?: it }?.textRange ?: return
   else ProperTextRange(
       file.findElementAt(caret.selectionStart).parentForm?.textRange?.startOffset ?: caret.selectionStart,

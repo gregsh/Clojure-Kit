@@ -49,7 +49,7 @@ fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.star
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
-fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = if (c.java.isInstance(this)) this as T else PsiTreeUtil.getStubOrPsiParentOfType(this, c.java)
+fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getStubOrPsiParentOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findChild(c: KClass<T>) = PsiTreeUtil.getChildOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findNext(c: KClass<T>) = PsiTreeUtil.getNextSiblingOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findPrev(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
