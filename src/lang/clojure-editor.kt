@@ -30,7 +30,6 @@ import com.intellij.lang.PsiStructureViewFactory
 import com.intellij.lang.folding.FoldingBuilderEx
 import com.intellij.lang.folding.FoldingDescriptor
 import com.intellij.lang.refactoring.NamesValidator
-import com.intellij.navigation.ItemPresentation
 import com.intellij.navigation.LocationPresentation
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.editor.Document
@@ -41,23 +40,29 @@ import com.intellij.patterns.ElementPattern
 import com.intellij.patterns.PatternCondition
 import com.intellij.patterns.PlatformPatterns
 import com.intellij.pom.PomTargetPsiElement
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiWhiteSpace
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.RenameInputValidator
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
 import com.intellij.spellchecker.tokenizer.Tokenizer
 import com.intellij.util.ProcessingContext
+import com.intellij.util.containers.JBIterable
+import com.intellij.util.containers.TreeTraversal
+import com.intellij.util.ui.EmptyIcon
 import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider
-import org.intellij.clojure.ClojureConstants
+import org.intellij.clojure.ClojureConstants.DEF_ALIKE_SYMBOLS
+import org.intellij.clojure.ClojureConstants.FN_ALIKE_SYMBOLS
+import org.intellij.clojure.ClojureConstants.LET_ALIKE_SYMBOLS
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.util.cljTopLevelTraverser
-import org.intellij.clojure.util.cljTraverser
-import org.intellij.clojure.util.elementOf
-import org.intellij.clojure.util.elementType
+import org.intellij.clojure.psi.impl.listType
+import org.intellij.clojure.util.*
 import javax.swing.Icon
 
 /**
@@ -100,9 +105,6 @@ class ClojureNamesValidator : NamesValidator, RenameInputValidator {
   }
 }
 
-private fun getFormDisplayText(o: CList) = (o as? ItemPresentation)?.presentableText ?: ""
-
-
 class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
   companion object {
     val LANGUAGES = arrayOf(ClojureLanguage, ClojureScriptLanguage)
@@ -110,33 +112,41 @@ class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
 
   override fun getLanguages() = LANGUAGES
 
-  override fun acceptElement(o: PsiElement): Boolean {
-    return o is CDef || o is CMap || o is CSet || o is CFun ||
-        o is CList && (o.firstChild is CReaderMacro ||
-            o.parent.elementType !is ClojureElementType ||
-            o.first?.name?.elementOf(ClojureConstants.CONTROL_SYMBOLS) ?: false)
+  override fun acceptElement(o: PsiElement) = when (o) {
+    !is CPForm -> false
+    is CDef -> true
+    is CVec -> !o.isBindingVec()
+    is CList -> true
+    else -> false
   }
 
-  override fun getElementInfo(o: PsiElement): String {
-    when (o) {
-      is CMap -> return "{<map>}"
-      is CSet -> return "{<set>}"
-      is CFun -> return "#(<fn>)"
-      is CList -> return getFormDisplayText(o)
-    }
-    return ""
+  override fun getElementInfo(o: PsiElement): String = when (o) {
+    is CDef -> o.def.run { "($type $name)" }
+    is CList -> o.firstForm?.let {
+      val first = (it as? CSymbol)?.name
+      val next = it.nextForm
+      when {
+        o.textRange.length <= 10 -> getFormPlaceholderText(o)
+        first == null -> "(${getFormPlaceholderText(it)})"
+        next is CVec -> if (first.elementOf(LET_ALIKE_SYMBOLS) || first.elementOf(FN_ALIKE_SYMBOLS))
+          "($first ${getFormPlaceholderText(next)})" else "($first …)"
+        next is CList -> "($first ${getFormPlaceholderText(next)})"
+        next != null -> "($first …)"
+        else -> "($first)"
+      }
+    } ?: "(…)"
+    is CForm -> getFormPlaceholderText(o)
+    else -> "???"
   }
 
   override fun getElementTooltip(o: PsiElement) = null
-
 }
 
 class ClojureStructureViewFactory : PsiStructureViewFactory {
-  override fun getStructureViewBuilder(psiFile: PsiFile) =
-      object : TreeBasedStructureViewBuilder() {
-        override fun createStructureViewModel(editor: Editor?) = MyModel(psiFile)
-        override fun isRootNodeShown() = false
-      }
+  override fun getStructureViewBuilder(psiFile: PsiFile) = object : TreeBasedStructureViewBuilder() {
+    override fun createStructureViewModel(editor: Editor?) = MyModel(psiFile)
+    override fun isRootNodeShown() = false
+  }
 
   private class MyModel constructor(o: PsiFile) : StructureViewModelBase(o, MyElement(o)), StructureViewModel.ElementInfoProvider {
     init {
@@ -153,39 +163,79 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
 
     override fun getAlphaSortKey() = presentableText
 
-    override fun getChildrenBase(): Collection<StructureViewTreeElement> {
-      val o = element
-      val traverser = when {
-        o is ClojureFile -> o.cljTopLevelTraverser()
-        o is CForm && o.parent !is CForm -> o.cljTraverser()
-        else -> return emptyList()
-      }
-      return traverser.traverse().filter { it is CDef }.transform(::MyElement).toList()
+    override fun getChildrenBase(): Collection<MyElement> = element.let { o ->
+      when {
+        o is ClojureFile -> o.cljTopLevelTraverser().traverse().filter(CForm::class)
+        o is CForm && o.parent !is CForm -> o.cljTraverser().traverse().filter(CDef::class)
+        else -> JBIterable.empty()
+      }.transform(::MyElement).toList()
     }
 
-    override fun getPresentableText() = (element as? CDef)?.def?.name ?: ""
+    override fun getPresentableText() = (element as? CForm)?.let { (it as? CDef)?.def?.name ?: getFormPlaceholderText(it, 30) } ?: ""
     override fun getLocationString() = (element as? CDef)?.def?.type ?: ""
     override fun getLocationPrefix() = " "
     override fun getLocationSuffix() = ""
 
-    override fun getIcon(open: Boolean): Icon? {
-      return (element as? NavigationItem)?.presentation?.getIcon(open) ?: null
-    }
+    override fun getIcon(open: Boolean): Icon = (element as? NavigationItem)?.presentation?.getIcon(open) ?: EmptyIcon.ICON_16
   }
 }
 
 class ClojureFoldingBuilder : FoldingBuilderEx() {
-  override fun getPlaceholderText(node: ASTNode) =
-      getFormDisplayText(node.psi as CList)
+  override fun getPlaceholderText(node: ASTNode): String = getFormPlaceholderText(node.psi as CForm, 30)
 
-  override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<FoldingDescriptor> =
-      root.cljTraverser().expandAndSkip { it == root }
-          .filter { it is CList }
-          .filter {
-            val r = it.textRange
-            document.getLineNumber(r.endOffset) - document.getLineNumber(r.startOffset) > 1
-          }
-          .traverse().transform { FoldingDescriptor(it, it.textRange) }.toList().toTypedArray()
+  override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<FoldingDescriptor> = root.cljTraverser()
+      .traverse()
+      .filter(CPForm::class)
+      .filter {
+        it.textRange.let { r -> document.getLineNumber(r.endOffset) - document.getLineNumber(r.startOffset) > 1 }
+      }
+      .transform { FoldingDescriptor(it, it.textRange) }.toList().toTypedArray()
 
-  override fun isCollapsedByDefault(node: ASTNode) = false
+  override fun isCollapsedByDefault(node: ASTNode) = node.psi.let { it is CDef && it.def.type == "ns" }
 }
+
+private fun getFormPlaceholderText(o: CForm, max: Int = 10) = when (o) {
+  is CSForm -> o.text
+  is CDef -> o.def.run { "($type ${o.nameSymbol?.qualifiedName ?: name})" }
+  is CPForm -> StringBuilder().run {
+    val iterator = o.cljTraverser()
+        .expand { it !is CMetadata }
+        .traverse(TreeTraversal.LEAVES_DFS)
+        .typedIterator<TreeTraversal.TracingIt<PsiElement>>()
+    var wsOrComment = false
+    loop@ for (part in iterator) {
+      wsOrComment = if (part is PsiWhiteSpace || part is PsiComment) true
+      else { if (wsOrComment) append(" "); false }
+      when {
+        part is PsiWhiteSpace || part is PsiComment -> Unit
+        part is CMetadata -> append("^")
+        length < max -> {
+          part.text.let { text ->
+            if (max - length + 1 >= text.length) append(text)
+            else append(text, 0, max - length).append("…")
+          }
+        }
+        else -> {
+          var first = true
+          iterator.backtrace()
+              .skip(1)
+              .transform { PsiTreeUtil.getDeepestLast(it) }
+              .filter { ClojureTokens.PAREN2_ALIKE.contains(it.elementType) }
+              .unique().forEach {
+            if (first && it !== part) { first = false; if (!endsWith("… ") && !endsWith("…")) append("…") }
+            append(it.text)
+          }
+          break@loop
+        }
+      }
+    }
+    toString()
+  }
+  else -> o.javaClass.simpleName ?: "???"
+}
+
+private fun CVec.isBindingVec(): Boolean = (parent as? CList)?.let {
+  listType(it).run {
+    (elementOf(LET_ALIKE_SYMBOLS) || elementOf(DEF_ALIKE_SYMBOLS)) } &&
+      it.iterate(CVec::class).first() == this
+} ?: false

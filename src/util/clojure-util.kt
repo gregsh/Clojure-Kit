@@ -114,7 +114,7 @@ fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverse
   it is CReaderCondImpl || it is CPForm && (it.parent as? CReaderCondImpl)?.splicing ?: false
 }.forceIgnore { it.parent is CReaderCondImpl && (it !is CForm || it is CKeyword) }
 
-fun PsiElement?.cljTopLevelTraverser(): SyntaxTraverser<PsiElement> = cljTraverser().expand { it !is CForm || it is CReaderCondImpl }
+fun PsiElement?.cljTopLevelTraverser(): SyntaxTraverser<PsiElement> = cljTraverserRCAware().expand { it !is CForm || it is CReaderCondImpl }
 
 fun ASTNode?.cljTraverser(): SyntaxTraverser<ASTNode> = org.intellij.clojure.util.cljNodeTraverser().withRoot(this)
 
