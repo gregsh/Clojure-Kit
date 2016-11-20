@@ -123,7 +123,7 @@ class ClojureDefinitionService(val project: Project) {
   fun getSymbol(o: CSymbol): PsiElement {
     return (if (o.parent is CVec && !(o.parent.parent.let { it is CList && it.first?.name == "binding" })) {
       o.parent.map[SymKey(o.name, "", if (o.findParent(CList::class)?.let {
-        it is CDef || it.first == null
+        it is CDef || it.first.let { it == null || it.name.elementOf(ClojureConstants.FN_ALIKE_SYMBOLS) }
       } ?: false) "argument" else "let-binding")]
     }
     else map[SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")])!!
