@@ -173,7 +173,7 @@ open class CDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?
   internal open fun calcDef(): DefInfo {
     val type = first?.name ?: throw AssertionError(text)
     val second = nameSymbol
-    val name = if (second is CSymbol) second.name else ""
+    val name = (second as? CSymbol)?.name ?: ""
     val namespace = (second as? CSymbol)?.qualifier?.name
     return object : DefInfo {
       override val type: String get() = type
@@ -233,8 +233,7 @@ class CMDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?) :
 
 }
 
-class CReaderCondImpl(node: ASTNode, val splicing: Boolean) : CListImpl(node) {
-}
+class CReaderCondImpl(node: ASTNode, val splicing: Boolean) : CListImpl(node)
 
 abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, node: ASTNode?) :
     CStubBase<CKeywordStub>(stub, nodeType, node), CKeyword, CNamed {

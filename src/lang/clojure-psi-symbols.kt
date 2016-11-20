@@ -37,14 +37,16 @@ import com.intellij.psi.stubs.StubIndex
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.FactoryMap
 import org.intellij.clojure.ClojureConstants
+import org.intellij.clojure.ClojureConstants.CORE_NAMESPACES
+import org.intellij.clojure.ClojureConstants.NS_ALIKE_SYMBOLS
 import org.intellij.clojure.getIconForType
 import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
 import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
 import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
-import org.intellij.clojure.util.elementOf
 import org.intellij.clojure.util.findParent
+import org.intellij.clojure.util.isIn
 
 /**
  * @author gregsh
@@ -63,8 +65,7 @@ data class SymKey(override val name: String, override val namespace: String, ove
 
 fun DefInfo?.matches(info: DefInfo?) = this != null && info != null && name == info.name &&
     (type == info.type && namespace == info.namespace ||
-        namespace.elementOf(ClojureConstants.CORE_NAMESPACES) &&
-            info.namespace.elementOf(ClojureConstants.CORE_NAMESPACES))
+        namespace.isIn(CORE_NAMESPACES) && info.namespace.isIn(CORE_NAMESPACES))
 
 fun CSymbol?.resolveInfo(): DefInfo? = ((this?.reference?.resolve() as? PomTargetPsiElement)?.target as? CTarget)?.key
 
@@ -123,7 +124,7 @@ class ClojureDefinitionService(val project: Project) {
   fun getSymbol(o: CSymbol): PsiElement {
     return (if (o.parent is CVec && !(o.parent.parent.let { it is CList && it.first?.name == "binding" })) {
       o.parent.map[SymKey(o.name, "", if (o.findParent(CList::class)?.let {
-        it is CDef || it.first.let { it == null || it.name.elementOf(ClojureConstants.FN_ALIKE_SYMBOLS) }
+        it is CDef || it.first.let { it == null || it.name.isIn(ClojureConstants.FN_ALIKE_SYMBOLS) }
       } ?: false) "argument" else "let-binding")]
     }
     else map[SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")])!!
@@ -195,7 +196,7 @@ internal class CTarget(val project: Project,
         else {
           val scope = ClojureDefinitionService.getClojureSearchScope(project)
           val results = when (key.type) {
-            in ClojureConstants.NS_ALIKE_SYMBOLS -> StubIndex.getElements(NS_INDEX_KEY, key.namespace, project, scope, ClojureFile::class.java)
+            in NS_ALIKE_SYMBOLS -> StubIndex.getElements(NS_INDEX_KEY, key.namespace, project, scope, ClojureFile::class.java)
             "keyword" -> StubIndex.getElements(KEYWORD_INDEX_KEY, key.name, project, scope, CKeyword::class.java)
             else -> StubIndex.getElements(DEF_INDEX_KEY, key.name, project, scope, CDef::class.java)
           }

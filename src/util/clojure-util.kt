@@ -44,7 +44,7 @@ import kotlin.reflect.KClass
 @Suppress("UNCHECKED_CAST")
 inline fun <reified T : Any> Any?.forceCast(): T? = this as? T
 
-fun <E> E.elementOf(c: Collection<E>) = c.contains(this)
+fun <E> E.isIn(c: Collection<E>) = c.contains(this)
 fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
 

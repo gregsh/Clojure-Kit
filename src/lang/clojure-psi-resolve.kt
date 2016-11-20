@@ -273,7 +273,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       if (!isCljs) {
         findClass(refText, service)?.let { return processor.execute(it, state) }
       }
-      if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.elementOf(it) || refText.prefixedBy(it) }) {
+      if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.isIn(it) || refText.prefixedBy(it) }) {
         return processor.execute(NULL_FORM, state)
       }
       if ((service.getNamespace(element).navigationElement as? Navigatable)?.canNavigate() ?: false) {
@@ -484,16 +484,16 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
 }
 
-fun prototypes(o: CLForm) = o.iterate(CLForm::class).
-    filter { it.firstChild?.nextSibling is CVec }.append(o)
+fun prototypes(o: CLForm) = o.iterate(CLForm::class)
+    .filter { it.firstChild?.nextSibling is CVec }.append(o)
 
-fun listType(o: CLForm) =
-    if (o is CDef) o.def.type
-    else o.first?.run {
-      if (firstChild.elementType == ClojureTypes.C_DOT) ". id"
-      else if (firstChild.elementType == ClojureTypes.C_DOTDASH) ".-"
-      else name
-    }
+fun listType(o: CLForm) = (o as? CDef)?.def?.type ?: o.first?.run {
+  when (firstChild?.elementType) {
+    ClojureTypes.C_DOT -> ". id"
+    ClojureTypes.C_DOTDASH -> ".-"
+    else -> name
+  }
+}
 
 fun findBindingsVec(o: CLForm, mode: String): CVec? {
   val isMethod = mode == "fn" && o is CDef && o.def.type == "defmethod"

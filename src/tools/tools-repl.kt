@@ -300,7 +300,7 @@ open class ReplConnection(val projectDir: VirtualFile?, val consoleView: Languag
     else if (text.startsWith("/")) {
       val idx = text.indexOfFirst { Character.isWhitespace(it) }
       val op = if (idx == -1) text.substring(1) else text.substring(1, idx)
-      if (op.elementOf(setOf("", "help", "?"))) {
+      if (op.isIn(setOf("", "help", "?"))) {
         consoleView.printerr("operations: " + dumpObject(repl.clientInfo["ops"]))
       }
       else {

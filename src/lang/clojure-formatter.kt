@@ -203,7 +203,7 @@ class ClojureFormattingBlock(node: ASTNode,
     val metaAlign = if (node.firstChildNode?.elementType == C_METADATA) Alignment.createAlignment() else null
     val mapAlign = Alignment.createAlignment(true)
     val useMapAlign: (ASTNode, Int) -> Alignment? =
-        if (psi is CMap || psi is CVec && (psi.parent as? CList)?.first?.name.elementOf(ClojureConstants.LET_ALIKE_SYMBOLS)) {
+        if (psi is CMap || psi is CVec && (psi.parent as? CList)?.first?.name.isIn(ClojureConstants.LET_ALIKE_SYMBOLS)) {
           { node, index -> if (index % 2 == 1) mapAlign else childAlignment }
         }
         else if (psi is CVec || psi is CList && psi !is CDef) {

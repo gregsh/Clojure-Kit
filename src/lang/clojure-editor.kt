@@ -105,6 +105,9 @@ class ClojureNamesValidator : NamesValidator, RenameInputValidator {
   }
 }
 
+val SHORT_TEXT_MAX = 10
+val LONG_TEXT_MAX = 30
+
 class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
   companion object {
     val LANGUAGES = arrayOf(ClojureLanguage, ClojureScriptLanguage)
@@ -126,9 +129,9 @@ class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
       val first = (it as? CSymbol)?.name
       val next = it.nextForm
       when {
-        o.textRange.length <= 10 -> getFormPlaceholderText(o)
+        o.textRange.length <= SHORT_TEXT_MAX -> getFormPlaceholderText(o)
         first == null -> "(${getFormPlaceholderText(it)})"
-        next is CVec -> if (first.elementOf(LET_ALIKE_SYMBOLS) || first.elementOf(FN_ALIKE_SYMBOLS))
+        next is CVec -> if (first.isIn(LET_ALIKE_SYMBOLS) || first.isIn(FN_ALIKE_SYMBOLS))
           "($first ${getFormPlaceholderText(next)})" else "($first …)"
         next is CList -> "($first ${getFormPlaceholderText(next)})"
         next != null -> "($first …)"
@@ -171,7 +174,7 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
       }.transform(::MyElement).toList()
     }
 
-    override fun getPresentableText() = (element as? CForm)?.let { (it as? CDef)?.def?.name ?: getFormPlaceholderText(it, 30) } ?: ""
+    override fun getPresentableText() = (element as? CForm)?.let { (it as? CDef)?.def?.name ?: getFormPlaceholderText(it, LONG_TEXT_MAX) } ?: ""
     override fun getLocationString() = (element as? CDef)?.def?.type ?: ""
     override fun getLocationPrefix() = " "
     override fun getLocationSuffix() = ""
@@ -181,7 +184,7 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
 }
 
 class ClojureFoldingBuilder : FoldingBuilderEx() {
-  override fun getPlaceholderText(node: ASTNode): String = getFormPlaceholderText(node.psi as CForm, 30)
+  override fun getPlaceholderText(node: ASTNode): String = getFormPlaceholderText(node.psi as CForm, LONG_TEXT_MAX)
 
   override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<FoldingDescriptor> = root.cljTraverser()
       .traverse()
@@ -194,7 +197,7 @@ class ClojureFoldingBuilder : FoldingBuilderEx() {
   override fun isCollapsedByDefault(node: ASTNode) = node.psi.let { it is CDef && it.def.type == "ns" }
 }
 
-private fun getFormPlaceholderText(o: CForm, max: Int = 10) = when (o) {
+private fun getFormPlaceholderText(o: CForm, max: Int = SHORT_TEXT_MAX) = when (o) {
   is CSForm -> o.text
   is CDef -> o.def.run { "($type ${o.nameSymbol?.qualifiedName ?: name})" }
   is CPForm -> StringBuilder().run {
@@ -236,6 +239,6 @@ private fun getFormPlaceholderText(o: CForm, max: Int = 10) = when (o) {
 
 private fun CVec.isBindingVec(): Boolean = (parent as? CList)?.let {
   listType(it).run {
-    (elementOf(LET_ALIKE_SYMBOLS) || elementOf(DEF_ALIKE_SYMBOLS)) } &&
+    (isIn(LET_ALIKE_SYMBOLS) || isIn(DEF_ALIKE_SYMBOLS)) } &&
       it.iterate(CVec::class).first() == this
 } ?: false
