@@ -216,10 +216,11 @@ class ClojureFormattingBlock(node: ASTNode,
             "case" ->  // (case x value1 action1 ..)
               { node, index -> if (index > 1 && index % 2 == 1) mapAlign else childAlignment }
             else ->
-              psi.childForms.filter { it is CKeyword && (it.nextForm?.nextForm.let { it is CKeyword || it == null } || it.prevForm.prevForm is CKeyword) }.let {
-
+              psi.childForms.filter {
+                it is CKeyword && (it.nextForm?.nextForm.let { it is CKeyword || it == null } || it.prevForm.prevForm is CKeyword)
+              }.let {
                 if (it.size() > 1) {
-                  val set = it.map { it.nextForm!!.node }.toSet();
+                  val set = it.map { it.nextForm?.node }.notNulls().toSet();
                   { node: ASTNode, index: Int -> if (set.contains(node)) mapAlign else childAlignment }
                 }
                 else {
