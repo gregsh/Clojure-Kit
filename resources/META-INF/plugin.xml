@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin version="2">
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.4.4</version>
+  <version>0.4.4c</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="162.2525" until-build="173.*"/>
 
@@ -15,7 +15,8 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>Editor: improved structural editing actions</li>
+      <li>0.4.4c: enable structural editing in injections</li>
+      <li>Editor: structural editing actions</li>
       <li>Editor: more items in structure view and breadcrumbs</li>
       <li>Editor: some default colors for Default and Darcula color schemes</li>
       <li>Editor: (comment), #_ and quoted-symbol literal coloring</li>
