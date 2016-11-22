@@ -7,27 +7,47 @@ Clojure-Kit [[stable]](../../releases) [[dev]](https://teamcity.jetbrains.com/gu
 Clojure and ClojureScript [plugin](https://plugins.jetbrains.com/plugin/8636) for IntelliJ-based tools.
 
 Compatible with versions 2016.2 and up, and:
-* Written in [Kotlin](https://github.com/JetBrains/kotlin) with [Grammar-Kit](https://github.com/JetBrains/Grammar-Kit)
-* Adds color options, basic formatter, documentation, structure view and breadcrumbs   
-* Provides *Analyze data flow to/from here*   
-* Features basic [Leiningen](https://github.com/technomancy/leiningen) and [Boot](https://github.com/boot-clj/boot) support
 * Aims to be as zero configuration as possible
-* Plays nice with Clojure *IDE Scripting Console*
+* Adds color options, basic formatter, documentation, structure view and breadcrumbs   
+* Provides `Analyze data flow [to | from] here` functionality   
+* Features basic [Leiningen](https://github.com/technomancy/leiningen) and [Boot](https://github.com/boot-clj/boot) support
+* Plays nice with `IDE Scripting Console`
+* Written in [Kotlin](https://github.com/JetBrains/kotlin) with [Grammar-Kit](https://github.com/JetBrains/Grammar-Kit)
 
+FAQ
+==========
+
+Q. How to open my project?<br/>
+A. Use whichever way IDE provides to add a project directory to **Project View**.
+
+Q. Where are my dependencies?<br/>
+A. Dependencies are collected from `lein` or `boot` on project load. There's no dedicated UI to view or configure them.
+   Use **Sync [All] Dependencies** actions for the corresponding `project.clj` or `build.boot`
+   available in editor floating toolbar (upper-right corner), **Project View** and **Goto Action** popup (`ctrl-shift-A` or `cmd-shift-A`).
+    
+Q. How to launch REPL?<br/>
+A. Use **Execute in REPL** (`ctrl-enter` or `cmd-enter`) action to send the selected text or a form under caret to REPL.
+   Either a new or existing nREPL server console UI will show up. Then forms can be sent right from project files or the console editor. 
+      
+Q. How to connect to remote REPL or ClojureScript REPL on a different port?<br/>
+A. *<..some nice and soothing typing sounds..>*
 
 Change log
 ==========
 0.4.4
 
-* ClojureScript: resolve/find ::aliased/keywords
-* Editor: (comment), #_ and quoted-symbol literal coloring
-* REPL: detect running nrepl via .nrepl-port file
+* Editor: improved structural editing actions
+* Editor: more items in structure view and breadcrumbs
+* Editor: some default colors for **Default** and **Darcula** color schemes
+* Editor: `(comment)`, `#_` and quoted-symbol literal coloring
+* ClojureScript: resolve and usage search for `::aliased/keywords`
+* REPL: detect running nrepl via `.nrepl-port` file
 
 0.4.3
 
 * Language: basic language support for Clojure and ClojureScript
 * Editor: colors, completion, navigation, parameter info, quickdoc and live templates
-* CodeInsight: *Analyze data flow to/from here*
-* Structural editing: slurp/barf/splice/rise/kill and smart delete/backspace
-* Leiningen/Boot: resolve project dependencies to local *~/.m2/* repository
-* REPL: *lein* and *boot* REPLs
+* Code Insight: `Analyze data flow [to | from] here`
+* Structural editing: `slurp`, `barf`, `splice`, `rise`, `kill` and smart `delete`, `backspace`
+* Dependencies: resolve `lein` and `boot` projects dependencies to `~/.m2/` repository
+* REPL: `lein` and `boot` supported
