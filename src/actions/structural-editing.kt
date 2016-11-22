@@ -20,17 +20,16 @@ package org.intellij.clojure.actions
 import com.intellij.codeInsight.editorActions.TypedHandler
 import com.intellij.codeInsight.editorActions.TypedHandlerDelegate
 import com.intellij.codeInsight.hint.HintManager
-import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
-import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Caret
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.actionSystem.EditorAction
+import com.intellij.openapi.editor.actionSystem.EditorActionHandler
 import com.intellij.openapi.editor.actionSystem.EditorWriteActionHandler
 import com.intellij.openapi.editor.ex.EditorEx
-import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.ProperTextRange
 import com.intellij.openapi.util.TextRange
@@ -58,25 +57,30 @@ class ClojureBackspaceHandler(original: EditorWriteActionHandler) : ClojureEdito
 class ClojureDeleteHandler(original: EditorWriteActionHandler) : ClojureEditorHandlerBase(original, ::kill, true)
 
 abstract class EditActionBase(private val handler: (ClojureFile, Document, Caret) -> (() -> Unit)?)
-  : DumbAwareAction() {
+  : EditorAction(object : EditorActionHandler(false) {
+
+  override fun isEnabledForCaret(editor: Editor, caret: Caret, dataContext: DataContext?): Boolean {
+    if (editor.caretModel.caretCount != 1) return false
+    val project = dataContext?.getData(CommonDataKeys.PROJECT) ?: return false
+    return PsiUtilBase.getPsiFileInEditor(editor, project) is ClojureFile
+  }
+
+  override fun doExecute(editor: Editor?, caret: Caret?, dataContext: DataContext?) {
+    if (editor == null || dataContext == null) return
+    val project = dataContext.getData(CommonDataKeys.PROJECT) ?: return
+    val currentCaret = editor.caretModel.currentCaret
+    val file = PsiUtilBase.getPsiFileInEditor(editor, project) as? ClojureFile ?: return
+    handler(file, editor.document, currentCaret)?.let {
+      WriteCommandAction.runWriteCommandAction(file.project) { it() }
+    }
+  }
+}) {
   @Suppress("UNUSED_PARAMETER")
   constructor(handler: (ClojureFile, Document, Caret) -> Unit, unit: Unit)
       : this({ file, document, caret -> { handler(file, document, caret) } })
 
-  override fun update(e: AnActionEvent) {
-    val editor = e.getData(LangDataKeys.EDITOR)
-    val file = e.getData(LangDataKeys.PSI_FILE) as? ClojureFile
-    e.presentation.isEnabled = editor != null && file != null && editor.caretModel.caretCount == 1
-  }
-
-  override fun actionPerformed(e: AnActionEvent) {
-    val editor = e.getData(LangDataKeys.EDITOR) ?: return
-    val file = e.getData(LangDataKeys.PSI_FILE) as? ClojureFile ?: return
-    val caret = editor.caretModel.currentCaret
-    PsiDocumentManager.getInstance(file.project).commitDocument(editor.document)
-    handler(file, editor.document, caret)?.let {
-      WriteCommandAction.runWriteCommandAction(file.project) { it() }
-    }
+  init {
+    setInjectedContext(true)
   }
 }
 
@@ -117,7 +121,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
     val file = (if (editor === originalEditor) originalFile
     else PsiDocumentManager.getInstance(project).getPsiFile(editor.document))
         as? ClojureFile ?: return false
-    return handler(file, editor.document, caret)
+    return handler(file, editor.document, editor.caretModel.currentCaret)
   }
 }
 
