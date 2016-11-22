@@ -17,9 +17,11 @@
 
 package org.intellij.clojure.actions
 
+import com.intellij.codeInsight.editorActions.TypedHandler
 import com.intellij.codeInsight.editorActions.TypedHandlerDelegate
 import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.LangDataKeys
 import com.intellij.openapi.command.WriteCommandAction
@@ -36,6 +38,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.IElementType
+import com.intellij.psi.util.PsiUtilBase
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
@@ -101,11 +104,20 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
               forward: Boolean)
       : this(original, { file, document, caret -> handler(file, document, caret, forward) })
   override fun executeWriteAction(editor: Editor, caret: Caret?, dataContext: DataContext) {
-    val file = dataContext.getData(LangDataKeys.PSI_FILE) as? ClojureFile
-    if (file != null && editor.caretModel.caretCount == 1) {
-      if (handler(file, editor.document, caret!!)) return
+    if (!perform(editor, caret, dataContext)) {
+      original.executeWriteAction(editor, caret, dataContext)
     }
-    original.executeWriteAction(editor, caret, dataContext)
+  }
+
+  fun perform(originalEditor: Editor, caret: Caret?, dataContext: DataContext): Boolean {
+    if (caret == null || originalEditor.caretModel.caretCount != 1) return false
+    val project = CommonDataKeys.PROJECT.getData(dataContext) ?: return false
+    val originalFile = PsiUtilBase.getPsiFileInEditor(originalEditor, project) ?: return false
+    val editor = TypedHandler.injectedEditorIfCharTypedIsSignificant('x', originalEditor, originalFile)
+    val file = (if (editor === originalEditor) originalFile
+    else PsiDocumentManager.getInstance(project).getPsiFile(editor.document))
+        as? ClojureFile ?: return false
+    return handler(file, editor.document, caret)
   }
 }
 
@@ -113,7 +125,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
 class ClojureTypedHandler : TypedHandlerDelegate() {
 
   override fun charTyped(c: Char, project: Project?, editor: Editor, file: PsiFile): Result {
-    if (file !is ClojureFile) return Result.CONTINUE
+    if (file !is ClojureFile || editor !is EditorEx) return Result.CONTINUE
     val pair = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else return Result.CONTINUE
     val offset = editor.caretModel.offset
     if (isNotBalanced(editor, offset)) return Result.CONTINUE
@@ -235,7 +247,7 @@ private fun kill(file: ClojureFile, document: Document, caret: Caret, forward: B
   val offset = caret.offset
   val elementAt = file.findElementAt(if (forward) offset else offset - 1)
   val form = elementAt.findParent(CPForm::class) ?: return false
-  if (isNotBalanced(caret.editor)) return false
+  if (isNotBalanced(caret.editor as? EditorEx ?: return false)) return false
   val paren1 = ClojureTokens.PAREN1_ALIKE.contains(elementAt.elementType)
   val paren2 = ClojureTokens.PAREN2_ALIKE.contains(elementAt.elementType)
   if (!paren1 && !paren2) {
@@ -258,9 +270,9 @@ private fun ClojureFile.formAt(offset: Int): CForm? {
   }.parentForm
 }
 
-private fun isNotBalanced(editor: Editor, skipAtOffset: Int = -1): Boolean {
+private fun isNotBalanced(editor: EditorEx, skipAtOffset: Int = -1): Boolean {
   val counter = ParenCounter()
-  val iterator = (editor as EditorEx).highlighter.createIterator(0)
+  val iterator = editor.highlighter.createIterator(0)
   while (!iterator.atEnd()) {
     if (skipAtOffset == -1 || skipAtOffset != iterator.end) {
       counter.visit(iterator.tokenType)
