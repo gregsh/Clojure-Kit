@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin version="2">
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.4.4-SNAPSHOT</version>
+  <version>0.4.4</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="162.2525" until-build="173.*"/>
 
@@ -15,8 +15,11 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>ClojureScript: resolve/find ::aliased/keywords</li>
+      <li>Editor: improved structural editing actions</li>
+      <li>Editor: more items in structure view and breadcrumbs</li>
+      <li>Editor: some default colors for Default and Darcula color schemes</li>
       <li>Editor: (comment), #_ and quoted-symbol literal coloring</li>
+      <li>ClojureScript: resolve and usage search for ::aliased/keywords</li>
       <li>REPL: detect running nrepl via .nrepl-port file</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
