@@ -34,7 +34,7 @@ import org.intellij.clojure.psi.impl.CMDefImpl
 /**
  * @author gregsh
  */
-private val VERSION: Int = 5
+private val VERSION: Int = 6
 private val NS_VERSION: Int = 1
 private val DEF_VERSION: Int = 1
 private val KEYWORD_VERSION: Int = 1
@@ -67,8 +67,7 @@ class CListStub(override val type: String,
                 override val name: String,
                 override val namespace: String,
                 stub: StubElement<*>?) :
-    StubBase<CList>(stub, ClojureTypes.C_LIST as IStubElementType<out StubElement<*>, *>), DefInfo {
-}
+    StubBase<CList>(stub, ClojureTypes.C_LIST as IStubElementType<out StubElement<*>, *>), DefInfo
 
 class CFileStub private constructor(val namespace: String, file: ClojureFile?) : PsiFileStubImpl<ClojureFile>(file) {
   constructor(file: ClojureFile) : this(file.namespace, file)

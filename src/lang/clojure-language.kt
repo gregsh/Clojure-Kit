@@ -54,13 +54,9 @@ object ClojureFileType : LanguageFileType(ClojureLanguage) {
   override fun getDescription() = "Clojure and ClojureScript"
 }
 
-object ClojureLanguage : Language("Clojure") {
+object ClojureLanguage : Language("Clojure")
 
-}
-
-object ClojureScriptLanguage : Language(ClojureLanguage, "ClojureScript") {
-
-}
+object ClojureScriptLanguage : Language(ClojureLanguage, "ClojureScript")
 
 class ClojureLanguageSubstitutor : LanguageSubstitutor() {
   override fun getLanguage(file: VirtualFile, project: Project): Language? {
@@ -95,9 +91,7 @@ class ClojureBraceMatcher : PairedBraceMatcher {
   }
 }
 
-class ClojureLiveTemplateContext : FileTypeBasedContextType("Clojure", "Clojure", ClojureFileType) {
-
-}
+class ClojureLiveTemplateContext : FileTypeBasedContextType("Clojure", "Clojure", ClojureFileType)
 
 class ClojureLiveTemplateProvider : DefaultLiveTemplatesProvider {
   override fun getDefaultLiveTemplateFiles() = arrayOf("liveTemplates/clojureLiveTemplates")

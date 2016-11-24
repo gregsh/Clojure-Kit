@@ -71,6 +71,7 @@ object ClojureTokens {
 class ClojureLexer(language: Language) : FlexAdapter(_ClojureLexer(language))
 
 class ClojureParserUtil {
+  @Suppress("UNUSED_PARAMETER")
   companion object {
     @JvmStatic fun adapt_builder_(root: IElementType, builder: PsiBuilder, parser: PsiParser, extendsSets: Array<TokenSet>?): PsiBuilder {
       val o = GeneratedParserUtilBase.adapt_builder_(root, builder, parser, extendsSets)
@@ -122,14 +123,12 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
       val second = forms.get(1)
       if (first != null && first.elementType == ClojureTypes.C_SYMBOL &&
           first.firstChildNode.elementType.let { it != ClojureTypes.C_DOT && it != ClojureTypes.C_DOTDASH } &&
-          first.lastChildNode?.treePrev?.elementType.let { it != ClojureTypes.C_DOTDASH }) {
+          first.lastChildNode?.treePrev?.elementType != ClojureTypes.C_DOTDASH) {
         if (second?.elementType == ClojureTypes.C_SYMBOL) {
           val text = first.lastChildNode?.text ?: return@f
           if (text == "ns" || text == "in-ns" || text == "create-ns") return CDefImpl(node)
           if (ClojureConstants.DEF_ALIKE_SYMBOLS.contains(text)) return CDefImpl(node)
-          if (text.startsWith("def") && !text.startsWith("default") &&
-              text == text.toLowerCase() &&
-              forms.get(2)?.elementType == ClojureTypes.C_VEC) {
+          if (text.startsWith("def") && !text.startsWith("default") && text == text.toLowerCase()) {
             return CDefImpl(node)
           }
         }
