@@ -776,11 +776,11 @@ private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {
               return skip()
             }
             if (t is CKeyword) {
-              val key = t.text
+              val key = t.name
               when (key) {
-                ":or" -> skip = true
-                ":as" -> skip = false
-                ":keys", ":syms", ":strs" -> (t.nextForm as? CVec)?.let {
+                "or" -> skip = true
+                "as" -> skip = false
+                "keys", "syms", "strs" -> (t.nextForm as? CVec)?.let {
                   skip = true
                   keys = it.iterate()
                       .transform { (it as? CKeyword)?.symbol ?: it }
