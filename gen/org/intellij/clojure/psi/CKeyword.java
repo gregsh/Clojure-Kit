@@ -18,6 +18,9 @@ public interface CKeyword extends CSForm, StubBasedPsiElement<CKeywordStub> {
   @NotNull
   String getNamespace();
 
+  @NotNull
+  String getQualifiedName();
+
   int getTextOffset();
 
 }

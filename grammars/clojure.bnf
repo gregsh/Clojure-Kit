@@ -107,14 +107,14 @@ fun ::= '#' <<nospace>> '(' list_body ')'
 symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified '.'?
   {methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference]}
 keyword ::= (':' | '::') <<nospace>> symbol_qualified
-  {methods=[getName getNamespace getTextOffset]}
+  {methods=[getName getNamespace getQualifiedName getTextOffset]}
 private symbol_qualified ::= symbol_plain symbol_nsq?
 symbol_plain ::=  sym
 left symbol_nsq ::= '/' sym
 literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char
   {methods=[getLiteralType getLiteralText]}
 regexp ::= '#' <<nospace>> string {extends=literal}
-constructor ::= '#' symbol (vec | map)
+constructor ::= '#' symbol form
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
 reader_macro ::= "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
 private reader_cond ::= ('#?' | '#?@') &'(' {pin(".*")=1}

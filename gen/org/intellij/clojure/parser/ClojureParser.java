@@ -104,7 +104,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // '#' symbol (vec | map)
+  // '#' symbol form
   public static boolean constructor(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "constructor")) return false;
     if (!nextTokenIs(b, C_SHARP)) return false;
@@ -113,20 +113,9 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     r = consumeToken(b, C_SHARP);
     p = r; // pin = 1
     r = r && report_error_(b, symbol(b, l + 1));
-    r = p && constructor_2(b, l + 1) && r;
+    r = p && form(b, l + 1) && r;
     exit_section_(b, l, m, r, p, null);
     return r || p;
-  }
-
-  // vec | map
-  private static boolean constructor_2(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "constructor_2")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = vec(b, l + 1);
-    if (!r) r = map(b, l + 1);
-    exit_section_(b, m, null, r);
-    return r;
   }
 
   /* ********************************************************** */
