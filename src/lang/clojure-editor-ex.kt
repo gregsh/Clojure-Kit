@@ -20,31 +20,39 @@ package org.intellij.clojure.editor
 import com.intellij.codeHighlighting.Pass
 import com.intellij.codeInsight.CodeInsightBundle
 import com.intellij.codeInsight.TargetElementEvaluatorEx2
-import com.intellij.codeInsight.completion.CompletionContributor
-import com.intellij.codeInsight.completion.CompletionInitializationContext
+import com.intellij.codeInsight.completion.*
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
 import com.intellij.codeInsight.lookup.LookupElement
+import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.icons.AllIcons
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.documentation.DocumentationProviderEx
 import com.intellij.lang.parameterInfo.*
+import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.patterns.PlatformPatterns.psiElement
+import com.intellij.patterns.StandardPatterns
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
+import com.intellij.psi.scope.BaseScopeProcessor
+import com.intellij.psi.stubs.StubIndex
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
+import com.intellij.util.ProcessingContext
+import com.intellij.util.containers.ContainerUtil
 import org.intellij.clojure.ClojureConstants
+import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.lang.ClojureColors
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.CTarget
-import org.intellij.clojure.psi.impl.ClojureDefinitionService
-import org.intellij.clojure.psi.impl.matches
-import org.intellij.clojure.psi.impl.prototypes
+import org.intellij.clojure.psi.impl.*
+import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
+import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
 import org.intellij.clojure.util.*
 
 /**
@@ -67,21 +75,20 @@ class ClojureAnnotator : Annotator {
         holder.createInfoAnnotation(element.lastChild, null).textAttributes = ClojureColors.KEYWORD
       }
       is CSymbol -> {
-        val resolve = element.reference.resolve()
+        val target = element.resolveInfo() ?: return
         if (element.getUserData(RESOLVE_SKIPPED) != null) {
           if (element.name.let { it != "&" && it != "." }) {
             holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.DYNAMIC
           }
           return
         }
-        val target = (resolve as? PomTargetPsiElement)?.target as? CTarget ?: return
-        if (target.key.type != "ns") {
-          val nsAttrs = ClojureColors.NS_COLORS[target.key.namespace]
+        if (target.type != "ns") {
+          val nsAttrs = ClojureColors.NS_COLORS[target.namespace]
           if (nsAttrs != null) {
             holder.createInfoAnnotation(element.valueRange, null).enforcedTextAttributes = nsAttrs
           }
         }
-        val attrs = when (target.key.type) {
+        val attrs = when (target.type) {
           "argument" -> ClojureColors.FN_ARGUMENT
           "let-binding" -> ClojureColors.LET_BINDING
           "ns" -> ClojureColors.NAMESPACE
@@ -90,7 +97,7 @@ class ClojureAnnotator : Annotator {
         if (attrs != null) {
           holder.createInfoAnnotation(element.valueRange, null).textAttributes = attrs
         }
-        if (callable && target.key.matches(ClojureDefinitionService.COMMENT_SYM)) {
+        if (callable && target.matches(ClojureDefinitionService.COMMENT_SYM)) {
           holder.createInfoAnnotation(element.parentForm!!, null).textAttributes = ClojureColors.FORM_COMMENT
         }
       }
@@ -109,8 +116,76 @@ class ClojureAnnotator : Annotator {
 }
 
 class ClojureCompletionContributor : CompletionContributor() {
+
+  init {
+    extend(CompletionType.BASIC, psiElement().inFile(StandardPatterns.instanceOf(ClojureFile::class.java)), object: CompletionProvider<CompletionParameters>() {
+      override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext?, result: CompletionResultSet) {
+        val element = parameters.position.findParent(CSymbol::class) ?: return
+        val originalFile = parameters.originalFile
+        val fileNamespace = (originalFile as? ClojureFile)?.namespace
+        val prefixNamespace = element.qualifier?.name
+        val showAll = parameters.invocationCount > 1
+
+        val project = element.project
+        val service = ClojureDefinitionService.getInstance(project)
+
+        val simpleParent = element.parents().takeWhile { it is CSForm }.last()
+        simpleParent.let { major ->
+          val visited = ContainerUtil.newTroveSet<String>()
+          val prefixedResult = if (major == null) result
+          else TextRange(major.valueRange.startOffset, parameters.offset)
+              .substring(major.containingFile.text)
+              .let { result.withPrefixMatcher(it) }
+          val consumer: (CKeyword) -> Unit = { o ->
+            if (o != major && (showAll || prefixNamespace == null || o.namespace == prefixNamespace)) {
+              val qualifiedName = o.qualifiedName
+              if (visited.add(qualifiedName)) {
+                val s = if (prefixNamespace == null && fileNamespace == o.namespace) "::${o.name}" else ":$qualifiedName"
+                prefixedResult.addElement(LookupElementBuilder.create(o, s)
+                    .withTypeText(o.containingFile.name, true)
+                    .bold())
+              }
+            }
+          }
+          originalFile.cljTraverser().traverse().filter(CKeyword::class).forEach(consumer)
+          if (major is CKeyword || showAll) {
+            StubIndex.getInstance().processAllKeys(KEYWORD_INDEX_KEY, project, { o ->
+              val scope = ClojureDefinitionService.getClojureSearchScope(project)
+              StubIndex.getElements(KEYWORD_INDEX_KEY, o, project, scope, CKeyword::class.java).forEach(consumer)
+              true
+            })
+          }
+        }
+        val ref = if (simpleParent !is CKeyword) element.reference as? CSymbolReference else null
+        val bindingsVec: CVec? = (element.parent as? CVec)?.run { if (ref?.resolve()?.navigationElement == element) this else null }
+        if (ref != null && bindingsVec == null) {
+          ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
+            override fun execute(it: PsiElement, state: ResolveState): Boolean {
+              when (it) {
+                is CDef -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.def.name)
+                    .withIcon((it as NavigationItem).presentation!!.getIcon(false))
+                    .withTailText(" (${it.def.namespace})", true)
+                is CSymbol -> LookupElementBuilder.create(it, it.name)
+                    .withIcon(ClojureIcons.SYMBOL)
+                is PsiNamedElement -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.name!!)
+                    .withIcon(it.getIcon(0))
+                else -> null
+              }?.let { result.addElement(it) }
+              return true
+            }
+          })
+        }
+        if (prefixNamespace == null && (bindingsVec == null || bindingsVec.parent is CMap)) {
+          StubIndex.getInstance().processAllKeys(NS_INDEX_KEY, project, { o ->
+            result.addElement(LookupElementBuilder.create(o).withIcon(ClojureIcons.NAMESPACE)); true
+          })
+        }
+      }
+    })
+  }
+
   override fun beforeCompletion(context: CompletionInitializationContext) {
-    if (context.file.findElementAt(context.startOffset).findParent(CSymbol::class) != null) {
+    if (context.file.findElementAt(context.startOffset).elementType == ClojureTypes.C_SYM) {
       context.dummyIdentifier = ""
     }
   }
@@ -267,7 +342,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
         i ++
       }
     }
-    if (sb.length == 0) {
+    if (sb.isEmpty()) {
       sb.append(CodeInsightBundle.message("parameter.info.no.parameters"))
     }
     context.setupUIComponentPresentation(sb.toString(), highlight[0], highlight[1], false, false, false, context.defaultParameterColor)

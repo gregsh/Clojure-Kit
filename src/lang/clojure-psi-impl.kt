@@ -246,8 +246,8 @@ abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, 
     return this
   }
 
-  override fun getPresentableText() = ":$namespace/$name"
-  override fun getQualifiedName() = def.namespace + "/" + def.name
+  override fun getPresentableText() = ":$qualifiedName"
+  override fun getQualifiedName() = def.run { if (namespace.isEmpty()) name else "$namespace/$name" }
   override val nameSymbol: CSymbol? get() = symbol
 
   override val def: DefInfo
@@ -262,7 +262,7 @@ abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, 
     val isUserNS = symbol.prevSibling.elementType == ClojureTypes.C_COLONCOLON
     val ns: () -> String = symbol.qualifier?.let {{ it.resolveInfo()?.namespace ?: it.name }} ?:
         if (isUserNS) {{ (containingFile as ClojureFile).namespace }} else
-        {{ (parent as? CMap)?.resolveNsPrefix() ?: "_"}}
+        {{ (parent as? CMap)?.resolveNsPrefix() ?: ""}}
     return object : DefInfo {
       override val type: String get() = "keyword"
       override val name: String get() = name

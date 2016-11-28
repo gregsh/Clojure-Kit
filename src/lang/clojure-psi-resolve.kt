@@ -17,9 +17,7 @@
 
 package org.intellij.clojure.psi.impl
 
-import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.lang.Language
-import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.TextRange
@@ -32,18 +30,17 @@ import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.stubs.StubIndex
+import com.intellij.util.ArrayUtil
 import com.intellij.util.ConcurrencyUtil
 import com.intellij.util.containers.*
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CLOJURE_CORE
 import org.intellij.clojure.ClojureConstants.JS_OBJ
-import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.CKeywordStub
-import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
 import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
 import org.intellij.clojure.util.*
 import java.util.*
@@ -55,39 +52,17 @@ val ALIAS_KEY: Key<String> = Key.create("ALIAS_KEY")
 
 class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRight(-o.textRange.startOffset)) :
     PsiPolyVariantReferenceBase<CSymbol>(o, r), PsiQualifiedReference {
+
+  override fun getVariants(): Array<out Any> = ArrayUtil.EMPTY_OBJECT_ARRAY
+
   override fun getReferenceName() = myElement.lastChild.text!!
   override fun getQualifier() = myElement.lastChild.findPrev(CSymbol::class)
 
   override fun equals(other: Any?): Boolean = (other as? CSymbolReference)?.myElement?.equals(myElement) ?: false
   override fun hashCode() = myElement.hashCode()
+
   val language: Language get() = myElement.containingFile.language
-
-  override fun getVariants(): Array<Any> {
-    val service = ClojureDefinitionService.getInstance(myElement.project)
-    val result = arrayListOf<Any>()
-    val major = myElement.findParent(CStubBase::class)
-    if (major is CKeyword) {
-      return StubIndex.getInstance().getAllKeys(KEYWORD_INDEX_KEY, major.project).toTypedArray()
-    }
-
-    processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
-      override fun execute(it: PsiElement, state: ResolveState): Boolean {
-        when (it) {
-          NULL_FORM -> null
-          is CDef -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.def.name)
-              .withIcon((it as NavigationItem).presentation!!.getIcon(false))
-              .withTailText(" (${it.def.namespace})", true)
-          is CSymbol -> LookupElementBuilder.create(it, it.name)
-              .withIcon(ClojureIcons.SYMBOL)
-          is PsiNamedElement -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.name!!)
-              .withIcon(it.getIcon(0))
-          else -> null
-        }?.let { result.add(it) }
-        return true
-      }
-    })
-    return result.toTypedArray()
-  }
+  val targetSym: SymKey? = ((resolve() as? PomTargetPsiElement)?.target as? CTarget)?.key
 
   override fun resolve(): PsiElement? {
     return super.resolve()
@@ -544,22 +519,22 @@ fun CMap.resolveNsPrefix(): String? {
 
 fun processBindings(o: CLForm, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
   val bindings = findBindingsVec(o, mode) ?: return true
+  if (!processor.execute(bindings, state)) return false
   val roots = when (mode) {
     "fn" -> JBIterable.of(bindings)
     "let" -> bindings.childForms.filter(EachNth(2)).run {
-      if (!bindings.isAncestorOf(place)) this
-      else place.parents().filter { (it as PsiElement).parent == bindings }.first()!!.let { o ->
+      place.parents().find { it.parent == bindings }?.let { o ->
         if (contains(o)) takeWhile { it != o }.append(o as CForm)
         else o.prevForm!!.let { o0 -> takeWhile { it != o0 } }
-      }
+      } ?: this
     }
     "for" -> bindings.childForms.filter(EachNth(2)).transform {
       if (it is CKeyword && it.text == ":let") it.nextForm as? CVec else it
     }.notNulls()
     else -> throw AssertionError("processBindings(): unknown mode: $mode")
   }
-  for (part in DESTRUCTURING.withRoots(roots)) {
-    if (!processor.execute(part, state)) return false
+  DESTRUCTURING.withRoots(roots).forEach {
+    if (!processor.execute(it, state)) return false
   }
   return true
 }

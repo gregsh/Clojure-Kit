@@ -34,7 +34,7 @@ import org.intellij.clojure.psi.impl.CMDefImpl
 /**
  * @author gregsh
  */
-private val VERSION: Int = 6
+private val VERSION: Int = 7
 private val NS_VERSION: Int = 1
 private val DEF_VERSION: Int = 1
 private val KEYWORD_VERSION: Int = 1
