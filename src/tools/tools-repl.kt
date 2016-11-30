@@ -22,9 +22,7 @@ import com.intellij.execution.Executor
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.configurations.RunProfileState
-import com.intellij.execution.console.IdeConsoleRootType
-import com.intellij.execution.console.LanguageConsoleImpl
-import com.intellij.execution.console.LanguageConsoleView
+import com.intellij.execution.console.*
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.impl.ConsoleViewImpl
 import com.intellij.execution.impl.ConsoleViewUtil
@@ -51,6 +49,7 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.remote.BaseRemoteProcessHandler
 import com.intellij.remote.RemoteProcess
+import com.intellij.util.ArrayUtil
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.lang.ClojureFileType
@@ -69,6 +68,10 @@ import java.util.*
 /**
  * @author gregsh
  */
+
+object ReplConsoleRootType : ConsoleRootType("nrepl", "nREPL Consoles")
+
+
 class ReplExecuteAction : DumbAwareAction() {
   override fun update(e: AnActionEvent) {
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext)
@@ -126,6 +129,7 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
       if (editor == it || !it.document.text.trim().isEmpty() && editor == rc.consoleView.historyViewer) {
         val command = WriteAction.compute<String, Exception> { it.document.run { val s = getText(); setText(""); s } }
         rc.sendCommand(command)
+        ConsoleHistoryController.addToHistory(rc.consoleView, command)
       }
       else {
         rc.sendCommand(text)
@@ -152,6 +156,11 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
               return connection.processHandler!!
             }
 
+            override fun createActions(console: ConsoleView?, processHandler: ProcessHandler?, executor: Executor?): Array<AnAction> {
+              return ArrayUtil.append(super.createActions(console, processHandler, executor),
+                  ConsoleHistoryController.getController(connection.consoleView).browseHistory)
+            }
+
             override fun createConsole(executor: Executor) = connection.consoleView
           }
         }
@@ -166,6 +175,7 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
 private fun newConsoleView(project: Project, title: String): LanguageConsoleImpl {
   return LanguageConsoleImpl(project, title, ClojureLanguage).apply {
     consoleEditor.setFile(virtualFile)
+    ConsoleHistoryController(ReplConsoleRootType, title, this).install()
   }
 }
 
