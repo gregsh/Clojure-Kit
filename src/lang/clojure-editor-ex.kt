@@ -68,12 +68,6 @@ class ClojureAnnotator : Annotator {
       holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
     }
     when (element) {
-      is CKeyword -> {
-        if (callable) {
-          holder.createInfoAnnotation(element.lastChild, null).textAttributes = ClojureColors.CALLABLE
-        }
-        holder.createInfoAnnotation(element.lastChild, null).textAttributes = ClojureColors.KEYWORD
-      }
       is CSymbol -> {
         val target = element.resolveInfo() ?: return
         if (element.getUserData(RESOLVE_SKIPPED) != null) {

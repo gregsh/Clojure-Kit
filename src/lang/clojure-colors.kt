@@ -109,6 +109,7 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
       C_BRACKET1, C_BRACKET2 -> pack(ClojureColors.BRACKETS)
       ClojureHighlightingLexer.CALLABLE -> pack(ClojureColors.CALLABLE)
       ClojureHighlightingLexer.KEYWORD -> pack(ClojureColors.KEYWORD)
+      ClojureHighlightingLexer.CALLABLE_KEYWORD -> pack(ClojureColors.CALLABLE, ClojureColors.KEYWORD)
       ClojureHighlightingLexer.QUOTED_SYM -> pack(ClojureColors.QUOTED_SYM)
       else -> EMPTY
     }
@@ -119,6 +120,7 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
   companion object {
     val CALLABLE = IElementType("C_CALLABLE*", ClojureLanguage)
     val KEYWORD = IElementType("C_KEYWORD*", ClojureLanguage)
+    val CALLABLE_KEYWORD = IElementType("C_CALLABLE_KEYWORD*", ClojureLanguage)
     val QUOTED_SYM = IElementType("C_QUOTED_SYM*", ClojureLanguage)
   }
 
@@ -157,7 +159,8 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
       C_PAREN1 -> {
         advanceAs(baseLexer, tokenType0)
         skipWs(baseLexer)
-        advanceSymbolAs(baseLexer, CALLABLE)
+        val callableType = if (baseLexer.tokenType.let { it == C_COLON || it == C_COLONCOLON }) CALLABLE_KEYWORD else CALLABLE
+        advanceSymbolAs(baseLexer, callableType)
       }
       else -> super.lookAhead(baseLexer)
     }
