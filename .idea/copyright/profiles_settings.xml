@@ -1,7 +1,8 @@
 <component name="CopyrightManager">
-  <settings default="">
+  <settings>
     <module2copyright>
-      <element module="Project Files" copyright="clojure-kit" />
+      <element module="Production" copyright="clojure-kit" />
+      <element module="Tests" copyright="clojure-kit" />
     </module2copyright>
   </settings>
 </component>
