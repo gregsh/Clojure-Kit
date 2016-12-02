@@ -84,11 +84,11 @@ abstract class EditActionBase(private val handler: (ClojureFile, Document, Caret
   }
 }
 
-abstract class CPFormActionBase(private val handler: (CPForm, Document) -> Unit)
+abstract class CPFormActionBase(private val handler: (CPForm, Document, caret: Caret) -> Unit)
   : EditActionBase({ file, document, caret ->
   file.findElementAt(caret.offset).findParent(CPForm::class).let { form ->
     if (form != null) {
-      { handler(form, document) }
+      { handler(form, document, caret) }
     }
     else {
       HintManager.getInstance().showErrorHint(caret.editor, "Place caret inside a list-like form")
@@ -96,8 +96,8 @@ abstract class CPFormActionBase(private val handler: (CPForm, Document) -> Unit)
     }
   }
 }) {
-  constructor(handler: (CPForm, Document, Boolean) -> Unit, forward: Boolean)
-      : this({ form, document -> handler(form, document, forward) })
+  constructor(handler: (CPForm, Document, caret: Caret, Boolean) -> Unit, forward: Boolean)
+      : this({ form, document, caret -> handler(form, document, caret, forward) })
 }
 
 abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
@@ -150,7 +150,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
   }
 }
 
-private fun slurp(form: CPForm, document: Document, forward: Boolean): Unit {
+private fun slurp(form: CPForm, document: Document, caret: Caret, forward: Boolean): Unit {
   val target = (if (forward) form.nextForm else form.prevForm)?.textRange ?: return
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
   if (parens.size != 2) return
@@ -171,7 +171,7 @@ private fun slurp(form: CPForm, document: Document, forward: Boolean): Unit {
   }
 }
 
-private fun barf(form: CPForm, document: Document, forward: Boolean): Unit {
+private fun barf(form: CPForm, document: Document, caret: Caret, forward: Boolean): Unit {
   val target = form.childForms.run { if (forward) last() else first() }?.textRange ?: return
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
   if (parens.size != 2) return
@@ -185,23 +185,28 @@ private fun barf(form: CPForm, document: Document, forward: Boolean): Unit {
   while (range.contains(nonWsIdx + delta) && s[nonWsIdx + (if (forward) delta else 0)].isWhitespace()) nonWsIdx += delta
   val addSpace = nonWsIdx0 == nonWsIdx
 
+  var off = range.startOffset
   if (forward) {
     document.replaceString(range.startOffset, range.endOffset, StringBuilder()
         .append(s.subSequence(range.startOffset, nonWsIdx))
+        .apply { off += length }
         .append(s.subSequence(parens[1].startOffset, parens[1].endOffset))
         .append(if (addSpace) " " else "")
         .append(s.subSequence(nonWsIdx, target.endOffset)))
+    caret.moveToOffset(Math.min(caret.offset, off))
   }
   else {
     document.replaceString(range.startOffset, range.endOffset, StringBuilder()
         .append(s.subSequence(target.startOffset, nonWsIdx))
         .append(if (addSpace) " " else "")
         .append(s.subSequence(parens[0].startOffset, parens[0].endOffset))
+        .apply { off += length }
         .append(s.subSequence(nonWsIdx, range.endOffset)))
+    caret.moveToOffset(Math.max(caret.offset, off))
   }
 }
 
-private fun splice(form: CPForm, document: Document) {
+private fun splice(form: CPForm, document: Document, caret: Caret): Unit {
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
   val range = (form.parent as? CMetadata ?: form).textRange
   val replacement = when (parens.size) {
@@ -209,19 +214,22 @@ private fun splice(form: CPForm, document: Document) {
     1 -> ProperTextRange(parens[0].endOffset, range.endOffset)
     else -> return
   }.subSequence(document.charsSequence).trim { it != '\n' && it.isWhitespace() }
+  val offset = caret.offset
   document.replaceString(range.startOffset, range.endOffset, replacement)
+  caret.moveToOffset(offset + range.startOffset - parens[0].endOffset)
 }
 
-private fun rise(file: ClojureFile, document: Document, caret: Caret) {
+private fun rise(file: ClojureFile, document: Document, caret: Caret): Unit {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.textRange ?: return
   else ProperTextRange(
       file.findElementAt(caret.selectionStart).parentForm?.textRange?.startOffset ?: caret.selectionStart,
       file.findElementAt(caret.selectionEnd - 1).parentForm?.textRange?.endOffset ?: caret.selectionEnd)
   val s = document.charsSequence
   document.replaceString(range.startOffset, range.endOffset, "(${range.subSequence(s)})")
+  caret.moveToOffset(caret.offset + 1)
 }
 
-private fun kill(file: ClojureFile, document: Document, caret: Caret) {
+private fun kill(file: ClojureFile, document: Document, caret: Caret): Unit {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.
       let { it as? CPForm ?: it.findParent(CPForm::class) ?: it }?.
       let { it.parent as? CMetadata ?: it }?.textRange ?: return
@@ -231,7 +239,7 @@ private fun kill(file: ClojureFile, document: Document, caret: Caret) {
   kill(range, document)
 }
 
-private fun kill(range: TextRange, document: Document): Int {
+private fun kill(range: TextRange, document: Document): Unit {
   val s = document.immutableCharSequence
   var o1 = range.startOffset
   var o2 = range.endOffset
@@ -243,7 +251,6 @@ private fun kill(range: TextRange, document: Document): Int {
   else if (nl2) o2 = range.endOffset
   else o1 = range.startOffset
   document.replaceString(o1, o2, "")
-  return o2 - o1
 }
 
 private fun kill(file: ClojureFile, document: Document, caret: Caret, forward: Boolean): Boolean {
@@ -257,13 +264,12 @@ private fun kill(file: ClojureFile, document: Document, caret: Caret, forward: B
   if (!paren1 && !paren2) {
     if (!forward || elementAt == null || elementAt.textRange.startOffset != form.textRange.startOffset) return false
     kill(elementAt.let { it.parent as? CMetadata ?: form }.textRange, document)
-    return true
   }
-  if (forward && paren1 || !forward && paren2) {
+  else if (forward && paren1 || !forward && paren2) {
     kill(form.let { it.parent as? CMetadata ?: it }.textRange, document)
   }
   else {
-    splice(form, document)
+    splice(form, document, caret)
   }
   return true
 }
