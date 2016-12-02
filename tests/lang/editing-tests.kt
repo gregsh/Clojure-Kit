@@ -53,6 +53,10 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testBackspaceMeta3() = doTest("(a b ^{:x 1}| (c d e f) g h)", "(a b |(c d e f) g h)")
   fun testBackspaceMeta4() = doTest("(a b ^{|:x 1} (c d e f) g h)", "(a b |:x 1 (c d e f) g h)")
 
+  fun testTypeParen1() = doType("|namespace/name", "(", "(|namespace/name)")
+  fun testTypeParen2() = doType("|namespace/name)", "(", "(|namespace/name)")
+  fun testTypeParen3() = doType("|:namespace/name", "(", "(|:namespace/name)")
+
   fun testAllActionsEmpty() = allActions.forEach { it.run("", "") }
   fun testAllActionsSym01() = allActions.forEach { it.run("|a", null) }
   fun testAllActionsSym02() = allActions.forEach { it.run("a|", null) }
@@ -82,15 +86,18 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
 
 
   fun doTest(before: String, after: String) = testAction.run(before, after)
+  fun doType(before: String, what: String, after: String) = doTest(before, after) { myFixture.type(what) }
 
   private val testAction: AnAction
     get() = getTestName(false).let { name ->
       allActions.find { name.contains(StringUtil.trimEnd(it.javaClass.simpleName!!, "Action")) }!!
     }
 
-  private fun AnAction.run(before: String, after: String?) = myFixture.run {
+  private fun AnAction.run(before: String, after: String?) = doTest(before, after) { myFixture.testAction(this@run) }
+
+  private fun doTest(before: String, after: String?, action: () -> Unit) = myFixture.run {
     configureByText(ClojureFileType, before.replace("|", "<caret>"))
-    testAction(this@run)
+    action()
     if (after != null) {
       checkResult(after.replace("|", "<caret>"))
     }
