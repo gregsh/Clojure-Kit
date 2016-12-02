@@ -85,7 +85,7 @@ class NReplClient {
         listOf(mainSession, toolSession).forEach { session ->
           mainSession = ""; toolSession = ""
           if (session != "") {
-            try { closeSessionAsync(session) } catch(e: Exception) { }
+            try { closeSessionAsync(session).get(200, TimeUnit.MILLISECONDS) } catch(e: Exception) { }
           }
         }
       }

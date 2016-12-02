@@ -137,6 +137,11 @@
             use-shortcut-of="Console.Execute.Multiline"
             icon="AllIcons.Actions.Execute"
             text="Execute in REPL" description="Execute form in REPL"/>
+    <action id="clojure.repl.connect" class="org.intellij.clojure.tools.ReplConnectAction"
+            icon="AllIcons.RunConfigurations.Remote"
+            text="Connect to REPL" description="Connect to REPL">
+      <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
+    </action>
     <group>
       <action id="clojure.tools.sync.dependencies" class="org.intellij.clojure.tools.SyncDepsAction"
               text="Sync Dependencies" description=""
