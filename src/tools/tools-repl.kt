@@ -408,12 +408,10 @@ fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler
     override fun isDisconnected() = !repl.isConnected
 
     override fun waitFor(): Int {
-      if (canDestroy) {
-        while (repl.isConnected) {
-          repl.ping()
-          if (!repl.isConnected) break
-          synchronized(pingLock) { pingLock.wait(5000L) }
-        }
+      while (repl.isConnected) {
+        repl.ping()
+        if (!repl.isConnected) break
+        synchronized(pingLock) { pingLock.wait(1000L) }
       }
       return exitValue()
     }
