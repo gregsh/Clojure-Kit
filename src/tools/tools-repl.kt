@@ -152,11 +152,12 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
     "REPL [${if (it == null || it == projectDir) projectDir.name else VfsUtil.getRelativePath(projectDir, it)}]"
   }
 
-  val existingDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
-  existingDescriptors.find {
-    Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, PsiUtilCore.getVirtualFile(file))
-  } ?: existingDescriptors.find {
-    Comparing.equal(title, it.displayName)
+  ExecutionManager.getInstance(project).contentManager.allDescriptors.run {
+    find {
+      Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, PsiUtilCore.getVirtualFile(file))
+    } ?: find {
+      Comparing.equal(title, it.displayName)
+    }
   }?.let { content ->
     content.attachedContent!!.run { manager.setSelectedContent(this) }
 
@@ -223,19 +224,16 @@ private fun createNewRunContent(project: Project, title: String, processFactory:
               ConsoleHistoryController.getController(console as LanguageConsoleView?).browseHistory)
         }
 
-        override fun createConsole(executor: Executor) = newConsoleView(project, uniqueTitle)
+        override fun createConsole(executor: Executor) =
+            LanguageConsoleImpl(project, uniqueTitle, ClojureLanguage).apply {
+              consoleEditor.setFile(virtualFile)
+              ConsoleHistoryController(ReplConsoleRootType, title, this).install()
+            }
       }
     }
   }.run {
     ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), this)
         .build().run { ExecutionManager.getInstance(project).restartRunProfile(this) }
-  }
-}
-
-private fun newConsoleView(project: Project, title: String): LanguageConsoleImpl {
-  return LanguageConsoleImpl(project, title, ClojureLanguage).apply {
-    consoleEditor.setFile(virtualFile)
-    ConsoleHistoryController(ReplConsoleRootType, title, this).install()
   }
 }
 
