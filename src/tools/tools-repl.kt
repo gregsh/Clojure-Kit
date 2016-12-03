@@ -32,6 +32,7 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
+import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.WriteAction
@@ -76,6 +77,7 @@ import java.util.*
 object ReplConsoleRootType : ConsoleRootType("nrepl", "nREPL Consoles")
 
 private val NREPL_CLIENT_KEY = Key.create<ReplConnection>("NREPL_CLIENT_KEY")
+private val EXCLUSIVE_MODE_KEY = Key.create<Boolean>("EXCLUSIVE_MODE_KEY")
 
 
 class ReplConnectAction : DumbAwareAction() {
@@ -136,6 +138,21 @@ class ReplExecuteAction : DumbAwareAction() {
   }
 }
 
+class ExclusiveModeToggleAction(val console: LanguageConsoleView)
+  : ToggleAction("Exclusive Mode", "Make this REPL an exclusive target for all operations", AllIcons.Welcome.CreateNewProject) {
+  override fun isSelected(e: AnActionEvent): Boolean = console.isExclusiveModeOn()
+
+  override fun setSelected(e: AnActionEvent, state: Boolean) {
+    ExecutionManager.getInstance(e.project ?: return).contentManager.allDescriptors.forEach {
+      NREPL_CLIENT_KEY.get(it.processHandler)?.consoleView?.let {
+        EXCLUSIVE_MODE_KEY.set(it.consoleEditor, state && it === console)
+      }
+    }
+  }
+}
+
+private fun LanguageConsoleView.isExclusiveModeOn() = EXCLUSIVE_MODE_KEY.get(consoleEditor) == true
+
 fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
 fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
 
@@ -155,6 +172,8 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
   ExecutionManager.getInstance(project).contentManager.allDescriptors.run {
     find {
       Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, PsiUtilCore.getVirtualFile(file))
+    } ?: find {
+      (it.executionConsole as? LanguageConsoleView)?.isExclusiveModeOn() ?: false
     } ?: find {
       Comparing.equal(title, it.displayName)
     }
@@ -220,8 +239,9 @@ private fun createNewRunContent(project: Project, title: String, processFactory:
             this.processFactory = processFactory
             consoleView = console as LanguageConsoleView
           }
-          return ArrayUtil.append(super.createActions(console, processHandler, executor),
-              ConsoleHistoryController.getController(console as LanguageConsoleView?).browseHistory)
+          return ArrayUtil.mergeArrays(super.createActions(console, processHandler, executor), arrayOf<AnAction>(
+              ConsoleHistoryController.getController(console as LanguageConsoleView?).browseHistory,
+              ExclusiveModeToggleAction(console)))
         }
 
         override fun createConsole(executor: Executor) =
