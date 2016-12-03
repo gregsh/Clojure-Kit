@@ -26,14 +26,24 @@ A. Dependencies are collected from `lein` or `boot` on project load. There's no 
    available in editor floating toolbar (upper-right corner), **Project View** and **Goto Action** popup (`ctrl-shift-A` or `cmd-shift-A`).
     
 Q. How to launch REPL?<br/>
-A. Use **Execute in REPL** (`ctrl-enter` or `cmd-enter`) action to send the selected text or a form under caret to REPL.
+A. Use **Execute in REPL** action (`ctrl-enter` or `cmd-enter`) to send the selected text or a form under caret to REPL.
    Either a new or existing nREPL server console UI will show up. Then forms can be sent right from project files or the console editor. 
       
 Q. How to connect to remote REPL or ClojureScript REPL on a different port?<br/>
-A. *<..some nice and soothing typing sounds..>*
+A. Use **Connect to REPL** action (`ctrl-shift-P` or `cmd-shift-P`) to enter host, port or nrepl URL and create a new remote console. 
+Remote consoles are not mapped to project files, use **Exclusive Mode** toolbar toggle to redirect all commands to a particular REPL.
 
 Change log
 ==========
+0.4.5
+
+* REPL: connect to remote REPL
+* REPL: send all forms to "exclusive" console
+* REPL: console history actions
+* Editor: complete namespaces and keywords
+* Structural editing: improved caret handling
+* Main menu: add clojure actions to Edit and Tools
+
 0.4.4
 
 * Editor: improved structural editing actions
