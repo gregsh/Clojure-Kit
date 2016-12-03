@@ -21,6 +21,7 @@ import com.intellij.execution.process.OSProcessHandler
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessOutputTypes
+import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
@@ -236,34 +237,35 @@ private fun allProjectFiles(project: Project) = ReadAction.compute<Collection<Fi
       .toSortedSet()
 }
 
-private fun allProjectFiles(e: AnActionEvent) = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY).iterate()
+private fun contextProjectFiles(e: AnActionEvent) = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY).iterate()
     .filter { Tool.choose(it.name) != null }
     .transform { it.toIoFile() }
     .toSortedSet()
 
 class SyncDepsAction : AnAction() {
-  override fun update(e: AnActionEvent) = updateSyncActionImpl(e)
+  override fun update(e: AnActionEvent) = updateSyncActionImpl(e, false)
 
   override fun actionPerformed(e: AnActionEvent) {
-    val project = e.project ?: return
-    val files = allProjectFiles(e)
-    ClojureProjectDeps.getInstance(project).resolveDepsInBackground { files }
+    val files = contextProjectFiles(e)
+    ClojureProjectDeps.getInstance(e.project ?: return).resolveDepsInBackground { files }
   }
 }
 
 class SyncAllDepsAction : AnAction() {
-  override fun update(e: AnActionEvent) = updateSyncActionImpl(e)
+  override fun update(e: AnActionEvent) = updateSyncActionImpl(e, true)
 
   override fun actionPerformed(e: AnActionEvent) {
-    val project = e.project ?: return
-    ClojureProjectDeps.getInstance(project).resolveAllDepsInBackground()
+    ClojureProjectDeps.getInstance(e.project ?: return).resolveAllDepsInBackground()
   }
 }
 
-private fun updateSyncActionImpl(e: AnActionEvent) {
-  val files = allProjectFiles(e)
-  val visible = e.project != null && !files.isEmpty()
-  val enabled = visible && !ClojureProjectDeps.getInstance(e.project!!).resolveInProgress.get()
-  e.presentation.isVisible = visible
-  e.presentation.isEnabled = enabled
+private fun updateSyncActionImpl(e: AnActionEvent, syncAll: Boolean) {
+  e.project?.let { project ->
+    val busy = ClojureProjectDeps.getInstance(project).resolveInProgress.get()
+    val files = contextProjectFiles(e)
+    e.presentation.isVisible = !files.isEmpty() || ActionPlaces.isMainMenuOrActionSearch(e.place)
+    e.presentation.isEnabled = (!files.isEmpty() || syncAll) && !busy
+  } ?: run {
+    e.presentation.isEnabledAndVisible = false
+  }
 }

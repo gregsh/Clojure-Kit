@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<idea-plugin version="2">
+<idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
   <version>0.4.5-SNAPSHOT</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
@@ -15,13 +15,12 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>0.4.4c: enable structural editing in injections</li>
-      <li>Editor: structural editing actions</li>
-      <li>Editor: more items in structure view and breadcrumbs</li>
-      <li>Editor: some default colors for Default and Darcula color schemes</li>
-      <li>Editor: (comment), #_ and quoted-symbol literal coloring</li>
-      <li>ClojureScript: resolve and usage search for ::aliased/keywords</li>
-      <li>REPL: detect running nrepl via .nrepl-port file</li>
+      <li>REPL: connect to remote REPL</li>
+      <li>REPL: send all forms to "exclusive" console</li>
+      <li>REPL: console history actions</li>
+      <li>Completion: complete namespaces and keywords</li>
+      <li>Structural editing: improved caret handling</li>
+      <li>Main menu: add clojure actions to Edit and Tools</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>
@@ -109,29 +108,26 @@
             text="Slurp Forwards" description="Swallow the element following the current form">
       <keyboard-shortcut keymap="$default" first-keystroke="alt shift L"/>
     </action>
-    <group id="ClojureStructuralEditingActionGroup" text="Clojure" popup="true">
-      <action id="clojure.editor.barf-bwd" class="org.intellij.clojure.actions.BarfBwdAction"
-              text="Barf Backwards" description="Spit out the first element in the current form">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift J"/>
-      </action>
-      <action id="clojure.editor.barf-fwd" class="org.intellij.clojure.actions.BarfFwdAction"
-              text="Barf Forwards" description="Spit out the last element in the current form">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift K"/>
-      </action>
-      <action id="clojure.editor.splice" class="org.intellij.clojure.actions.SpliceAction"
-              text="Splice Form" description="Splice the current form into it’s parent">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift Y"/>
-      </action>
-      <action id="clojure.editor.rise" class="org.intellij.clojure.actions.RiseAction"
-              text="Rise" description="">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift U"/>
-      </action>
-      <action id="clojure.editor.kill" class="org.intellij.clojure.actions.KillAction"
-              text="Kill" description="">
-        <keyboard-shortcut keymap="$default" first-keystroke="alt shift PERIOD"/>
-      </action>
-      <add-to-group group-id="EditMenu" anchor="last"/>
-    </group>
+    <action id="clojure.editor.barf-bwd" class="org.intellij.clojure.actions.BarfBwdAction"
+            text="Barf Backwards" description="Spit out the first element in the current form">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift J"/>
+    </action>
+    <action id="clojure.editor.barf-fwd" class="org.intellij.clojure.actions.BarfFwdAction"
+            text="Barf Forwards" description="Spit out the last element in the current form">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift K"/>
+    </action>
+    <action id="clojure.editor.splice" class="org.intellij.clojure.actions.SpliceAction"
+            text="Splice Form" description="Splice the current form into it’s parent">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift Y"/>
+    </action>
+    <action id="clojure.editor.rise" class="org.intellij.clojure.actions.RiseAction"
+            text="Rise" description="">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift U"/>
+    </action>
+    <action id="clojure.editor.kill" class="org.intellij.clojure.actions.KillAction"
+            text="Kill" description="">
+      <keyboard-shortcut keymap="$default" first-keystroke="alt shift PERIOD"/>
+    </action>
 
     <action id="clojure.repl.execute" class="org.intellij.clojure.tools.ReplExecuteAction"
             use-shortcut-of="Console.Execute.Multiline"
@@ -142,17 +138,38 @@
             text="Connect to REPL" description="Connect to REPL">
       <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
     </action>
-    <group>
-      <action id="clojure.tools.sync.dependencies" class="org.intellij.clojure.tools.SyncDepsAction"
-              text="Sync Dependencies" description=""
-              icon="AllIcons.Actions.Refresh"/>
-      <action id="clojure.tools.sync.dependencies.all" class="org.intellij.clojure.tools.SyncAllDepsAction"
-              text="Sync All Dependencies" description=""
-              icon="AllIcons.Actions.ForceRefresh"/>
-      <add-to-group group-id="EditorContextBarMenu"/>
+    <action id="clojure.tools.sync.dependencies" class="org.intellij.clojure.tools.SyncDepsAction"
+            text="Sync Dependencies" description=""
+            icon="AllIcons.Actions.Refresh"/>
+    <action id="clojure.tools.sync.dependencies.all" class="org.intellij.clojure.tools.SyncAllDepsAction"
+            text="Sync All Dependencies" description=""
+            icon="AllIcons.Actions.ForceRefresh"/>
+
+    <group id="clojure.edit.menu.group" text="Clojure" popup="true">
+      <add-to-group group-id="EditMenu"/>
+
+      <reference ref="clojure.editor.slurp-bwd"/>
+      <reference ref="clojure.editor.slurp-fwd"/>
+      <reference ref="clojure.editor.barf-bwd"/>
+      <reference ref="clojure.editor.barf-fwd"/>
+      <reference ref="clojure.editor.splice"/>
+      <reference ref="clojure.editor.rise"/>
+      <reference ref="clojure.editor.kill"/>
     </group>
+    <group id="clojure.tools.menu.group" text="Clojure" popup="true">
+      <add-to-group group-id="ToolsMenu"/>
 
+      <reference ref="clojure.repl.execute"/>
+      <reference ref="clojure.repl.connect"/>
+      <separator/>
+      <reference ref="clojure.tools.sync.dependencies"/>
+      <reference ref="clojure.tools.sync.dependencies.all"/>
+    </group>
+    <group>
+      <add-to-group group-id="EditorContextBarMenu"/>
 
+      <reference ref="clojure.tools.sync.dependencies"/>
+      <reference ref="clojure.tools.sync.dependencies.all"/>
+    </group>
   </actions>
-
 </idea-plugin>
