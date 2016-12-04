@@ -39,6 +39,7 @@ import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.patterns.StandardPatterns
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
+import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.stubs.StubIndex
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
@@ -161,8 +162,20 @@ class ClojureCompletionContributor : CompletionContributor() {
                     .withTailText(" (${it.def.namespace})", true)
                 is CSymbol -> LookupElementBuilder.create(it, it.name)
                     .withIcon(ClojureIcons.SYMBOL)
-                is PsiNamedElement -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.name!!)
-                    .withIcon(it.getIcon(0))
+                is PsiNamedElement -> {
+                  val name = state.get(RENAMED_KEY) ?: it.name!!
+                  val types = service.java.getMemberTypes(it as NavigatablePsiElement)
+                  val size = types.size
+                  LookupElementBuilder.create(it, name)
+                      .withIcon(it.getIcon(0))
+                      .run { if (size > 0) withTypeText(StringUtil.getShortName(types[0]), false) else this }
+                      .run { if (size > 1) withPresentableText(types.jbIt().skip(1)
+                          .map { StringUtil.getShortName(it) }
+                          .filter(EachNth(2))
+                          .joinToString(", ", "$name(", ")"))
+                        else if (size == 1 && (it as? PsiPresentableMetaData)?.typeName == "Method") withPresentableText("$name()")
+                      else this }
+                }
                 else -> null
               }?.let { result.addElement(it) }
               return true

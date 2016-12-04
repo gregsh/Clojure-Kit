@@ -46,7 +46,6 @@ import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.ContainerUtilRt
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.ClojureConstants
-import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
 import org.intellij.clojure.util.EachNth
 import org.intellij.clojure.util.iterate
@@ -202,9 +201,10 @@ abstract class JavaHelper {
       if (element !is PsiModifierListOwner) return asm.getAnnotations(element)
       val modifierList = element.modifierList ?: return ContainerUtilRt.emptyList<String>()
       val strings = ArrayList<String>()
-      for (annotation in modifierList.annotations) {
-        if (annotation.parameterList.attributes.size > 0) continue
-        strings.add(annotation.qualifiedName ?: "_")
+      modifierList.annotations.forEach { o ->
+        if (o.parameterList.attributes.size == 0) {
+          strings.add(o.qualifiedName ?: "_")
+        }
       }
       return strings
     }
@@ -602,7 +602,6 @@ abstract class JavaHelper {
     override fun getContainingFile() = null
     override fun canNavigate() = true
     override fun canNavigateToSource() = true
-    override fun getLanguage() = ClojureLanguage
 
     override fun getName() = when (delegate) {
       is PackageInfo -> StringUtil.getShortName(delegate.name)
@@ -620,11 +619,13 @@ abstract class JavaHelper {
 
     override fun processDeclarations(processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
       val classInfo = delegate as? ClassInfo ?: return true
-      val asmHelper = ClojureDefinitionService.getInstance(project).java.let { if (it is PsiHelper) it.asm else it as AsmHelper }
-      for (o in classInfo.methods) {
+      val asmHelper = ClojureDefinitionService.getInstance(project).java.let { (it as? PsiHelper)?.asm ?: it as AsmHelper }
+      classInfo.methods.forEach { o ->
+        if (o.scope == Scope.INIT || !acceptsModifiers(o.modifiers)) return@forEach
         if (!processor.execute(asmHelper.cached(o.name + o.signature + classInfo.name, o), state)) return false
       }
-      for (o in classInfo.fields) {
+      classInfo.fields.forEach { o ->
+        if (!acceptsModifiers(o.modifiers)) return@forEach
         if (!processor.execute(asmHelper.cached(o.name + classInfo.name, o), state)) return false
       }
       return true
