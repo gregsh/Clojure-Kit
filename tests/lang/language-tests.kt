@@ -13,13 +13,13 @@ import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.ParsingTestCase
 import com.intellij.testFramework.UsefulTestCase
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
-import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.inspections.ClojureResolveInspection
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.parser.ClojureParserDefinitionBase
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.util.elementType
+import org.intellij.clojure.util.jbIt
 import java.io.File
 import java.nio.file.Path
 
@@ -148,7 +148,7 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
       stat.chars += text.length
       val lightVirtualFile = LightVirtualFile(path.toString(), ClojureLanguage, text)
       myFixture.configureFromExistingVirtualFile(lightVirtualFile)
-      val infos = JBIterable.from(myFixture.doHighlighting())
+      val infos = myFixture.doHighlighting().jbIt()
       val errors = infos.filter { it.severity == HighlightSeverity.ERROR }
       val warnings = infos.filter { it.severity == HighlightSeverity.WARNING }
       stat.warnings += warnings.size()

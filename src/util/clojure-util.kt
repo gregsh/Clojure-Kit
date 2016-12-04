@@ -125,7 +125,7 @@ val PsiElement.valueRange: TextRange get() = firstChild.siblings()
       .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset) } ?: textRange
 
 fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
-fun <T> JBIterable<T>.sort(comparator: Comparator<T>? = null) = JBIterable.from(addAllTo(TreeSet<T>(comparator)))
+fun <T> JBIterable<T>.sort(comparator: Comparator<T>? = null) = addAllTo(TreeSet<T>(comparator)).jbIt()
 
 class EachNth(val each: Int) : JBIterable.StatefulFilter<Any?>() {
   var idx = -1

@@ -124,7 +124,7 @@ class ReplExecuteAction : DumbAwareAction() {
     }
     else {
       val text = editor.document.immutableCharSequence
-      JBIterable.from(editor.caretModel.allCarets).transform {
+      editor.caretModel.allCarets.jbIt().transform {
         val elementAt = file.findElementAt(
             if (it.offset > 0 && (it.offset >= text.length || Character.isWhitespace(text[it.offset]))) it.offset - 1
             else it.offset)

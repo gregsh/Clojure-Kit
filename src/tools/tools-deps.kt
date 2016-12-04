@@ -46,13 +46,13 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.ProjectScope
 import com.intellij.util.containers.ContainerUtil
-import com.intellij.util.containers.JBIterable
 import com.intellij.util.io.SafeFileOutputStream
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.parser.ClojureTokens.wsOrComment
 import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.util.iterate
+import org.intellij.clojure.util.jbIt
 import org.intellij.clojure.util.notNulls
 import org.intellij.clojure.util.toIoFile
 import java.io.File
@@ -87,7 +87,7 @@ private class ClojureProjectDeps(val project: Project) {
 
   val cacheFile = File(PathManager.getSystemPath(), "clojure/deps-${project.locationHash}.txt")
   val mapping: MutableMap<String, List<String>> = ContainerUtil.newConcurrentMap()
-  val allDependencies: Set<VirtualFile> get() = JBIterable.from(mapping.values)
+  val allDependencies: Set<VirtualFile> get() = mapping.values.jbIt()
       .flatten { it }
       .transform(::gavToJar)
       .notNulls()

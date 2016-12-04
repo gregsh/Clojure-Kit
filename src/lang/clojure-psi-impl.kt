@@ -71,11 +71,11 @@ class ClojureFileImpl(viewProvider: FileViewProvider, language: Language) :
 
   override val definitions: JBIterable<CDef>
     get() = stub?.let { JBTreeTraverser<StubElement<*>> { it.childrenStubs }
-        .withRoot(it).traverse().transform { it.psi as? CDef }.notNulls() } ?:
-        JBIterable.from(this.state.definitions)
+        .withRoot(it).traverse().transform { it.psi as? CDef }.notNulls() }
+        ?: state.definitions.jbIt()
 
   override val imports: JBIterable<CList>
-    get() = JBIterable.from(state.imports)
+    get() = state.imports.jbIt()
 
   internal data class State(val namespace: String, val definitions: List<CDef>, val imports: List<CList>)
   private var myState: State? = null

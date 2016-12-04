@@ -49,6 +49,7 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
 import org.intellij.clojure.util.EachNth
 import org.intellij.clojure.util.iterate
+import org.intellij.clojure.util.jbIt
 import org.intellij.clojure.util.notNulls
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.signature.SignatureReader
@@ -217,7 +218,7 @@ abstract class JavaHelper {
       val info = wrapper.delegate
       return when (info) {
         is ClassInfo -> "${info.name}<br><br><i>${info.url}</i>"
-        is MethodInfo -> "${info.types[0]} ${info.name}(${JBIterable.from(info.types).skip(1).filter(EachNth(2)).joinToString()})" +
+        is MethodInfo -> "${info.types[0]} ${info.name}(${info.types.jbIt().skip(1).filter(EachNth(2)).joinToString()})" +
             "<br>in class ${info.declaringClass.name}" +
             "<br><br><i>${info.declaringClass.url}</i>"
         is FieldInfo -> "${info.type} ${info.name}<br>" +
@@ -268,7 +269,7 @@ abstract class JavaHelper {
                                   paramCount: Int,
                                   vararg paramTypes: String): List<NavigatablePsiElement> {
       return superclasses(className).flatten {
-        JBIterable.from((it.delegate as ClassInfo).methods).transform { o ->
+        (it.delegate as ClassInfo).methods.jbIt().transform { o ->
           if (acceptsName(name, o.name) &&
               acceptsMethod(o, scope) &&
               acceptsMethod(o, paramCount, *paramTypes)) cached(o.name + o.signature + className, o) else null
@@ -280,7 +281,7 @@ abstract class JavaHelper {
                                  scope: Scope,
                                  name: String?): List<NavigatablePsiElement> {
       return superclasses(className).flatten {
-        JBIterable.from((it.delegate as ClassInfo).fields).transform { o ->
+        (it.delegate as ClassInfo).fields.jbIt().transform { o ->
           if (acceptsName(name, o.name) &&
               acceptsField(o, scope)) cached(o.name + o.signature + className, o)
           else null
