@@ -100,6 +100,9 @@
   </extensions>
 
   <actions>
+
+    <!-- structural editing -->
+
     <action id="clojure.editor.slurp-bwd" class="org.intellij.clojure.actions.SlurpBwdAction"
             text="Slurp Backwards" description="Swallow the element preceding the current form">
       <keyboard-shortcut keymap="$default" first-keystroke="alt shift H"/>
@@ -129,6 +132,8 @@
       <keyboard-shortcut keymap="$default" first-keystroke="alt shift PERIOD"/>
     </action>
 
+    <!-- REPL actions -->
+
     <action id="clojure.repl.execute" class="org.intellij.clojure.tools.ReplExecuteAction"
             use-shortcut-of="Console.Execute.Multiline"
             icon="AllIcons.Actions.Execute"
@@ -138,12 +143,19 @@
             text="Connect to REPL" description="Connect to REPL">
       <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
     </action>
+    <action id="clojure.repl.exclusive.mode" class="org.intellij.clojure.tools.ReplExclusiveModeAction"
+            icon="AllIcons.Welcome.CreateNewProject"
+            text="Set Exclusive REPL" description="Make this REPL an exclusive target for all operations">
+      <keyboard-shortcut keymap="$default" first-keystroke="control shift L"/>
+    </action>
     <action id="clojure.tools.sync.dependencies" class="org.intellij.clojure.tools.SyncDepsAction"
             text="Sync Dependencies" description=""
             icon="AllIcons.Actions.Refresh"/>
     <action id="clojure.tools.sync.dependencies.all" class="org.intellij.clojure.tools.SyncAllDepsAction"
             text="Sync All Dependencies" description=""
             icon="AllIcons.Actions.ForceRefresh"/>
+
+    <!-- action groups -->
 
     <group id="clojure.edit.menu.group" text="Clojure" popup="true">
       <add-to-group group-id="EditMenu"/>
@@ -161,6 +173,7 @@
 
       <reference ref="clojure.repl.execute"/>
       <reference ref="clojure.repl.connect"/>
+      <reference ref="clojure.repl.exclusive.mode"/>
       <separator/>
       <reference ref="clojure.tools.sync.dependencies"/>
       <reference ref="clojure.tools.sync.dependencies.all"/>

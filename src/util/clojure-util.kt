@@ -35,6 +35,7 @@ import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CReaderCondImpl
 import java.util.*
+import java.util.Comparator
 import kotlin.reflect.KClass
 
 /**
@@ -125,7 +126,7 @@ val PsiElement.valueRange: TextRange get() = firstChild.siblings()
       .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset) } ?: textRange
 
 fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
-fun <T> JBIterable<T>.sort(comparator: Comparator<T>? = null) = addAllTo(TreeSet<T>(comparator)).jbIt()
+fun <T> JBIterable<T>.sort(comparator: Comparator<T>) = addAllTo(ArrayList()).apply { Collections.sort(this, comparator) }.jbIt()
 
 class EachNth(val each: Int) : JBIterable.StatefulFilter<Any?>() {
   var idx = -1

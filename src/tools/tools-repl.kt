@@ -42,6 +42,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.ui.InputValidator
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.ActionCallback
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Key
@@ -52,10 +53,14 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.remote.BaseRemoteProcessHandler
 import com.intellij.remote.RemoteProcess
+import com.intellij.ui.ColoredListCellRenderer
+import com.intellij.ui.SimpleTextAttributes
+import com.intellij.ui.components.JBList
 import com.intellij.util.ArrayUtil
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.text.UniqueNameGenerator
+import com.intellij.util.ui.EmptyIcon
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
@@ -69,6 +74,8 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.*
+import javax.swing.Icon
+import javax.swing.JList
 
 /**
  * @author gregsh
@@ -78,6 +85,8 @@ object ReplConsoleRootType : ConsoleRootType("nrepl", "nREPL Consoles")
 
 private val NREPL_CLIENT_KEY = Key.create<ReplConnection>("NREPL_CLIENT_KEY")
 private val EXCLUSIVE_MODE_KEY = Key.create<Boolean>("EXCLUSIVE_MODE_KEY")
+private val REMOTE_ICON = AllIcons.RunConfigurations.Remote
+private val LOCAL_ICON = AllIcons.RunConfigurations.Application
 
 
 class ReplConnectAction : DumbAwareAction() {
@@ -98,7 +107,7 @@ class ReplConnectAction : DumbAwareAction() {
     val host = StringUtil.nullize(matcher.groupValues[1], true) ?: "localhost"
     val port = StringUtil.parseInt(matcher.groupValues[2], -1)
     val addressString = "Connected to nREPL server running on port $port and host $host"
-    createNewRunContent(project, "REPL [$host:$port]") {
+    createNewRunContent(project, "REPL [$host:$port]", REMOTE_ICON) {
       newRemoteProcess(addressString, false)
     }
   }
@@ -138,20 +147,70 @@ class ReplExecuteAction : DumbAwareAction() {
   }
 }
 
-class ExclusiveModeToggleAction(val console: LanguageConsoleView)
-  : ToggleAction("Exclusive Mode", "Make this REPL an exclusive target for all operations", AllIcons.Welcome.CreateNewProject) {
-  override fun isSelected(e: AnActionEvent): Boolean = console.isExclusiveModeOn()
+class ReplExclusiveModeAction : ToggleAction() {
+
+  override fun isSelected(e: AnActionEvent): Boolean =
+      chooseRepl(e)?.consoleView?.isExclusiveModeOn()
+          ?: (allRepls(e.project).find { it.consoleView.isExclusiveModeOn() } != null)
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
-    ExecutionManager.getInstance(e.project ?: return).contentManager.allDescriptors.forEach {
-      NREPL_CLIENT_KEY.get(it.processHandler)?.consoleView?.let {
-        EXCLUSIVE_MODE_KEY.set(it.consoleEditor, state && it === console)
+    val project = e.project ?: return
+    chooseRepl(e) { chosen, fromPopup ->
+      allRepls(project).forEach {
+        EXCLUSIVE_MODE_KEY.set(it.consoleView.consoleEditor, (state || fromPopup) && it === chosen)
+        if (chosen != null) {
+          ExecutionManager.getInstance(project).contentManager.toFrontRunContent(
+              DefaultRunExecutor.getRunExecutorInstance(), chosen.processHandler)
+        }
       }
     }
   }
+
+  private fun chooseRepl(e: AnActionEvent, consumer: ((ReplConnection?, Boolean)->Unit)? = null): ReplConnection? =
+      NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)?.let { consumer?.invoke(it, false); it } ?: run {
+        val repls = allRepls(e.project)
+            .sort(Comparator { o1: ReplConnection, o2: ReplConnection -> Comparing.compare(o1.consoleView.title, o2.consoleView.title) })
+            .addAllTo(mutableListOf<ReplConnection?>())
+            .apply { add(null) }
+        if (consumer == null || repls.size == 1) return repls[0].apply { consumer?.invoke(this, false) }
+        else {
+          val list = JBList<ReplConnection>(repls)
+          list.cellRenderer = object : ColoredListCellRenderer<ReplConnection>() {
+            override fun customizeCellRenderer(list: JList<out ReplConnection>, value: ReplConnection?, index: Int, selected: Boolean, hasFocus: Boolean) {
+              if (value != null) {
+                val exclusive = value.consoleView.isExclusiveModeOn()
+                val connected = value.repl.isConnected
+                val attrs = when {
+                  connected -> if (exclusive) SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES else SimpleTextAttributes.REGULAR_ATTRIBUTES
+                  else -> if (exclusive) SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES else SimpleTextAttributes.GRAYED_ATTRIBUTES
+                }
+                append(value.consoleView.title, attrs)
+                icon = if (value.processHandler is RemoteProcess) REMOTE_ICON else LOCAL_ICON
+              }
+              else {
+                icon = EmptyIcon.ICON_16
+                append("<no exclusive REPL>", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+              }
+            }
+          }
+          JBPopupFactory.getInstance().createListPopupBuilder(list)
+              .setTitle(e.presentation.text!!)
+              .setFilteringEnabled { (it as? ReplConnection)?.consoleView?.title ?: "" }
+              .setItemChoosenCallback { consumer(list.selectedValue as? ReplConnection, true) }
+              .createPopup()
+              .showCenteredInCurrentWindow(e.project!!)
+          return null
+        }
+      }
+
 }
 
 private fun LanguageConsoleView.isExclusiveModeOn() = EXCLUSIVE_MODE_KEY.get(consoleEditor) == true
+
+private fun allRepls(project: Project?) =
+    if (project == null) JBIterable.empty()
+    else ExecutionManager.getInstance(project).contentManager.allDescriptors.jbIt()
+        .map { NREPL_CLIENT_KEY.get(it.processHandler) }.notNulls()
 
 fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
 fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
@@ -209,7 +268,7 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
     }
   } ?: run {
     var initialText: String? = text
-    createNewRunContent(project, title) {
+    createNewRunContent(project, title, LOCAL_ICON) {
       newProcessHandler(project, projectDir?.toIoFile()).apply {
         initialText?.let { text -> NREPL_CLIENT_KEY.get(this).sendCommand(text); initialText = null }
       }
@@ -217,12 +276,12 @@ fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: Str
   }
 }
 
-private fun createNewRunContent(project: Project, title: String, processFactory: () -> ProcessHandler) {
+private fun createNewRunContent(project: Project, title: String, icon: Icon, processFactory: () -> ProcessHandler) {
   val existingDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
   val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")",
       existingDescriptors.map { it.displayName }.toSet().let { { s: String -> !it.contains(s) }})
   object : RunProfile {
-    override fun getIcon() = null
+    override fun getIcon() = icon
     override fun getName() = uniqueTitle
 
     override fun getState(executor: Executor, env: ExecutionEnvironment): RunProfileState {
@@ -241,7 +300,7 @@ private fun createNewRunContent(project: Project, title: String, processFactory:
           }
           return ArrayUtil.mergeArrays(super.createActions(console, processHandler, executor), arrayOf<AnAction>(
               ConsoleHistoryController.getController(console as LanguageConsoleView?).browseHistory,
-              ExclusiveModeToggleAction(console)))
+              ActionManager.getInstance().getAction("clojure.repl.exclusive.mode")))
         }
 
         override fun createConsole(executor: Executor) =
@@ -372,12 +431,12 @@ fun newLocalProcess(workingDir: File): ProcessHandler {
           }
         }
       }
-
+    })
+    addProcessListener (object : ProcessAdapter() {
       override fun processWillTerminate(event: ProcessEvent?, willBeDestroyed: Boolean) {
         repl.disconnect()
       }
     })
-
   }
 }
 
@@ -394,6 +453,7 @@ fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler
     override fun destroy() {
       if (canDestroy) {
         repl.evalAsync("(System/exit 0)", repl.toolSession)
+            .handle { t, u -> repl.disconnect() }
       }
       else {
         repl.disconnect()
