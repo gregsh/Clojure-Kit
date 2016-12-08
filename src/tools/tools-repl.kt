@@ -155,12 +155,20 @@ class ReplExclusiveModeAction : ToggleAction() {
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
     val project = e.project ?: return
+    val contentManager = ExecutionManager.getInstance(project).contentManager
     chooseRepl(e) { chosen, fromPopup ->
-      allRepls(project).forEach {
-        EXCLUSIVE_MODE_KEY.set(it.consoleView.consoleEditor, (state || fromPopup) && it === chosen)
-        if (chosen != null) {
-          ExecutionManager.getInstance(project).contentManager.toFrontRunContent(
-              DefaultRunExecutor.getRunExecutorInstance(), chosen.processHandler)
+      allRepls(project).forEach { repl ->
+        val isChosen = (state || fromPopup) && repl === chosen
+        EXCLUSIVE_MODE_KEY.set(repl.consoleView.consoleEditor, isChosen)
+        val executor = DefaultRunExecutor.getRunExecutorInstance()
+        contentManager.findContentDescriptor(executor, repl.processHandler)?.let { descriptor ->
+          if (isChosen) {
+            contentManager.toFrontRunContent(executor, descriptor)
+            descriptor.attachedContent?.displayName = "* " + repl.consoleView.title
+          }
+          else {
+            descriptor.attachedContent?.displayName = repl.consoleView.title
+          }
         }
       }
     }
@@ -169,7 +177,7 @@ class ReplExclusiveModeAction : ToggleAction() {
   private fun chooseRepl(e: AnActionEvent, consumer: ((ReplConnection?, Boolean)->Unit)? = null): ReplConnection? =
       NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)?.let { consumer?.invoke(it, false); it } ?: run {
         val repls = allRepls(e.project)
-            .sort(Comparator { o1: ReplConnection, o2: ReplConnection -> Comparing.compare(o1.consoleView.title, o2.consoleView.title) })
+//            .sort(Comparator { o1: ReplConnection, o2: ReplConnection -> Comparing.compare(o1.consoleView.title, o2.consoleView.title) })
             .addAllTo(mutableListOf<ReplConnection?>())
             .apply { add(null) }
         if (consumer == null || repls.size == 1) return repls[0].apply { consumer?.invoke(this, false) }
