@@ -31,14 +31,15 @@ A. Use **Execute in REPL** action (`ctrl-enter` or `cmd-enter`) to send the sele
       
 Q. How to connect to remote REPL or ClojureScript REPL on a different port?<br/>
 A. Use **Connect to REPL** action (`ctrl-shift-P` or `cmd-shift-P`) to enter host, port or nrepl URL and create a new remote console. 
-Remote consoles are not mapped to project files, use **Exclusive Mode** toolbar toggle to redirect all commands to a particular REPL.
+Remote consoles are not mapped to project files, use **Exclusive Mode** toolbar toggle or popup (`ctrl-shift-L` or `cmd-shift-L`)
+to redirect all commands to one specific REPL.
 
 Change log
 ==========
-0.4.5
+0.5.0
 
 * REPL: connect to remote REPL
-* REPL: send all forms to "exclusive" console
+* REPL: send all commands to one specific REPL
 * REPL: console history actions
 * Editor: complete namespaces and keywords
 * Structural editing: improved caret handling

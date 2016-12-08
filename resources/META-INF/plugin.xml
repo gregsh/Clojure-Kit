@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.4.5-SNAPSHOT</version>
+  <version>0.5.0</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="162.2525" until-build="173.*"/>
 
@@ -16,7 +16,7 @@
     <![CDATA[
     <ul>
       <li>REPL: connect to remote REPL</li>
-      <li>REPL: send all forms to "exclusive" console</li>
+      <li>REPL: send all commands to one specific REPL</li>
       <li>REPL: console history actions</li>
       <li>Completion: complete namespaces and keywords</li>
       <li>Structural editing: improved caret handling</li>

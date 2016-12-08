@@ -65,7 +65,7 @@ task plugin_jar(type: Jar, dependsOn: [rootProject.tasks['assemble']]) {
 }
 
 task plugin_zip(type: Zip, dependsOn: [plugin_jar]) {
-  baseName = 'ClojureKit.zip'
+  baseName = 'ClojureKit'
   destinationDir = file(artifactsPath)
   from(tasks['plugin_jar'].outputs) {
     into '/ClojureKit/lib'
