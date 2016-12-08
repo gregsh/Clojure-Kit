@@ -257,7 +257,7 @@ class BEncodeInput(stream: InputStream) {
       else -> stream.unread(token.toInt()).let {
         val bytes = read_netstring_inner()
         try {
-          if (bytes.size < 1024) String(bytes) else bytes
+          String(bytes)
         }
         catch(e: Exception) {
           bytes
