@@ -246,7 +246,7 @@ abstract class JavaHelper {
             val path = VirtualFileManager.getInstance().findFileByUrl(VfsUtil.convertFromUrl(URL(url)))?.parent?.path
             if (path == null) null else PackageInfo(packageName, path)
           }
-        } ?: null
+        }
 
     override fun findClass(className: String?) = lazyCached(className, c_nulls) { findClassSafe(className) }
 
@@ -523,7 +523,7 @@ abstract class JavaHelper {
           val pkgName = className.substring(0, lastDot).replace('.', '/')
           val clzName = className.substring(lastDot + 1).replace('.', '$') + ".class"
           val bundledUrl = JavaHelper::class.java.classLoader.getResource("$pkgName/$clzName")
-          stream = try { bundledUrl?.openStream() ?: null } catch (e: Exception) { null }
+          stream = try { bundledUrl?.openStream() } catch (e: Exception) { null }
           url = bundledUrl?.toExternalForm()
           if (stream != null) break
           for (psiFile in FilenameIndex.getFilesByName(project, clzName, GlobalSearchScope.allScope(project))) {

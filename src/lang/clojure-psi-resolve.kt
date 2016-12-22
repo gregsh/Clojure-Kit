@@ -736,8 +736,8 @@ private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {
       it.childForms.filter { (it !is CSymbol) || it.text != "&" }
     }
     is CMap -> {
-      it.childForms.intercept x@{ delegate ->
-        return@x object : JBIterator<CForm>() {
+      it.childForms.intercept { delegate: Iterator<CForm> ->
+        object : JBIterator<CForm>() {
           var first = true // key-value switcher
           var skip: Boolean? = null
           var keys: Iterator<CForm>? = null

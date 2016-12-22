@@ -77,7 +77,7 @@ class ClojureElementDescriptionProvider : ElementDescriptionProvider {
       return when (element) {
         is CKeyword -> "keyword"
         is CDef -> "(${element.def.type})"
-        is PomTargetPsiElement -> (element.target as? CTarget)?.key?.run { if (namespace == "") type else "($type)" } ?: null
+        is PomTargetPsiElement -> (element.target as? CTarget)?.key?.run { if (namespace == "") type else "($type)" }
         else -> null
       }
     }
