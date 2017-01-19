@@ -130,27 +130,35 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
 
   override fun charTyped(c: Char, project: Project?, editor: Editor, file: PsiFile): Result {
     if (file !is ClojureFile || editor !is EditorEx) return Result.CONTINUE
-    val pair = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else return Result.CONTINUE
+    val p1 = if (c == ')') '(' else if (c == ']') '[' else if (c == '}') '{' else null
+    val p2 = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else null
+    if (p1 == null && p2 == null) return Result.CONTINUE
     val offset = editor.caretModel.offset
     if (isNotBalanced(editor, offset)) return Result.CONTINUE
     val text = editor.document.charsSequence
-    if (offset < text.length && text[offset] == pair) {
-      val c2 = if (offset + 1 < text.length) text[offset + 1] else null
-      if (c2 != null && c2 != ')' && c2 != ']' && c2 != '}' && !Character.isWhitespace(c2)) {
-        editor.document.insertString(offset + 1, " ")
-      }
+    fun needSpaceAt(offset: Int, skip: String) = offset < text.length && text[offset].let { ch ->
+      skip.indexOf(ch) == -1 && !Character.isWhitespace(ch) }
+    if (p1 != null) {
+      val s1 = if (needSpaceAt(offset - 2, "([{")) " " else ""
+      val s2 = if (needSpaceAt(offset, ")]}")) " " else ""
+      editor.document.replaceString(offset - 1, offset, "$s1$p1${text[offset-1]}$s2")
+      val careOffset = if (s1 == "") offset else offset + 1
+      editor.caretModel.moveToOffset(careOffset)
+    }
+    else if (offset < text.length && text[offset] == p2) {
+      if (needSpaceAt(offset + 1, ")]}")) editor.document.insertString(offset + 1, " ")
     }
     else {
       val r = file.findElementAt(offset - 1).parentForm?.textRange
       if (r != null && r.startOffset == offset - 1) {
-        editor.document.insertString(r.endOffset + 1, "$pair")
+        editor.document.insertString(r.endOffset + 1, "$p2")
       }
     }
     return Result.CONTINUE
   }
 }
 
-private fun slurp(form: CPForm, document: Document, caret: Caret, forward: Boolean): Unit {
+private fun slurp(form: CPForm, document: Document, @Suppress("UNUSED_PARAMETER") caret: Caret, forward: Boolean): Unit {
   val target = (if (forward) form.nextForm else form.prevForm)?.textRange ?: return
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
   if (parens.size != 2) return

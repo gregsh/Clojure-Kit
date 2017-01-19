@@ -56,6 +56,8 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testTypeParen1() = doType("|namespace/name", "(", "(|namespace/name)")
   fun testTypeParen2() = doType("|namespace/name)", "(", "(|namespace/name)")
   fun testTypeParen3() = doType("|:namespace/name", "(", "(|:namespace/name)")
+  fun testTypeParen4() = doType("|:namespace/name", "()", "(() :namespace/name)")
+  fun testTypeParen5() = doType("ab|cd", ")))", "ab () (|) cd")
 
   fun testAllActionsEmpty() = allActions.forEach { it.run("", "") }
   fun testAllActionsSym01() = allActions.forEach { it.run("|a", null) }
