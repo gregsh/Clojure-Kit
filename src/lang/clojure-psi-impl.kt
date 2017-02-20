@@ -240,6 +240,7 @@ abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, 
   constructor(stub: CKeywordStub) : this(stub, stub.stubType as CKeywordElementType, null)
   constructor(node: ASTNode) : this(null, node.elementType as CKeywordElementType, node)
 
+  override abstract fun getName(): String
   override fun getNameIdentifier() = lastChild!!
   override fun setName(newName: String): PsiElement {
     nameIdentifier.replace(newLeafPsiElement(project, newName))
