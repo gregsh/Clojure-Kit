@@ -80,6 +80,7 @@ abstract class EditActionBase(private val handler: (ClojureFile, Document, Caret
       : this({ file, document, caret -> { handler(file, document, caret) } })
 
   init {
+    @Suppress("LeakingThis")
     setInjectedContext(true)
   }
 }
@@ -134,10 +135,15 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
     val p2 = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else null
     if (p1 == null && p2 == null) return Result.CONTINUE
     val offset = editor.caretModel.offset
+    editor.highlighter.createIterator(offset - 1).tokenType.let { tokenType ->
+      if (ClojureTokens.STRINGS.contains(tokenType) || ClojureTokens.COMMENTS.contains(tokenType)) {
+        return Result.CONTINUE
+      }
+    }
     if (isNotBalanced(editor, offset)) return Result.CONTINUE
     val text = editor.document.charsSequence
-    fun needSpaceAt(offset: Int, skip: String) = offset < text.length && text[offset].let { ch ->
-      skip.indexOf(ch) == -1 && !Character.isWhitespace(ch) }
+    fun needSpaceAt(offset: Int, skip: String) = offset >= 0 && offset < text.length &&
+        text[offset].let { ch -> skip.indexOf(ch) == -1 && !Character.isWhitespace(ch) }
     if (p1 != null) {
       val s1 = if (needSpaceAt(offset - 2, "([{")) " " else ""
       val s2 = if (needSpaceAt(offset, ")]}")) " " else ""

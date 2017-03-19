@@ -59,6 +59,13 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testTypeParen4() = doType("|:namespace/name", "()", "(() :namespace/name)")
   fun testTypeParen5() = doType("ab|cd", ")))", "ab () (|) cd")
 
+  fun testTypeParenInEmpty1() = doType("", "(", "()")
+  fun testTypeParenInEmpty2() = doType("", ")", "()")
+  fun testTypeParenInString1() = doType("\"ab |\"", "(", "\"ab (|\"")
+  fun testTypeParenInString2() = doType("\"ab |\"", ")", "\"ab )|\"")
+  fun testTypeParenInComment1() = doType("; ab |", "(", "; ab (|")
+  fun testTypeParenInComment2() = doType("; ab |", ")", "; ab )|")
+
   fun testAllActionsEmpty() = allActions.forEach { it.run("", "") }
   fun testAllActionsSym01() = allActions.forEach { it.run("|a", null) }
   fun testAllActionsSym02() = allActions.forEach { it.run("a|", null) }
