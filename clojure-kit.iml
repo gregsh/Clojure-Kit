@@ -13,8 +13,8 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="Clojure" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="ClojureScript" level="project" />
-    <orderEntry type="library" scope="RUNTIME" name="WellKnownClojureLibs" level="project" />
+    <orderEntry type="library" scope="TEST" name="Clojure" level="project" />
+    <orderEntry type="library" scope="TEST" name="ClojureScript" level="project" />
+    <orderEntry type="library" scope="TEST" name="WellKnownClojureLibs" level="project" />
   </component>
 </module>
