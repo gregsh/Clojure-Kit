@@ -130,6 +130,7 @@ private class ClojureProjectDeps(val project: Project) {
           list.clear()
         }
       }
+      if (file != "") map.put(file, ArrayList(list))
       map
     })
   }
