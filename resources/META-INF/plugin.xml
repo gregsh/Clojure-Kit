@@ -82,7 +82,7 @@
     <codeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureCodeStyleSettingsProvider"/>
     <langCodeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureLangCodeStyleSettingsProvider"/>
 
-    <!--<referencesSearch implementation="org.intellij.clojure.lang.usages.ClojureReferenceSearcher"/>-->
+    <referencesSearch implementation="org.intellij.clojure.lang.usages.MapDestructuringUsagesSearcher"/>
 
     <lang.inspectionSuppressor language="Clojure" implementationClass="org.intellij.clojure.inspections.ClojureInspectionSuppressor"/>
     <localInspection language="Clojure" shortName="ClojureResolveInspection" suppressId="clojure-resolve" bundle="messages.ClojureBundle"

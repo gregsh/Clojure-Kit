@@ -20,29 +20,33 @@ package org.intellij.clojure.lang.usages
 import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.navigation.ChooseByNameContributor
 import com.intellij.openapi.application.PathManager
+import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.pom.PomTargetPsiElement
-import com.intellij.psi.ElementDescriptionLocation
-import com.intellij.psi.ElementDescriptionProvider
-import com.intellij.psi.NavigatablePsiElement
-import com.intellij.psi.PsiElement
+import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.stubs.StubIndex
 import com.intellij.usageView.UsageViewTypeLocation
+import com.intellij.util.Processor
 import com.intellij.util.containers.JBIterable
+import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CLJS_CORE_PATH
 import org.intellij.clojure.ClojureConstants.CLJ_CORE_PATH
-import org.intellij.clojure.psi.CDef
-import org.intellij.clojure.psi.CKeyword
-import org.intellij.clojure.psi.ClojureFile
+import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CTarget
+import org.intellij.clojure.psi.impl.ClojureDefinitionService
 import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
 import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
 import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
+import org.intellij.clojure.util.childForms
+import org.intellij.clojure.util.filter
+import org.intellij.clojure.util.nextForm
+import org.intellij.clojure.util.parentForm
 import java.util.*
 
 /**
@@ -114,4 +118,25 @@ class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
           }
         } ?: Collections.emptySet() }
       .toSet()
+}
+
+class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
+  override fun processQuery(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<PsiReference>) {
+    val targetKey = ((queryParameters.elementToSearch as? PomTargetPsiElement)?.target as? CTarget)?.key ?: return
+    val keyName = if (targetKey.type == "keyword") "keys" else "syms"
+    if (targetKey.name == keyName) return
+    val project = queryParameters.elementToSearch.project
+    val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(
+        keyName, targetKey.namespace.let { if (it == ClojureConstants.NS_USER) "" else it }, "keyword")
+
+    for (usage in ReferencesSearch.search(mapKeyElement, queryParameters.effectiveSearchScope)) {
+      val form = (usage.element as? CSymbol)?.parentForm as? CKeyword ?: continue
+      val vec = (if (form.parentForm is CMap) form.nextForm as? CVec else null) ?: continue
+      for (symbol in vec.childForms.filter(CSymbol::class)) {
+        if (symbol.name == targetKey.name)  {
+          consumer.process(symbol.reference)
+        }
+      }
+    }
+  }
 }
