@@ -31,8 +31,10 @@ import com.intellij.pom.references.PomService
 import com.intellij.psi.PsiAnchor
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiTarget
+import com.intellij.psi.impl.PomTargetPsiElementImpl
 import com.intellij.psi.search.EverythingGlobalScope
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.stubs.StubIndex
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.FactoryMap
@@ -45,8 +47,10 @@ import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
 import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
 import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
+import org.intellij.clojure.util.filter
 import org.intellij.clojure.util.findParent
 import org.intellij.clojure.util.isIn
+import org.intellij.clojure.util.parentForms
 
 /**
  * @author gregsh
@@ -85,7 +89,7 @@ class ClojureDefinitionService(val project: Project) {
     get() = getUserData(POM_MAP_KEY).let f@ {
       return@f if (it != null) it
       else {
-        val map = createPomMap()
+        val map = createPomMap(this)
         putUserData(POM_MAP_KEY, map)
         map
       }
@@ -122,12 +126,16 @@ class ClojureDefinitionService(val project: Project) {
   }
 
   fun getSymbol(o: CSymbol): PsiElement {
-    return (if (o.parent is CVec && !(o.parent.parent.let { it is CList && it.first?.name == "binding" })) {
-      o.parent.map[SymKey(o.name, "", if (o.findParent(CList::class)?.let {
+    val topVec = o.parentForms.filter(CVec::class).last()
+    val isLocal = topVec != null && !(topVec.parent.let { it is CList && it.first?.name == "binding" })
+    val symKey = if (isLocal) {
+      val isArgument = o.findParent(CList::class)?.let {
         it is CDef || it.first.let { it == null || it.name.isIn(ClojureConstants.FN_ALIKE_SYMBOLS) }
-      } ?: false) "argument" else "let-binding")]
+      } ?: false
+      SymKey(o.name, "", if (isArgument) "argument" else "let-binding")
     }
-    else map[SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")])!!
+    else SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")
+    return (if (isLocal) topVec!!.parent.map else map)[symKey]!!
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
@@ -141,21 +149,23 @@ class ClojureDefinitionService(val project: Project) {
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
-  private fun createPomMap(): Map<SymKey, PsiElement> {
-
+  private fun createPomMap(owner : PsiElement? = null): Map<SymKey, PsiElement> {
     return object : FactoryMap<SymKey, PsiElement>() {
       override fun createMap(): MutableMap<SymKey, PsiElement>? {
         return ContainerUtil.createConcurrentWeakValueMap<SymKey, PsiElement>()
       }
 
       override fun create(key: SymKey): PsiElement {
-        return createPomElement(this, key)
+        return createPomElement(owner, CTarget(project, this, key))
       }
     }
   }
 
-  private fun createPomElement(map: Map<SymKey, PsiElement>, key: SymKey): PsiElement {
-    return PomService.convertToPsi(project, CTarget(project, map, key))
+  private fun createPomElement(owner: PsiElement?, target: CTarget): PsiElement {
+    return if (owner == null) PomTargetPsiElementImpl(project, target)
+    else object : PomTargetPsiElementImpl(project, target) {
+      override fun getUseScope() = LocalSearchScope(owner)
+    }
   }
 
 }
