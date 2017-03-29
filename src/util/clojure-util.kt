@@ -28,14 +28,11 @@ import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.impl.source.tree.TreeUtil
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.util.ObjectUtils
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.lang.ClojureLanguage
-import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CReaderCondImpl
 import java.util.*
-import java.util.Comparator
 import kotlin.reflect.KClass
 
 /**
@@ -98,14 +95,13 @@ fun cljNodeTraverser(): SyntaxTraverser<ASTNode> = SyntaxTraverser.astTraverser(
     .forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
 
 fun cljLightTraverser(text: CharSequence,
-                      forcedRootType: IElementType = ClojureTokens.CLJ_FILE_TYPE,
-                      language: Language = ClojureLanguage): SyntaxTraverser<LighterASTNode> {
+                      language: Language = ClojureLanguage,
+                      forcedRootType: IElementType? = null): SyntaxTraverser<LighterASTNode> {
   val parserDefinition = LanguageParserDefinitions.INSTANCE.forLanguage(language)
   val lexer = parserDefinition.createLexer(null)
   val parser = parserDefinition.createParser(null) as LightPsiParser
   val builder = PsiBuilderFactory.getInstance().createBuilder(parserDefinition, lexer, text)
-  val rootType = ObjectUtils.notNull<IElementType>(forcedRootType, parserDefinition.fileNodeType)
-  parser.parseLight(rootType, builder)
+  parser.parseLight(forcedRootType ?: parserDefinition.fileNodeType, builder)
   return SyntaxTraverser.lightTraverser(builder).forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
 }
 

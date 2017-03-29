@@ -58,6 +58,11 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testTypeParen3() = doType("|:namespace/name", "(", "(|:namespace/name)")
   fun testTypeParen4() = doType("|:namespace/name", "()", "(() :namespace/name)")
   fun testTypeParen5() = doType("ab|cd", ")))", "ab () (|) cd")
+  fun testTypeParen6() = doType("|abc", "#{", "#{|abc}")
+  fun testTypeHParen1() = doType("|abc", "#:foo {", "#:foo {|abc}")
+  fun testTypeHParen2() = doType("|abc", "#::{", "#::{|abc}")
+  fun testTypeHParen3() = doType("|^{:x ()} (foo) bar", "#::{", "#::{^{:x ()} (foo)} bar")
+  fun testTypeHParen4() = doType("| ^{:x ()} (foo) bar", "#::{", "#::{|} ^{:x ()} (foo) bar")
 
   fun testTypeParenInEmpty1() = doType("", "(", "()")
   fun testTypeParenInEmpty2() = doType("", ")", "()")

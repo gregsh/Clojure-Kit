@@ -20,6 +20,7 @@ package org.intellij.clojure.actions
 import com.intellij.codeInsight.editorActions.TypedHandler
 import com.intellij.codeInsight.editorActions.TypedHandlerDelegate
 import com.intellij.codeInsight.hint.HintManager
+import com.intellij.lang.Language
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.command.WriteCommandAction
@@ -70,6 +71,7 @@ abstract class EditActionBase(private val handler: (ClojureFile, Document, Caret
     val project = dataContext.getData(CommonDataKeys.PROJECT) ?: return
     val currentCaret = editor.caretModel.currentCaret
     val file = PsiUtilBase.getPsiFileInEditor(editor, project) as? ClojureFile ?: return
+    PsiDocumentManager.getInstance(project).commitDocument(editor.document)
     handler(file, editor.document, currentCaret)?.let {
       WriteCommandAction.runWriteCommandAction(file.project) { it() }
     }
@@ -122,6 +124,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
     val file = (if (editor === originalEditor) originalFile
     else PsiDocumentManager.getInstance(project).getPsiFile(editor.document))
         as? ClojureFile ?: return false
+    PsiDocumentManager.getInstance(project).commitDocument(editor.document)
     return handler(file, editor.document, editor.caretModel.currentCaret)
   }
 }
@@ -155,9 +158,9 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
       if (needSpaceAt(offset + 1, ")]}")) editor.document.insertString(offset + 1, " ")
     }
     else {
-      val r = file.findElementAt(offset - 1).parentForm?.textRange
-      if (r != null && r.startOffset == offset - 1) {
-        editor.document.insertString(r.endOffset + 1, "$p2")
+      val r = nextFormRangeNoCommit(editor, offset, file.language)
+      if (r != null && r.startOffset == offset) {
+        editor.document.insertString(r.endOffset, "$p2")
       }
     }
     return Result.CONTINUE
@@ -292,6 +295,39 @@ private fun ClojureFile.formAt(offset: Int): CForm? {
   return findElementAt(offset)?.let { e ->
     if (offset > 0 && e is PsiWhiteSpace) findElementAt(offset - 1) else e
   }.parentForm
+}
+
+private fun nextFormRangeNoCommit(editor: EditorEx, offset: Int, language: Language): TextRange? {
+  val approx = nextFormRangeApprox(editor, offset)
+  val tailText = editor.document.immutableCharSequence.subSequence(approx.startOffset, approx.endOffset)
+
+  val r = cljLightTraverser(tailText, language).let { s ->
+    s.traverse().filter { o -> ClojureTokens.FORMS.contains(s.api.typeOf(o)) }.first()?.let { s.api.rangeOf(it) }
+  }
+  return r?.shiftRight(approx.startOffset)
+}
+
+
+private fun nextFormRangeApprox(editor: EditorEx, offset: Int): TextRange {
+  val iterator = editor.highlighter.createIterator(offset)
+  val start = iterator.start
+
+  val counter = ParenCounter()
+  while (!iterator.atEnd() && start < offset) {
+    iterator.advance()
+  }
+  var wasOpen = false
+  while (!iterator.atEnd()) {
+    counter.visit(iterator.tokenType)
+    if (counter.parens < 0) break
+    if (counter.braces == 0 && counter.brackets == 0) {
+      if (wasOpen && counter.parens <= 0) break
+      if (!wasOpen && counter.parens > 0) wasOpen = true
+    }
+    iterator.advance()
+  }
+  val end = if (!iterator.atEnd()) iterator.end else editor.document.textLength
+  return TextRange(start, end)
 }
 
 private fun isNotBalanced(editor: EditorEx, skipAtOffset: Int = -1): Boolean {

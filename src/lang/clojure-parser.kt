@@ -65,6 +65,10 @@ object ClojureTokens {
   @JvmField val PAREN_ALIKE = TokenSet.orSet(PAREN1_ALIKE, PAREN2_ALIKE)
   @JvmField val LIST_ALIKE = TokenSet.create(C_FUN, C_LIST, C_MAP, C_SET, C_VEC)
 
+  @JvmField val FORMS = TokenSet.create(C_CONSTRUCTOR, C_FORM, C_FUN, C_KEYWORD,
+      C_LIST, C_LITERAL, C_MAP, C_REGEXP,
+      C_SET, C_SYMBOL, C_VEC)
+
   @JvmStatic fun wsOrComment(t: IElementType?) = t != null && (WHITESPACES.contains(t) || COMMENTS.contains(t))
 }
 
