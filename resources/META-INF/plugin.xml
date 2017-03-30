@@ -62,6 +62,7 @@
     <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureDocumentationProvider"/>
     <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.java.JavaHelper$AsmDocumentationProvider"/>
     <codeInsight.parameterInfo language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInfoProvider"/>
+    <codeInsight.parameterNameHints language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInlayHintsHandler"/>
 
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureNSIndex"/>
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureDefsIndex"/>

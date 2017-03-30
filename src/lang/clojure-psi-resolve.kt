@@ -459,6 +459,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
 }
 
+fun resolvePrototypes(call: CList): JBIterable<CPForm> =
+    ((call.first as? CSymbol)?.reference?.resolve()?.navigationElement as? CList)?.let {
+      prototypes(it).transform { it.childForms.find { it is CVec } }.filter(CPForm::class)
+    } ?: JBIterable.empty()
+
 fun prototypes(o: CLForm) = o.iterate(CLForm::class)
     .filter { it.firstChild?.nextSibling is CVec }.append(o)
 

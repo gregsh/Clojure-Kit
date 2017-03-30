@@ -23,6 +23,10 @@ import com.intellij.codeInsight.TargetElementEvaluatorEx2
 import com.intellij.codeInsight.completion.*
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
+import com.intellij.codeInsight.hints.HintInfo
+import com.intellij.codeInsight.hints.InlayInfo
+import com.intellij.codeInsight.hints.InlayParameterHintsProvider
+import com.intellij.codeInsight.hints.Option
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.icons.AllIcons
@@ -321,11 +325,10 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
   override fun findElementForParameterInfo(context: CreateParameterInfoContext) =
       context.file.findElementAt(context.offset)
           .parents()
-          .find { it is CList && it.findChild(ClojureTypes.C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset }?.let {
-        (((it as CList).first as? CSymbol)?.reference?.resolve()?.navigationElement as? CList)?.run {
-          context.itemsToShow = prototypes(this).transform { it.childForms.find { it is CVec } }.notNulls().toList().toTypedArray()
-        }
-        it as CList
+          .filter(CList::class)
+          .find { it.findChild(ClojureTypes.C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset }?.let {
+        context.itemsToShow = resolvePrototypes(it).toList().toTypedArray()
+        it
       }
 
   override fun getActualParametersRBraceType() = ClojureTypes.C_PAREN2!!
@@ -365,3 +368,36 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
       context.showHint(element, element.textRange.startOffset, this)
 }
 
+class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
+
+  companion object {
+    private val OPTION = Option("clojure.parameter.hints", "Show parameter names", true)
+  }
+
+  override fun getParameterHints(element: PsiElement): List<InlayInfo> {
+    if (!OPTION.get()) return emptyList()
+    if (element !is CList) return emptyList()
+    return resolvePrototypes(element).transform Function@ { proto ->
+      val candidate = mutableListOf<InlayInfo>()
+      val params = element.childForms.skip(1).iterator()
+      val args = proto.childForms.iterator()
+      var vararg = false
+      while (args.hasNext() && params.hasNext()) {
+        val param = params.next()
+        val arg = args.next().let { if (it.text == "&" && args.hasNext()) {
+          vararg = true
+          args.next()
+        } else it } as? CSymbol ?: return@Function null
+        candidate.add(InlayInfo(if (vararg) "..." + arg.name else arg.name, param.textRange.startOffset))
+      }
+      if (args.hasNext() || params.hasNext() && !vararg) return@Function null
+      candidate
+    }.notNulls().first() ?: emptyList<InlayInfo>()
+  }
+
+  override fun getHintInfo(element: PsiElement): HintInfo? = HintInfo.OptionInfo(OPTION)
+  override fun getDefaultBlackList(): Set<String> = emptySet()
+  override fun getSupportedOptions(): List<Option> = ContainerUtil.newSmartList(OPTION)
+  override fun isBlackListSupported(): Boolean = false
+
+}
