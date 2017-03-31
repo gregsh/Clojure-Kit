@@ -39,7 +39,7 @@ class ClojureSliceSupportProvider : SliceLanguageSupportProvider {
   override fun createRootUsage(element: PsiElement, params: SliceAnalysisParams) = ClojureSliceUsage(element, params)
 
   override fun getExpressionAtCaret(atCaret: PsiElement, dataFlowToThis: Boolean) =
-      (atCaret.parentForm as? CSForm)?.let {
+      (atCaret.thisForm as? CSForm)?.let {
         when (it) {
           is CSymbol -> it.let { sym -> (sym.reference.resolve() as? PomTargetPsiElement)?.let {
             if ((it.target as? CTarget)?.key?.type?.let { it == "let-binding" || it == "argument"} ?: false) it

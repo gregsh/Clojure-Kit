@@ -239,8 +239,8 @@ private fun splice(form: CPForm, document: Document, caret: Caret): Unit {
 private fun rise(file: ClojureFile, document: Document, caret: Caret): Unit {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.textRange ?: return
   else ProperTextRange(
-      file.findElementAt(caret.selectionStart).parentForm?.textRange?.startOffset ?: caret.selectionStart,
-      file.findElementAt(caret.selectionEnd - 1).parentForm?.textRange?.endOffset ?: caret.selectionEnd)
+      file.findElementAt(caret.selectionStart).thisForm?.textRange?.startOffset ?: caret.selectionStart,
+      file.findElementAt(caret.selectionEnd - 1).thisForm?.textRange?.endOffset ?: caret.selectionEnd)
   val s = document.charsSequence
   document.replaceString(range.startOffset, range.endOffset, "(${range.subSequence(s)})")
   caret.moveToOffset(caret.offset + 1)
@@ -251,8 +251,8 @@ private fun kill(file: ClojureFile, document: Document, caret: Caret): Unit {
       let { it as? CPForm ?: it.findParent(CPForm::class) ?: it }?.
       let { it.parent as? CMetadata ?: it }?.textRange ?: return
   else ProperTextRange(
-      file.findElementAt(caret.selectionStart).parentForm?.textRange?.startOffset ?: caret.selectionStart,
-      file.findElementAt(caret.selectionEnd - 1).parentForm?.textRange?.endOffset ?: caret.selectionEnd)
+      file.findElementAt(caret.selectionStart).thisForm?.textRange?.startOffset ?: caret.selectionStart,
+      file.findElementAt(caret.selectionEnd - 1).thisForm?.textRange?.endOffset ?: caret.selectionEnd)
   kill(range, document)
 }
 
@@ -294,7 +294,7 @@ private fun kill(file: ClojureFile, document: Document, caret: Caret, forward: B
 private fun ClojureFile.formAt(offset: Int): CForm? {
   return findElementAt(offset)?.let { e ->
     if (offset > 0 && e is PsiWhiteSpace) findElementAt(offset - 1) else e
-  }.parentForm
+  }.thisForm
 }
 
 private fun nextFormRangeNoCommit(editor: EditorEx, offset: Int, language: Language): TextRange? {

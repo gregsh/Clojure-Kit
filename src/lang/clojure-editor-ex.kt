@@ -23,6 +23,7 @@ import com.intellij.codeInsight.TargetElementEvaluatorEx2
 import com.intellij.codeInsight.completion.*
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
+import com.intellij.codeInsight.documentation.QuickDocUtil
 import com.intellij.codeInsight.hints.HintInfo
 import com.intellij.codeInsight.hints.InlayInfo
 import com.intellij.codeInsight.hints.InlayParameterHintsProvider
@@ -35,21 +36,29 @@ import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.documentation.DocumentationProviderEx
 import com.intellij.lang.parameterInfo.*
 import com.intellij.navigation.NavigationItem
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
+import com.intellij.openapi.progress.util.ProgressIndicatorUtils
+import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.patterns.StandardPatterns
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.BaseScopeProcessor
+import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.stubs.StubIndex
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
 import com.intellij.util.ProcessingContext
+import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.containers.ContainerUtil
+import com.intellij.util.ui.UIUtil
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
@@ -231,10 +240,64 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
     for (m in nameSymbol.metas) {
       appendMap(m.form)
     }
-    return sb
-        .replace("\n(\\s*\n)+".toRegex(), "<p>")
-        .replace("(\\.\\s)".toRegex(), ".<p>")
-        .replace("(:\\s)".toRegex(), "$1<br>")
+    val result = sb
+        .replace("\n(?:\\s*\n)+".toRegex(), "<p>")
+        .replace("(?:\\.\\s)".toRegex(), ".<p>")
+        .replace("(?:\\:\\s)".toRegex(), ":<br>")
+    val sourceFile = PsiUtilCore.getVirtualFile(def)
+    return scheduleSlowDocumentation(element!!, result, { element, sb -> appendSpecs(sb, element, sourceFile) })
+  }
+
+  private fun appendSpecs(sb: StringBuilder, element: PsiElement, sourceFile: VirtualFile?) {
+    var first = true
+    for (ref in ReferencesSearch.search(element as PomTargetPsiElement)) {
+      val form = ref.element.thisForm
+      val maybeSpec = form.parentForm as? CList
+      val callSym = maybeSpec?.first ?: continue
+      if (callSym.nextForm != form) continue
+      val key = callSym.resolveInfo() ?: continue
+      if (key.namespace != ClojureConstants.NS_SPEC || !(key.name == "def" || key.name == "fdef")) {
+        continue
+      }
+      sb.append("<p>")
+      if (first) {
+        sb.append("<p><b>").append(":specs").append("</b>")
+        first = false
+      }
+      sb.append("<br><pre>").append(maybeSpec.text).append("</pre>")
+      val specFile = PsiUtilCore.getVirtualFile(maybeSpec)
+      if (specFile != null && sourceFile != specFile) {
+        val url = specFile.presentableUrl
+        sb.append("<i>").append(StringUtil.last(url, 80, true)).append("</i>")
+      }
+    }
+  }
+
+  fun scheduleSlowDocumentation(element: PsiElement,
+                                prefix: CharSequence,
+                                provider: (PsiElement, StringBuilder) -> Unit): String {
+    val moreText = "<p><p><i><small>Looking for more...</small></i>"
+    val sb = StringBuilder(prefix)
+    val project = element.project
+    AppExecutorUtil.getAppExecutorService().submit {
+      ProgressIndicatorUtils.runInReadActionWithWriteActionPriority {
+        ApplicationManager.getApplication().runReadAction pooled@ {
+          if (!element.isValid) return@pooled
+          provider(element, sb)
+        }
+      }
+      UIUtil.invokeLaterIfNeeded later@ {
+        val component = QuickDocUtil.getActiveDocComponent(project) ?: return@later
+        val prevText = component.text
+        val moreIdx = prevText.indexOf(moreText)
+        if (moreIdx < 0) return@later
+        val newText = sb.toString()
+        if (!Comparing.equal(newText, prevText)) {
+          component.replaceText(newText, element)
+        }
+      }
+    }
+    return "$prefix$moreText"
   }
 }
 

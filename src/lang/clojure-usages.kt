@@ -43,10 +43,7 @@ import org.intellij.clojure.psi.impl.ClojureDefinitionService
 import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
 import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
 import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
-import org.intellij.clojure.util.childForms
-import org.intellij.clojure.util.filter
-import org.intellij.clojure.util.nextForm
-import org.intellij.clojure.util.parentForm
+import org.intellij.clojure.util.*
 import java.util.*
 
 /**
@@ -130,7 +127,7 @@ class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, Reference
         keyName, targetKey.namespace.let { if (it == ClojureConstants.NS_USER) "" else it }, "keyword")
 
     for (usage in ReferencesSearch.search(mapKeyElement, queryParameters.effectiveSearchScope)) {
-      val form = (usage.element as? CSymbol)?.parentForm as? CKeyword ?: continue
+      val form = usage.element.thisForm as? CKeyword ?: continue
       val vec = (if (form.parentForm is CMap) form.nextForm as? CVec else null) ?: continue
       for (symbol in vec.childForms.filter(CSymbol::class)) {
         if (symbol.name == targetKey.name)  {

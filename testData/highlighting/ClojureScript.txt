@@ -88,7 +88,7 @@
 /cljs/nodejs.cljs                        0 errors, 0 warnings
 /cljs/nodejscli.cljs                     0 errors, 0 warnings
 /cljs/pprint.clj                         0 errors, 0 warnings
-/cljs/pprint.cljs                        0 errors, 45 warnings
+/cljs/pprint.cljs                        0 errors, 44 warnings
       11666: unable to resolve 'nl-t?'
       12021: unable to resolve 'nl-t?'
       12813: unable to resolve 'nl-t?'
@@ -122,7 +122,6 @@
       92251: unable to resolve 'params'
       92321: unable to resolve 'params'
       92393: unable to resolve 'params'
-      97447: unable to resolve 'directive-table'
       108544: unable to resolve 'aseq'
       108573: unable to resolve 'aseq'
       108604: unable to resolve 'aseq'
@@ -216,4 +215,4 @@
       5845: unable to resolve 'toString'
 /clojure/walk.cljs                       0 errors, 0 warnings
 /clojure/zip.cljs                        0 errors, 0 warnings
-Total: 165 warnings in 53 files (1.19M chars)
+Total: 164 warnings in 53 files (1.19M chars)
