@@ -120,8 +120,8 @@ class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
 class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
   override fun processQuery(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<PsiReference>) {
     val targetKey = ((queryParameters.elementToSearch as? PomTargetPsiElement)?.target as? CTarget)?.key ?: return
+    if (targetKey.type == "keyword" && (targetKey.name == "keys" || targetKey.name == "syms")) return
     val keyName = if (targetKey.type == "keyword") "keys" else "syms"
-    if (targetKey.name == keyName) return
     val project = queryParameters.elementToSearch.project
     val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(
         keyName, targetKey.namespace.let { if (it == ClojureConstants.NS_USER) "" else it }, "keyword")

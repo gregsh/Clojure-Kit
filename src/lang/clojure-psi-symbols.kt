@@ -36,6 +36,8 @@ import com.intellij.psi.search.EverythingGlobalScope
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.stubs.StubIndex
+import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.util.Processor
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.FactoryMap
 import org.intellij.clojure.ClojureConstants
@@ -55,7 +57,7 @@ import org.intellij.clojure.util.parentForms
 /**
  * @author gregsh
  */
-private val SOURCE_KEY: Key<PsiAnchor> = Key.create("C_SOURCE_KEY")
+private val SOURCE_KEY: Key<Any> = Key.create("C_SOURCE_KEY")
 private val POM_MAP_KEY: Key<Map<SymKey, PsiElement>> = Key.create("C_POM_MAP_KEY")
 
 private object NULL_TARGET : PomTarget {
@@ -199,28 +201,33 @@ internal class CTarget(val project: Project,
   private val target: PsiElement?
     get() {
       val userData = map[key]?.getUserData(SOURCE_KEY)
-      val retrieved = userData?.retrieve()
-      return retrieved ?: run {
-        if (DumbService.getInstance(project).isDumb) null
-        else if (key.namespace == "") null
-        else {
-          val scope = ClojureDefinitionService.getClojureSearchScope(project)
-          val results = when (key.type) {
-            in NS_ALIKE_SYMBOLS -> StubIndex.getElements(NS_INDEX_KEY, key.namespace, project, scope, ClojureFile::class.java)
-            "keyword" -> StubIndex.getElements(KEYWORD_INDEX_KEY, key.name, project, scope, CKeyword::class.java)
-            else -> StubIndex.getElements(DEF_INDEX_KEY, key.name, project, scope, CDef::class.java)
-          }
-          results.forEach {
-            when (it) {
-              is ClojureFile -> if (it.namespace == key.namespace) return it.let { map[key]?.putUserData(SOURCE_KEY, PsiAnchor.create(it)); it }
-              is CDef -> if (it.def.namespace == key.namespace) return it.let { map[key]?.putUserData(SOURCE_KEY, PsiAnchor.create(it)); it }
-              is CKeyword -> if (it.namespace == key.namespace) return it.let { map[key]?.putUserData(SOURCE_KEY, PsiAnchor.create(it)); it }
-              else -> {
-              }
-            }
-          }
-          null
+      val retrieved = (userData as? PsiAnchor)?.retrieve()
+      if (retrieved is PsiElement) return retrieved
+      val modificationCount = PsiModificationTracker.SERVICE.getInstance(project).modificationCount
+      if (userData is Long && userData == modificationCount) return null
+      if (DumbService.getInstance(project).isDumb) return null
+      if (key.namespace == "") return null
+      var result: PsiElement? = null
+      val processor = Processor<PsiElement> {
+        if (it is ClojureFile && it.namespace == key.namespace ||
+            it is CDef && it.def.namespace == key.namespace ||
+            it is CKeyword && it.namespace == key.namespace) {
+          result = it
         }
+        result == null
+      }
+
+      val scope = ClojureDefinitionService.getClojureSearchScope(project)
+      StubIndex.getInstance().apply {
+        when (key.type) {
+          in NS_ALIKE_SYMBOLS -> processElements(NS_INDEX_KEY, key.namespace, project, scope, ClojureFile::class.java, processor)
+          "keyword" -> processElements(KEYWORD_INDEX_KEY, key.name, project, scope, CKeyword::class.java, processor)
+          else -> processElements(DEF_INDEX_KEY, key.name, project, scope, CDef::class.java, processor)
+        }
+        Unit
+      }
+      return result.apply {
+        map[key]?.putUserData(SOURCE_KEY, if (this == null) modificationCount else PsiAnchor.create(this))
       }
     }
 
