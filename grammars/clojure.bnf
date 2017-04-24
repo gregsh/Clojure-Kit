@@ -1,5 +1,5 @@
 {
-  generate=[tokenAccessors="no"]
+  generate=[tokenAccessors="no" psi-factory="no" psi-classes-map="yes"]
   parserClass='org.intellij.clojure.parser.ClojureParser'
   parserImports=[
     'static org.intellij.clojure.parser.ClojureParserUtil.adapt_builder_'
@@ -13,19 +13,12 @@
   psiClassPrefix='C'
   psiVisitorName='ClojureVisitor'
   implements='org.intellij.clojure.psi.CElement'
+  extends='com.intellij.psi.impl.source.tree.CompositePsiElement'
 
   elementTypeHolderClass='org.intellij.clojure.psi.ClojureTypes'
   elementTypeClass="org.intellij.clojure.psi.ClojureNodeType"
   tokenTypeClass="org.intellij.clojure.psi.ClojureTokenType"
   elementTypePrefix='C_'
-
-  stubClass("list")="org.intellij.clojure.psi.stubs.CListStub"
-  mixin("list")="org.intellij.clojure.psi.impl.CListBase"
-  elementTypeClass("list")="org.intellij.clojure.psi.stubs.CListElementType"
-
-  stubClass("keyword")="org.intellij.clojure.psi.stubs.CKeywordStub"
-  mixin("keyword")="org.intellij.clojure.psi.impl.CKeywordBase"
-  elementTypeClass("keyword")="org.intellij.clojure.psi.stubs.CKeywordElementType"
 
   tokens=[
     whitespace='regexp:\s+'
@@ -77,6 +70,8 @@
   pin("list|set|vec|map|fun")="'[\(\[\{]'"
   pin("constructor|reader_cond")=1
   name("metadata|constructor|reader_.*")=form
+
+  methods("reader_macro|metadata")=[toString]
 }
 
 root ::= <<parseTree (root_entry)>>
@@ -86,7 +81,7 @@ private root_entry_recover ::= form_recover | ')' | '}' | ']'
 private not_eof ::= !<<eof>>
 
 form ::= form_prefix form_prefix * form_upper | form_inner
-  {pin(".*")=1 methods=[form="" metas="metadata" readerMacros="reader_macro"]}
+  {pin(".*")=1 methods=[form="" metas="metadata" readerMacros="reader_macro" toString]}
 private form_prefix ::= metadata | reader_macro
 private external form_recover ::= formRecover
 

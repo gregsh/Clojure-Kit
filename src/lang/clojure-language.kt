@@ -19,6 +19,7 @@ package org.intellij.clojure.lang
 
 import com.intellij.codeInsight.template.FileTypeBasedContextType
 import com.intellij.codeInsight.template.impl.DefaultLiveTemplatesProvider
+import com.intellij.lang.ASTFactory
 import com.intellij.lang.BracePair
 import com.intellij.lang.Language
 import com.intellij.lang.PairedBraceMatcher
@@ -30,12 +31,14 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.LanguageSubstitutor
 import com.intellij.psi.PsiFile
+import com.intellij.psi.impl.source.tree.CompositeElement
 import com.intellij.psi.tree.IElementType
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.parser.ClojureParserDefinitionBase
 import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.ClojureTypes
+import java.lang.reflect.Constructor
 
 /**
  * @author gregsh
@@ -72,6 +75,15 @@ class ClojureParserDefinition : ClojureParserDefinitionBase() {
 
 class ClojureScriptParserDefinition : ClojureParserDefinitionBase() {
   override fun getFileNodeType() = ClojureTokens.CLJS_FILE_TYPE
+}
+
+class ClojureASTFactory : ASTFactory() {
+  val ourMap = mapOf<IElementType, Constructor<*>?>(*ClojureTypes.Classes.elementTypes()
+      .map { Pair(it, ClojureTypes.Classes.findClass(it).getConstructor(IElementType::class.java)) }
+      .toTypedArray())
+
+  override fun createComposite(type: IElementType?): CompositeElement? =
+      ourMap[type]?.newInstance(type) as? CompositeElement
 }
 
 class ClojureBraceMatcher : PairedBraceMatcher {

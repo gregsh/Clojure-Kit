@@ -1,5 +1,6 @@
 package org.intellij.clojure.lang
 
+import com.intellij.lang.LanguageASTFactory
 import com.intellij.lang.LanguageBraceMatching
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.lexer.Lexer
@@ -88,6 +89,7 @@ abstract class ClojureParsingTestCase(o : ClojureParserDefinitionBase) : Parsing
   override fun getTestDataPath() = TEST_DATA_PATH
   override fun setUp() {
     super.setUp()
+    addExplicitExtension(LanguageASTFactory.INSTANCE, myLanguage, ClojureASTFactory())
     addExplicitExtension(LanguageBraceMatching.INSTANCE, myLanguage, ClojureBraceMatcher())
   }
 

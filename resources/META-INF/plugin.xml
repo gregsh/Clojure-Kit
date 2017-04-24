@@ -36,6 +36,8 @@
     <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureParserDefinition"/>
     <lang.parserDefinition language="ClojureScript" implementationClass="org.intellij.clojure.lang.ClojureScriptParserDefinition"/>
     <lang.substitutor language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureLanguageSubstitutor"/>
+    <lang.ast.factory language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureASTFactory" />
+
     <lang.syntaxHighlighterFactory language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureSyntaxHighlighterFactory"/>
     <colorSettingsPage implementation="org.intellij.clojure.lang.ClojureColorSettingsPage"/>
     <additionalTextAttributes scheme="Default" file="colorSchemes/ClojureDefault.xml"/>
@@ -64,6 +66,7 @@
     <codeInsight.parameterInfo language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInfoProvider"/>
     <codeInsight.parameterNameHints language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInlayHintsHandler"/>
 
+    <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureDefIndex"/>
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureNSIndex"/>
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureDefsIndex"/>
     <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureKeywordIndex"/>
