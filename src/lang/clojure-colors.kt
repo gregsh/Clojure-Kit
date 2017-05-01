@@ -37,7 +37,6 @@ import com.intellij.psi.TokenType
 import com.intellij.psi.tree.IElementType
 import com.intellij.util.containers.ContainerUtil
 import org.intellij.clojure.parser.ClojureLexer
-import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.ClojureTypes.*
 
 object ClojureColors {

@@ -16,9 +16,7 @@ import com.intellij.testFramework.UsefulTestCase
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.inspections.ClojureResolveInspection
-import org.intellij.clojure.parser.ClojureLexer
-import org.intellij.clojure.parser.ClojureParserDefinitionBase
-import org.intellij.clojure.parser.ClojureTokens
+import org.intellij.clojure.parser.*
 import org.intellij.clojure.util.elementType
 import org.intellij.clojure.util.jbIt
 import java.io.File

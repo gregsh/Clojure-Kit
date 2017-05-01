@@ -33,10 +33,10 @@
     <errorHandler implementation="com.intellij.diagnostic.ITNReporter"/>
 
     <fileTypeFactory implementation="org.intellij.clojure.lang.ClojureFileTypeFactory"/>
-    <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureParserDefinition"/>
-    <lang.parserDefinition language="ClojureScript" implementationClass="org.intellij.clojure.lang.ClojureScriptParserDefinition"/>
+    <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.parser.ClojureParserDefinition"/>
+    <lang.parserDefinition language="ClojureScript" implementationClass="org.intellij.clojure.parser.ClojureScriptParserDefinition"/>
     <lang.substitutor language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureLanguageSubstitutor"/>
-    <lang.ast.factory language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureASTFactory" />
+    <lang.ast.factory language="Clojure" implementationClass="org.intellij.clojure.parser.ClojureASTFactory" />
 
     <lang.syntaxHighlighterFactory language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureSyntaxHighlighterFactory"/>
     <colorSettingsPage implementation="org.intellij.clojure.lang.ClojureColorSettingsPage"/>

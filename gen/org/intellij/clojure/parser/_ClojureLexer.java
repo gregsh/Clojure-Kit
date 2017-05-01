@@ -10,6 +10,7 @@ import org.intellij.clojure.lang.ClojureScriptLanguage;
 import static com.intellij.psi.TokenType.BAD_CHARACTER;
 import static com.intellij.psi.TokenType.WHITE_SPACE;
 import static org.intellij.clojure.psi.ClojureTypes.*;
+import static org.intellij.clojure.lang.ClojureTokens.LINE_COMMENT;
 
 
 /**
@@ -725,7 +726,7 @@ public class _ClojureLexer implements FlexLexer {
             }
           case 49: break;
           case 3: 
-            { return ClojureTokens.LINE_COMMENT;
+            { return LINE_COMMENT;
             }
           case 50: break;
           case 4: 

@@ -58,8 +58,8 @@ import org.intellij.clojure.ClojureConstants.FN_ALIKE_SYMBOLS
 import org.intellij.clojure.ClojureConstants.LET_ALIKE_SYMBOLS
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureScriptLanguage
+import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.parser.ClojureLexer
-import org.intellij.clojure.parser.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.listType
 import org.intellij.clojure.util.*

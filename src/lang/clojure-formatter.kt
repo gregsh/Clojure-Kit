@@ -33,7 +33,7 @@ import com.intellij.psi.tree.IFileElementType
 import com.intellij.util.Function
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureLanguage
-import org.intellij.clojure.parser.ClojureTokens
+import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.util.*

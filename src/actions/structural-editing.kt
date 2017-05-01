@@ -39,7 +39,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiUtilBase
-import org.intellij.clojure.parser.ClojureTokens
+import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
 
