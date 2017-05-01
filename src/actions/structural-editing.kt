@@ -57,20 +57,20 @@ class KillAction     : EditActionBase(::kill, Unit)
 class ClojureBackspaceHandler(original: EditorWriteActionHandler) : ClojureEditorHandlerBase(original, ::kill, false)
 class ClojureDeleteHandler(original: EditorWriteActionHandler) : ClojureEditorHandlerBase(original, ::kill, true)
 
-abstract class EditActionBase(private val handler: (ClojureFile, Document, Caret) -> (() -> Unit)?)
+abstract class EditActionBase(private val handler: (CFile, Document, Caret) -> (() -> Unit)?)
   : EditorAction(object : EditorActionHandler(false) {
 
   override fun isEnabledForCaret(editor: Editor, caret: Caret, dataContext: DataContext?): Boolean {
     if (editor.caretModel.caretCount != 1) return false
     val project = dataContext?.getData(CommonDataKeys.PROJECT) ?: return false
-    return PsiUtilBase.getPsiFileInEditor(editor, project) is ClojureFile
+    return PsiUtilBase.getPsiFileInEditor(editor, project) is CFile
   }
 
   override fun doExecute(editor: Editor?, caret: Caret?, dataContext: DataContext?) {
     if (editor == null || dataContext == null) return
     val project = dataContext.getData(CommonDataKeys.PROJECT) ?: return
     val currentCaret = editor.caretModel.currentCaret
-    val file = PsiUtilBase.getPsiFileInEditor(editor, project) as? ClojureFile ?: return
+    val file = PsiUtilBase.getPsiFileInEditor(editor, project) as? CFile ?: return
     PsiDocumentManager.getInstance(project).commitDocument(editor.document)
     handler(file, editor.document, currentCaret)?.let {
       WriteCommandAction.runWriteCommandAction(file.project) { it() }
@@ -78,7 +78,7 @@ abstract class EditActionBase(private val handler: (ClojureFile, Document, Caret
   }
 }) {
   @Suppress("UNUSED_PARAMETER")
-  constructor(handler: (ClojureFile, Document, Caret) -> Unit, unit: Unit)
+  constructor(handler: (CFile, Document, Caret) -> Unit, unit: Unit)
       : this({ file, document, caret -> { handler(file, document, caret) } })
 
   init {
@@ -104,10 +104,10 @@ abstract class CPFormActionBase(private val handler: (CPForm, Document, caret: C
 }
 
 abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
-                                        val handler: (ClojureFile, Document, Caret) -> Boolean)
+                                        val handler: (CFile, Document, Caret) -> Boolean)
   : EditorWriteActionHandler(true) {
   constructor(original: EditorWriteActionHandler,
-              handler: (ClojureFile, Document, Caret, Boolean) -> Boolean,
+              handler: (CFile, Document, Caret, Boolean) -> Boolean,
               forward: Boolean)
       : this(original, { file, document, caret -> handler(file, document, caret, forward) })
   override fun executeWriteAction(editor: Editor, caret: Caret?, dataContext: DataContext) {
@@ -123,7 +123,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
     val editor = TypedHandler.injectedEditorIfCharTypedIsSignificant('x', originalEditor, originalFile)
     val file = (if (editor === originalEditor) originalFile
     else PsiDocumentManager.getInstance(project).getPsiFile(editor.document))
-        as? ClojureFile ?: return false
+        as? CFile ?: return false
     PsiDocumentManager.getInstance(project).commitDocument(editor.document)
     return handler(file, editor.document, editor.caretModel.currentCaret)
   }
@@ -133,7 +133,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
 class ClojureTypedHandler : TypedHandlerDelegate() {
 
   override fun charTyped(c: Char, project: Project?, editor: Editor, file: PsiFile): Result {
-    if (file !is ClojureFile || editor !is EditorEx) return Result.CONTINUE
+    if (file !is CFile || editor !is EditorEx) return Result.CONTINUE
     val p1 = if (c == ')') '(' else if (c == ']') '[' else if (c == '}') '{' else null
     val p2 = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else null
     if (p1 == null && p2 == null) return Result.CONTINUE
@@ -236,7 +236,7 @@ private fun splice(form: CPForm, document: Document, caret: Caret): Unit {
   caret.moveToOffset(offset + range.startOffset - parens[0].endOffset)
 }
 
-private fun rise(file: ClojureFile, document: Document, caret: Caret): Unit {
+private fun rise(file: CFile, document: Document, caret: Caret): Unit {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.textRange ?: return
   else ProperTextRange(
       file.findElementAt(caret.selectionStart).thisForm?.textRange?.startOffset ?: caret.selectionStart,
@@ -246,7 +246,7 @@ private fun rise(file: ClojureFile, document: Document, caret: Caret): Unit {
   caret.moveToOffset(caret.offset + 1)
 }
 
-private fun kill(file: ClojureFile, document: Document, caret: Caret): Unit {
+private fun kill(file: CFile, document: Document, caret: Caret): Unit {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.
       let { it as? CPForm ?: it.findParent(CPForm::class) ?: it }?.
       let { it.parent as? CMetadata ?: it }?.textRange ?: return
@@ -270,7 +270,7 @@ private fun kill(range: TextRange, document: Document): Unit {
   document.replaceString(o1, o2, "")
 }
 
-private fun kill(file: ClojureFile, document: Document, caret: Caret, forward: Boolean): Boolean {
+private fun kill(file: CFile, document: Document, caret: Caret, forward: Boolean): Boolean {
   if (caret.hasSelection()) return false
   val offset = caret.offset
   val elementAt = file.findElementAt(if (forward) offset else offset - 1)
@@ -291,7 +291,7 @@ private fun kill(file: ClojureFile, document: Document, caret: Caret, forward: B
   return true
 }
 
-private fun ClojureFile.formAt(offset: Int): CForm? {
+private fun CFile.formAt(offset: Int): CForm? {
   return findElementAt(offset)?.let { e ->
     if (offset > 0 && e is PsiWhiteSpace) findElementAt(offset - 1) else e
   }.thisForm

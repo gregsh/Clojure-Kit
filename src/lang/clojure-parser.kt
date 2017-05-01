@@ -38,9 +38,9 @@ import org.intellij.clojure.psi.ClojureElementType
 import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.psi.impl.CDefImpl
+import org.intellij.clojure.psi.impl.CFileImpl
 import org.intellij.clojure.psi.impl.CMDefImpl
 import org.intellij.clojure.psi.impl.CReaderCondImpl
-import org.intellij.clojure.psi.impl.ClojureFileImpl
 import org.intellij.clojure.psi.stubs.ClojureFileElementType
 import org.intellij.clojure.util.iterate
 
@@ -104,7 +104,7 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
 
   override fun createLexer(project: Project?) = ClojureLexer(fileNodeType.language)
   override fun createParser(project: Project?) = ClojureParser()
-  override fun createFile(viewProvider: FileViewProvider?) = ClojureFileImpl(viewProvider!!, fileNodeType.language)
+  override fun createFile(viewProvider: FileViewProvider?) = CFileImpl(viewProvider!!, fileNodeType.language)
   override fun createElement(node: ASTNode?) = createPsiElement(node)
 
   override fun getStringLiteralElements() = ClojureTokens.STRINGS

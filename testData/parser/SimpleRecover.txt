@@ -1,4 +1,4 @@
-ClojureFileImpl:a.clj
+CFileImpl:a.clj
   PsiErrorElement:<form> expected, got '////'
     PsiElement(BAD_CHARACTER)('////')
   PsiWhiteSpace(' ')

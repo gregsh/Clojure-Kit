@@ -61,7 +61,7 @@ class ClojureResolveInspection : LocalInspectionTool() {
         val qualifier = reference.qualifier?.apply {
           if (this.reference?.resolve() == null) return }
 
-        val language = (holder.file as ClojureFileImpl).placeLanguage(o)
+        val language = (holder.file as CFileImpl).placeLanguage(o)
         val isCljS = language == ClojureScriptLanguage
 
         if (resolve != null) return

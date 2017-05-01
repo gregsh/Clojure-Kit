@@ -91,7 +91,7 @@ class ClojureGotoSymbolContributor : ChooseByNameContributor {
     val scope = if (!includeNonProjectItems) GlobalSearchScope.projectScope(project) else null
     val elements = JBIterable.empty<NavigatablePsiElement>()
         .append(StubIndex.getElements(DEF_INDEX_KEY, name, project, scope, CDef::class.java))
-        .append(StubIndex.getElements(NS_INDEX_KEY, name, project, scope, ClojureFile::class.java))
+        .append(StubIndex.getElements(NS_INDEX_KEY, name, project, scope, CFile::class.java))
         .append(StubIndex.getElements(KEYWORD_INDEX_KEY, name, project, scope, CKeyword::class.java).firstOrNull())
     return elements.toList().toTypedArray()
   }

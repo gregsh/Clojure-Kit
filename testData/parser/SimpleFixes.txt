@@ -1,4 +1,4 @@
-ClojureFileImpl:a.clj
+CFileImpl:a.clj
   CSymbolImpl(C_SYMBOL)
     PsiElement(.)('.')
     PsiElement(sym)('1')

@@ -34,12 +34,12 @@ interface ClojureElementType : ICompositeElementType {
   override fun createCompositeNode(): ASTNode = ClojureTreeElement(this as IElementType)
 }
 class ClojureTokenType(name: String) : IElementType(name, ClojureLanguage), ILeafElementType {
-  override fun createLeafNode(leafText: CharSequence) = ClojureToken(this, leafText)
+  override fun createLeafNode(leafText: CharSequence) = CToken(this, leafText)
 }
 class ClojureNodeType(name: String) : IElementType(name, ClojureLanguage), ClojureElementType
-class ClojureToken(tokenType: ClojureTokenType, text: CharSequence) : LeafPsiElement(tokenType, text) { }
+class CToken(tokenType: ClojureTokenType, text: CharSequence) : LeafPsiElement(tokenType, text)
 
-interface ClojureFile : PsiFile {
+interface CFile : PsiFile {
   val namespace: String
   val definitions: JBIterable<CDef>
   val imports: JBIterable<CList>

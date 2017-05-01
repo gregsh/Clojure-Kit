@@ -1,4 +1,4 @@
-ClojureFileImpl:a.clj
+CFileImpl:a.clj
   CMapImpl(C_MAP)
     CReaderMacroImpl(C_READER_MACRO)
       PsiElement(#:)('#')

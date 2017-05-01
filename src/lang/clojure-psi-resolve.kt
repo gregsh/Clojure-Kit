@@ -79,7 +79,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val ourTypeCache: ConcurrentMap<CForm, String> = ContainerUtil.createConcurrentWeakKeySoftValueMap<CForm, String>()
   }
 
-  private fun ClojureFileImpl.javaType(form: CForm?): String? {
+  private fun CFileImpl.javaType(form: CForm?): String? {
     if (form == null) return null
     val cached = ourTypeCache[form] ?: ourTypeGuard.doPreventingRecursion(form, false) {
       val stamp = ourTypeGuard.markStack()
@@ -90,7 +90,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     return if (cached === NULL_TYPE) null else cached
   }
 
-  private fun ClojureFileImpl.javaTypeImpl(form: CForm): String? {
+  private fun CFileImpl.javaTypeImpl(form: CForm): String? {
     fun CForm.javaTypeMeta() = metas.firstOrNull()?.let {
       ((it.form as? CSymbol)?.reference?.resolve() as? PsiQualifiedNamedElement)?.qualifiedName }
     return form.javaTypeMeta()  ?: when (form) {
@@ -231,7 +231,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val qualifier = qualifier
     // constructor reference 'java.lang.String.'
     if (qualifier != null && refText == ".") return processor.execute(NULL_FORM, state)
-    val containingFile = element.containingFile.originalFile as ClojureFileImpl
+    val containingFile = element.containingFile.originalFile as CFileImpl
     val language = containingFile.placeLanguage(element)
     val isCljs = language == ClojureScriptLanguage
 
@@ -483,10 +483,10 @@ fun findBindingsVec(o: CLForm, mode: String): CVec? {
 
 fun destruct(o: CForm?) = DESTRUCTURING.withRoot(o).traverse()
 
-fun ClojureFile.processNamespace(namespace: String, forced: Boolean, state: ResolveState, processor: PsiScopeProcessor): Boolean {
+fun CFile.processNamespace(namespace: String, forced: Boolean, state: ResolveState, processor: PsiScopeProcessor): Boolean {
   if (state.get(ALIAS_KEY) != null) return true
   StubIndex.getElements(NS_INDEX_KEY, namespace, project,
-      ClojureDefinitionService.getClojureSearchScope(project), ClojureFile::class.java).forEach {
+      ClojureDefinitionService.getClojureSearchScope(project), CFile::class.java).forEach {
     val enabled = forced || it != this
     if (enabled && !it.processDeclarations(processor, state, this, this)) return false
   }
@@ -517,7 +517,7 @@ fun CMap.resolveNsPrefix(): String? {
   val nsMacro = iterate(CReaderMacro::class).filter { it.firstChild.elementType == ClojureTypes.C_SHARP_NS }.first() ?: return null
   return when (nsMacro.firstChild.nextSibling.elementType) {
     ClojureTypes.C_COLON -> nsMacro.symbol?.name
-    ClojureTypes.C_COLONCOLON -> (nsMacro.symbol?.reference?.resolve() as? PsiNamedElement)?.name ?: (containingFile as ClojureFile).namespace
+    ClojureTypes.C_COLONCOLON -> (nsMacro.symbol?.reference?.resolve() as? PsiNamedElement)?.name ?: (containingFile as CFile).namespace
     else -> throw AssertionError(nsMacro.text)
   }
 }
@@ -544,10 +544,10 @@ fun processBindings(o: CLForm, mode: String, state: ResolveState, processor: Psi
   return true
 }
 
-internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
-                                                processor: PsiScopeProcessor,
-                                                state: ResolveState,
-                                                place: PsiElement): Boolean {
+internal fun CFileImpl.processFileImports(imports: JBIterable<CList>,
+                                          processor: PsiScopeProcessor,
+                                          state: ResolveState,
+                                          place: PsiElement): Boolean {
   val service = ClojureDefinitionService.getInstance(project)
   val startOffset = place.textRange.startOffset
   val language = placeLanguage(place)
@@ -716,7 +716,7 @@ internal fun ClojureFileImpl.processFileImports(imports: JBIterable<CList>,
   return true
 }
 
-fun ClojureFileImpl.placeLanguage(place: PsiElement): Language {
+fun CFileImpl.placeLanguage(place: PsiElement): Language {
   val lang = language
   if (lang == ClojureScriptLanguage) return lang
   if (FileUtilRt.getExtension(name) != ClojureConstants.CLJC) return lang

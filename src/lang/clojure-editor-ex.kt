@@ -126,11 +126,11 @@ class ClojureAnnotator : Annotator {
 class ClojureCompletionContributor : CompletionContributor() {
 
   init {
-    extend(CompletionType.BASIC, psiElement().inFile(StandardPatterns.instanceOf(ClojureFile::class.java)), object: CompletionProvider<CompletionParameters>() {
+    extend(CompletionType.BASIC, psiElement().inFile(StandardPatterns.instanceOf(CFile::class.java)), object: CompletionProvider<CompletionParameters>() {
       override fun addCompletions(parameters: CompletionParameters, context: ProcessingContext?, result: CompletionResultSet) {
         val element = parameters.position.findParent(CSymbol::class) ?: return
         val originalFile = parameters.originalFile
-        val fileNamespace = (originalFile as? ClojureFile)?.namespace
+        val fileNamespace = (originalFile as? CFile)?.namespace
         val prefixNamespace = element.qualifier?.name
         val showAll = parameters.invocationCount > 1
 

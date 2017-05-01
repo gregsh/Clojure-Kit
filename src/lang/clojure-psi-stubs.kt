@@ -39,11 +39,11 @@ private val NS_VERSION: Int = 1
 private val DEF_VERSION: Int = 1
 private val KEYWORD_VERSION: Int = 1
 
-val NS_INDEX_KEY: StubIndexKey<String, ClojureFile> = StubIndexKey.createIndexKey("clj.namespaces")
+val NS_INDEX_KEY: StubIndexKey<String, CFile> = StubIndexKey.createIndexKey("clj.namespaces")
 val DEF_INDEX_KEY: StubIndexKey<String, CDef> = StubIndexKey.createIndexKey("clj.definitions")
 val KEYWORD_INDEX_KEY: StubIndexKey<String, CKeyword> = StubIndexKey.createIndexKey("clj.keywords")
 
-class ClojureNSIndex : StringStubIndexExtension<ClojureFile>() {
+class ClojureNSIndex : StringStubIndexExtension<CFile>() {
   override fun getKey() = NS_INDEX_KEY
   override fun getVersion() = NS_VERSION
 }
@@ -69,8 +69,8 @@ class CListStub(override val type: String,
                 stub: StubElement<*>?) :
     StubBase<CList>(stub, ClojureTypes.C_LIST as IStubElementType<out StubElement<*>, *>), DefInfo
 
-class CFileStub private constructor(val namespace: String, file: ClojureFile?) : PsiFileStubImpl<ClojureFile>(file) {
-  constructor(file: ClojureFile) : this(file.namespace, file)
+class CFileStub private constructor(val namespace: String, file: CFile?) : PsiFileStubImpl<CFile>(file) {
+  constructor(file: CFile) : this(file.namespace, file)
   constructor(namespace: String) : this(namespace, null)
   override fun getType() = ClojureTokens.CLJ_FILE_TYPE
 }
@@ -80,7 +80,7 @@ class ClojureFileElementType(name: String, language: Language) : IStubFileElemen
   override fun getStubVersion() = super.getStubVersion() + VERSION
   override fun getBuilder() = object: DefaultStubBuilder() {
     override fun createStubForFile(file: PsiFile): StubElement<*> {
-      return CFileStub(file as ClojureFile)
+      return CFileStub(file as CFile)
     }
   }
 

@@ -209,7 +209,7 @@ internal class CTarget(val project: Project,
       if (key.namespace == "") return null
       var result: PsiElement? = null
       val processor = Processor<PsiElement> {
-        if (it is ClojureFile && it.namespace == key.namespace ||
+        if (it is CFile && it.namespace == key.namespace ||
             it is CDef && it.def.namespace == key.namespace ||
             it is CKeyword && it.namespace == key.namespace) {
           result = it
@@ -220,7 +220,7 @@ internal class CTarget(val project: Project,
       val scope = ClojureDefinitionService.getClojureSearchScope(project)
       StubIndex.getInstance().apply {
         when (key.type) {
-          in NS_ALIKE_SYMBOLS -> processElements(NS_INDEX_KEY, key.namespace, project, scope, ClojureFile::class.java, processor)
+          in NS_ALIKE_SYMBOLS -> processElements(NS_INDEX_KEY, key.namespace, project, scope, CFile::class.java, processor)
           "keyword" -> processElements(KEYWORD_INDEX_KEY, key.name, project, scope, CKeyword::class.java, processor)
           else -> processElements(DEF_INDEX_KEY, key.name, project, scope, CDef::class.java, processor)
         }

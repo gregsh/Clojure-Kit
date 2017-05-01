@@ -43,8 +43,8 @@ import org.intellij.clojure.psi.stubs.*
 import org.intellij.clojure.util.*
 import javax.swing.Icon
 
-class ClojureFileImpl(viewProvider: FileViewProvider, language: Language) :
-    PsiFileBase(viewProvider, language), ClojureFile {
+class CFileImpl(viewProvider: FileViewProvider, language: Language) :
+    PsiFileBase(viewProvider, language), CFile {
 
   override fun getFileType() = ClojureFileType
   override fun toString() = "${javaClass.simpleName}:$name"
@@ -56,7 +56,7 @@ class ClojureFileImpl(viewProvider: FileViewProvider, language: Language) :
     if (insideImport != null) {
       return processFileImports(JBIterable.of(insideImport), processor, state, place)
     }
-    val placeNs = (placeFile as? ClojureFile)?.namespace
+    val placeNs = (placeFile as? CFile)?.namespace
     val namespace = namespace
     val publicOnly = language == ClojureLanguage && namespace != placeNs
     val defs = definitions.filter { it.def.namespace == namespace && !(publicOnly && it.def.type == "defn-") }
@@ -110,7 +110,7 @@ class ClojurePsiImplUtil {
     @JvmStatic fun getQualifier(o: CSymbol): CSymbol? = o.lastChild.findPrev(CSymbol::class)
 
     @JvmStatic fun getQualifiedName(o: CSymbol): String {
-      val offset = o.qualifier?.textRange?.startOffset ?: o.findChild(ClojureToken::class)!!.textRange.startOffset
+      val offset = o.qualifier?.textRange?.startOffset ?: o.findChild(CToken::class)!!.textRange.startOffset
       val delta = if (o.lastChild.node.elementType == ClojureTypes.C_DOT) -1 else 0
       return o.text.let { it.substring(offset - o.textRange.startOffset, it.length + delta) }
     }
@@ -178,7 +178,7 @@ open class CDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?
     return object : DefInfo {
       override val type: String get() = type
       override val name: String get() = name
-      override val namespace: String get() = namespace ?: (containingFile as ClojureFile).namespace
+      override val namespace: String get() = namespace ?: (containingFile as CFile).namespace
     }
   }
 
@@ -224,7 +224,7 @@ class CMDefImpl(stub: CListStub?, nodeType: CListElementType, node: ASTNode?) :
     return object: DefInfo {
       override val type: String get() = ClojureConstants.TYPE_PROTOCOL_METHOD
       override val name: String get() = name
-      override val namespace: String get() = (containingFile as ClojureFile).namespace
+      override val namespace: String get() = (containingFile as CFile).namespace
     }
   }
 
@@ -262,7 +262,7 @@ abstract class CKeywordBase(stub: CKeywordStub?, nodeType: CKeywordElementType, 
     val name = symbol.name
     val isUserNS = symbol.prevSibling.elementType == ClojureTypes.C_COLONCOLON
     val ns: () -> String = symbol.qualifier?.let {{ it.resolveInfo()?.namespace ?: it.name }} ?:
-        if (isUserNS) {{ (containingFile as ClojureFile).namespace }} else
+        if (isUserNS) {{ (containingFile as CFile).namespace }} else
         {{ (parent as? CMap)?.resolveNsPrefix() ?: ""}}
     return object : DefInfo {
       override val type: String get() = "keyword"

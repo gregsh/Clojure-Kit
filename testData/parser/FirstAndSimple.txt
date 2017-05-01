@@ -1,4 +1,4 @@
-ClojureFileImpl:a.clj
+CFileImpl:a.clj
   PsiComment(C_LINE_COMMENT)(';line')
   PsiWhiteSpace('\n')
   CListImpl(C_LIST)

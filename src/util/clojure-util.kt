@@ -119,7 +119,7 @@ fun ASTNode?.cljTraverser(): SyntaxTraverser<ASTNode> = org.intellij.clojure.uti
 fun PsiElement?.listOrVec(): CPForm? = this as? CList ?: this as? CVec
 
 val PsiElement.valueRange: TextRange get() = firstChild.siblings()
-      .skipWhile { it is CReaderMacro || it is CMetadata || (it !is ClojureToken && it !is CForm) }
+      .skipWhile { it is CReaderMacro || it is CMetadata || (it !is CToken && it !is CForm) }
       .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset) } ?: textRange
 
 fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)

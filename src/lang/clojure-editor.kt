@@ -168,7 +168,7 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
 
     override fun getChildrenBase(): Collection<MyElement> = element.let { o ->
       when {
-        o is ClojureFile -> o.cljTopLevelTraverser().traverse().filter(CForm::class)
+        o is CFile -> o.cljTopLevelTraverser().traverse().filter(CForm::class)
         o is CForm && o.parent !is CForm -> o.cljTraverser().traverse().filter(CDef::class)
         else -> JBIterable.empty()
       }.transform(::MyElement).toList()

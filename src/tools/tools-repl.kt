@@ -65,9 +65,9 @@ import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
 import org.intellij.clojure.nrepl.dumpObject
+import org.intellij.clojure.psi.CFile
 import org.intellij.clojure.psi.CForm
 import org.intellij.clojure.psi.ClojureElementType
-import org.intellij.clojure.psi.ClojureFile
 import org.intellij.clojure.util.*
 import java.io.File
 import java.io.IOException
@@ -117,7 +117,7 @@ class ReplExecuteAction : DumbAwareAction() {
   override fun update(e: AnActionEvent) {
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext)
     val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
-    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? ClojureFile
+    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile
     e.presentation.isEnabledAndVisible = e.project != null && file != null && editor != null &&
         ScratchFileService.getInstance().getRootType(file.virtualFile) !is IdeConsoleRootType
   }
@@ -126,7 +126,7 @@ class ReplExecuteAction : DumbAwareAction() {
     val project = e.project ?: return
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext) ?: return
     val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
-    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? ClojureFile ?: return
+    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile ?: return
     PsiDocumentManager.getInstance(project).commitAllDocuments()
     val text = if (editor.selectionModel.hasSelection()) {
       editor.selectionModel.getSelectedText(true) ?: ""
@@ -228,7 +228,7 @@ class ReplActionPromoter : ActionPromoter {
       actions.find { it is ReplExecuteAction }?.let { listOf(it) }
 }
 
-fun executeInRepl(project: Project, file: ClojureFile, editor: Editor, text: String) {
+fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String) {
   val projectDir = JBIterable.generate(PsiUtilCore.getVirtualFile(file)) { it.parent }.find {
     it.isDirectory && Tool.find(it.toIoFile()) != null }
   val title = if (projectDir == null) "REPL (default)"
