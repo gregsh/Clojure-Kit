@@ -8,13 +8,13 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
-import com.intellij.extapi.psi.ASTWrapperPsiElement;
 import org.intellij.clojure.psi.*;
+import com.intellij.psi.tree.IElementType;
 
-public class CReaderMacroImpl extends ASTWrapperPsiElement implements CReaderMacro {
+public class CReaderMacroImpl extends CComposite implements CReaderMacro {
 
-  public CReaderMacroImpl(ASTNode node) {
-    super(node);
+  public CReaderMacroImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {
@@ -30,6 +30,11 @@ public class CReaderMacroImpl extends ASTWrapperPsiElement implements CReaderMac
   @Nullable
   public CSymbol getSymbol() {
     return PsiTreeUtil.getChildOfType(this, CSymbol.class);
+  }
+
+  @NotNull
+  public String toString() {
+    return ClojurePsiImplUtil.toString(this);
   }
 
 }

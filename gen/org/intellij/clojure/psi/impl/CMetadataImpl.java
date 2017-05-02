@@ -8,13 +8,13 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
-import com.intellij.extapi.psi.ASTWrapperPsiElement;
 import org.intellij.clojure.psi.*;
+import com.intellij.psi.tree.IElementType;
 
-public class CMetadataImpl extends ASTWrapperPsiElement implements CMetadata {
+public class CMetadataImpl extends CComposite implements CMetadata {
 
-  public CMetadataImpl(ASTNode node) {
-    super(node);
+  public CMetadataImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {
@@ -30,6 +30,11 @@ public class CMetadataImpl extends ASTWrapperPsiElement implements CMetadata {
   @Nullable
   public CForm getForm() {
     return PsiTreeUtil.getChildOfType(this, CForm.class);
+  }
+
+  @NotNull
+  public String toString() {
+    return ClojurePsiImplUtil.toString(this);
   }
 
 }

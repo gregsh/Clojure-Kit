@@ -9,21 +9,12 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
-import org.intellij.clojure.psi.stubs.CListStub;
-import org.intellij.clojure.psi.stubs.CListElementType;
+import com.intellij.psi.tree.IElementType;
 
 public class CListImpl extends CListBase implements CList {
 
-  public CListImpl(CListStub stub, CListElementType type, ASTNode node) {
-    super(stub, type, node);
-  }
-
-  public CListImpl(CListStub stub) {
-    super(stub);
-  }
-
-  public CListImpl(ASTNode node) {
-    super(node);
+  public CListImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {
@@ -33,6 +24,15 @@ public class CListImpl extends CListBase implements CList {
   public void accept(@NotNull PsiElementVisitor visitor) {
     if (visitor instanceof ClojureVisitor) accept((ClojureVisitor)visitor);
     else super.accept(visitor);
+  }
+
+  public int getTextOffset() {
+    return ClojurePsiImplUtil.getTextOffset(this);
+  }
+
+  @Nullable
+  public IDef getDef() {
+    return ClojurePsiImplUtil.getDef(this);
   }
 
 }

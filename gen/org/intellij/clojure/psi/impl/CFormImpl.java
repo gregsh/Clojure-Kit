@@ -8,13 +8,13 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
-import com.intellij.extapi.psi.ASTWrapperPsiElement;
 import org.intellij.clojure.psi.*;
+import com.intellij.psi.tree.IElementType;
 
-public class CFormImpl extends ASTWrapperPsiElement implements CForm {
+public class CFormImpl extends CComposite implements CForm {
 
-  public CFormImpl(ASTNode node) {
-    super(node);
+  public CFormImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {
@@ -36,6 +36,11 @@ public class CFormImpl extends ASTWrapperPsiElement implements CForm {
   @NotNull
   public List<CReaderMacro> getReaderMacros() {
     return PsiTreeUtil.getChildrenOfTypeAsList(this, CReaderMacro.class);
+  }
+
+  @NotNull
+  public String toString() {
+    return ClojurePsiImplUtil.toString(this);
   }
 
 }

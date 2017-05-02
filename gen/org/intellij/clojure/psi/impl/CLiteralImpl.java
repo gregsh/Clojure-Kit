@@ -13,8 +13,8 @@ import com.intellij.psi.tree.IElementType;
 
 public class CLiteralImpl extends CSFormImpl implements CLiteral {
 
-  public CLiteralImpl(ASTNode node) {
-    super(node);
+  public CLiteralImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {

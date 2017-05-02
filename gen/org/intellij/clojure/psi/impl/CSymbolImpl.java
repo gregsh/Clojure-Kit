@@ -10,11 +10,12 @@ import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
 import com.intellij.psi.PsiQualifiedReference;
+import com.intellij.psi.tree.IElementType;
 
 public class CSymbolImpl extends CSFormImpl implements CSymbol {
 
-  public CSymbolImpl(ASTNode node) {
-    super(node);
+  public CSymbolImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {

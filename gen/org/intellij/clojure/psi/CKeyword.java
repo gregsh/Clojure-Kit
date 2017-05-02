@@ -4,10 +4,8 @@ package org.intellij.clojure.psi;
 import java.util.List;
 import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.StubBasedPsiElement;
-import org.intellij.clojure.psi.stubs.CKeywordStub;
 
-public interface CKeyword extends CSForm, StubBasedPsiElement<CKeywordStub> {
+public interface CKeyword extends CSForm {
 
   @NotNull
   CSymbol getSymbol();

@@ -9,11 +9,12 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
+import com.intellij.psi.tree.IElementType;
 
 public class CPFormImpl extends CFormImpl implements CPForm {
 
-  public CPFormImpl(ASTNode node) {
-    super(node);
+  public CPFormImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {

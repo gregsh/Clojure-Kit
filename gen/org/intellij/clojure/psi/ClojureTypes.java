@@ -4,17 +4,18 @@ package org.intellij.clojure.psi;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.PsiElement;
 import com.intellij.lang.ASTNode;
-import org.intellij.clojure.psi.stubs.CKeywordElementType;
-import org.intellij.clojure.psi.stubs.CListElementType;
 import org.intellij.clojure.psi.impl.*;
+import java.util.Collections;
+import java.util.Set;
+import java.util.LinkedHashMap;
 
 public interface ClojureTypes {
 
   IElementType C_CONSTRUCTOR = new ClojureNodeType("C_CONSTRUCTOR");
   IElementType C_FORM = new ClojureNodeType("C_FORM");
   IElementType C_FUN = new ClojureNodeType("C_FUN");
-  IElementType C_KEYWORD = new CKeywordElementType("C_KEYWORD");
-  IElementType C_LIST = new CListElementType("C_LIST");
+  IElementType C_KEYWORD = new ClojureNodeType("C_KEYWORD");
+  IElementType C_LIST = new ClojureNodeType("C_LIST");
   IElementType C_LITERAL = new ClojureNodeType("C_LITERAL");
   IElementType C_MAP = new ClojureNodeType("C_MAP");
   IElementType C_METADATA = new ClojureNodeType("C_METADATA");
@@ -61,49 +62,31 @@ public interface ClojureTypes {
   IElementType C_TILDE = new ClojureTokenType("~");
   IElementType C_TILDE_AT = new ClojureTokenType("~@");
 
-  class Factory {
-    public static PsiElement createElement(ASTNode node) {
-      IElementType type = node.getElementType();
-       if (type == C_CONSTRUCTOR) {
-        return new CConstructorImpl(node);
-      }
-      else if (type == C_FORM) {
-        return new CFormImpl(node);
-      }
-      else if (type == C_FUN) {
-        return new CFunImpl(node);
-      }
-      else if (type == C_KEYWORD) {
-        return new CKeywordImpl(node);
-      }
-      else if (type == C_LIST) {
-        return new CListImpl(node);
-      }
-      else if (type == C_LITERAL) {
-        return new CLiteralImpl(node);
-      }
-      else if (type == C_MAP) {
-        return new CMapImpl(node);
-      }
-      else if (type == C_METADATA) {
-        return new CMetadataImpl(node);
-      }
-      else if (type == C_READER_MACRO) {
-        return new CReaderMacroImpl(node);
-      }
-      else if (type == C_REGEXP) {
-        return new CRegexpImpl(node);
-      }
-      else if (type == C_SET) {
-        return new CSetImpl(node);
-      }
-      else if (type == C_SYMBOL) {
-        return new CSymbolImpl(node);
-      }
-      else if (type == C_VEC) {
-        return new CVecImpl(node);
-      }
-      throw new AssertionError("Unknown element type: " + type);
+  class Classes {
+    public static Class<?> findClass(IElementType elementType) {
+      return ourMap.get(elementType);
+    }
+
+    public static Set<IElementType> elementTypes() {
+      return Collections.unmodifiableSet(ourMap.keySet());
+    }
+
+    private static final LinkedHashMap<IElementType, Class<?>> ourMap = new LinkedHashMap<IElementType, Class<?>>();
+
+    static {
+      ourMap.put(C_CONSTRUCTOR, CConstructorImpl.class);
+      ourMap.put(C_FORM, CFormImpl.class);
+      ourMap.put(C_FUN, CFunImpl.class);
+      ourMap.put(C_KEYWORD, CKeywordImpl.class);
+      ourMap.put(C_LIST, CListImpl.class);
+      ourMap.put(C_LITERAL, CLiteralImpl.class);
+      ourMap.put(C_MAP, CMapImpl.class);
+      ourMap.put(C_METADATA, CMetadataImpl.class);
+      ourMap.put(C_READER_MACRO, CReaderMacroImpl.class);
+      ourMap.put(C_REGEXP, CRegexpImpl.class);
+      ourMap.put(C_SET, CSetImpl.class);
+      ourMap.put(C_SYMBOL, CSymbolImpl.class);
+      ourMap.put(C_VEC, CVecImpl.class);
     }
   }
 }

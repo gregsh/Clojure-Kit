@@ -9,11 +9,12 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
+import com.intellij.psi.tree.IElementType;
 
 public class CFunImpl extends CLFormImpl implements CFun {
 
-  public CFunImpl(ASTNode node) {
-    super(node);
+  public CFunImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {

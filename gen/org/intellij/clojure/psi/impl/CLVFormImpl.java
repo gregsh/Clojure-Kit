@@ -11,14 +11,14 @@ import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
 import com.intellij.psi.tree.IElementType;
 
-public class CConstructorImpl extends CPFormImpl implements CConstructor {
+public class CLVFormImpl extends CPFormImpl implements CLVForm {
 
-  public CConstructorImpl(IElementType type) {
+  public CLVFormImpl(IElementType type) {
     super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {
-    visitor.visitConstructor(this);
+    visitor.visitLVForm(this);
   }
 
   public void accept(@NotNull PsiElementVisitor visitor) {

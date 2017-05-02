@@ -9,21 +9,12 @@ import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
-import org.intellij.clojure.psi.stubs.CKeywordStub;
-import org.intellij.clojure.psi.stubs.CKeywordElementType;
+import com.intellij.psi.tree.IElementType;
 
 public class CKeywordImpl extends CKeywordBase implements CKeyword {
 
-  public CKeywordImpl(CKeywordStub stub, CKeywordElementType type, ASTNode node) {
-    super(stub, type, node);
-  }
-
-  public CKeywordImpl(CKeywordStub stub) {
-    super(stub);
-  }
-
-  public CKeywordImpl(ASTNode node) {
-    super(node);
+  public CKeywordImpl(IElementType type) {
+    super(type);
   }
 
   public void accept(@NotNull ClojureVisitor visitor) {
@@ -38,7 +29,7 @@ public class CKeywordImpl extends CKeywordBase implements CKeyword {
   @Override
   @NotNull
   public CSymbol getSymbol() {
-    return notNullChild(PsiTreeUtil.getChildOfType(this, CSymbol.class));
+    return PsiTreeUtil.getChildOfType(this, CSymbol.class);
   }
 
   @NotNull
