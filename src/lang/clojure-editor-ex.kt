@@ -39,7 +39,9 @@ import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
+import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
@@ -51,13 +53,15 @@ import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.search.searches.ReferencesSearch
-import com.intellij.psi.stubs.StubIndex
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
 import com.intellij.util.ProcessingContext
+import com.intellij.util.TimeoutUtil
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.containers.ContainerUtil
+import com.intellij.util.containers.JBIterable
+import com.intellij.util.indexing.FileBasedIndex
 import com.intellij.util.ui.UIUtil
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
@@ -65,8 +69,7 @@ import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.lang.ClojureColors
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
-import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
-import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
+import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.util.*
 
 /**
@@ -83,27 +86,27 @@ class ClojureAnnotator : Annotator {
     }
     when (element) {
       is CSymbol -> {
-        val target = element.resolveInfo() ?: return
+        val target = element.resolveInfo()
         if (element.getUserData(RESOLVE_SKIPPED) != null) {
           if (element.name.let { it != "&" && it != "." }) {
             holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.DYNAMIC
           }
           return
         }
-        if (target.type != "ns") {
-          val nsAttrs = ClojureColors.NS_COLORS[target.namespace]
-          if (nsAttrs != null) {
-            holder.createInfoAnnotation(element.valueRange, null).enforcedTextAttributes = nsAttrs
-          }
-        }
+        if (target == null) return
+        var enforced: TextAttributes? = null
         val attrs = when (target.type) {
+          "ns" -> ClojureColors.NAMESPACE.also { enforced = ClojureColors.NS_COLORS[target.name] }
+          "alias" -> ClojureColors.ALIAS
           "argument" -> ClojureColors.FN_ARGUMENT
           "let-binding" -> ClojureColors.LET_BINDING
-          "ns" -> ClojureColors.NAMESPACE
           else -> null
         }
         if (attrs != null) {
-          holder.createInfoAnnotation(element.valueRange, null).textAttributes = attrs
+          holder.createInfoAnnotation(element.valueRange, null).run {
+            textAttributes = attrs
+            enforcedTextAttributes = enforced
+          }
         }
         if (callable && target.matches(ClojureDefinitionService.COMMENT_SYM)) {
           holder.createInfoAnnotation(element.parentForm!!, null).textAttributes = ClojureColors.FORM_COMMENT
@@ -137,42 +140,47 @@ class ClojureCompletionContributor : CompletionContributor() {
         val project = element.project
         val service = ClojureDefinitionService.getInstance(project)
 
-        val simpleParent = element.parents().takeWhile { it is CSForm }.last()
-        simpleParent.let { major ->
-          val visited = ContainerUtil.newTroveSet<String>()
-          val prefixedResult = if (major == null) result
-          else TextRange(major.valueRange.startOffset, parameters.offset)
-              .substring(major.containingFile.text)
-              .let { result.withPrefixMatcher(it) }
-          val consumer: (CKeyword) -> Unit = { o ->
-            if (o != major && (showAll || prefixNamespace == null || o.namespace == prefixNamespace)) {
-              val qualifiedName = o.qualifiedName
-              if (visited.add(qualifiedName)) {
-                val s = if (prefixNamespace == null && fileNamespace == o.namespace) "::${o.name}" else ":$qualifiedName"
-                prefixedResult.addElement(LookupElementBuilder.create(o, s)
-                    .withTypeText(o.containingFile.name, true)
-                    .bold())
-              }
+        val thisForm = element.thisForm
+        val visited = ContainerUtil.newTroveSet<String>()
+        val prefixedResult = if (thisForm == null) result
+        else TextRange(thisForm.valueRange.startOffset, parameters.offset)
+            .substring(thisForm.containingFile.text)
+            .let { result.withPrefixMatcher(it) }
+        val consumer: (String, String, VirtualFile) -> Unit = { name, ns, file ->
+          if (showAll || prefixNamespace == null || ns == prefixNamespace) {
+            val qualifiedName = if (ns == "") name else "$ns/$name"
+            if (visited.add(qualifiedName)) {
+              val s = if (prefixNamespace == null && fileNamespace == ns) "::$name" else ":$qualifiedName"
+              prefixedResult.addElement(LookupElementBuilder.create(s)
+                  .withTypeText(file.name, true)
+                  .bold())
             }
           }
-          originalFile.cljTraverser().traverse().filter(CKeyword::class).forEach(consumer)
-          if (major is CKeyword || showAll) {
-            StubIndex.getInstance().processAllKeys(KEYWORD_INDEX_KEY, project, { o ->
-              val scope = ClojureDefinitionService.getClojureSearchScope(project)
-              StubIndex.getElements(KEYWORD_INDEX_KEY, o, project, scope, CKeyword::class.java).forEach(consumer)
-              true
-            })
+        }
+        originalFile.cljTraverser().traverse().filter(CKeyword::class).forEach { o ->
+          if (o != thisForm) consumer(o.name, o.namespace, originalFile.virtualFile)
+        }
+        if (thisForm is CKeyword || showAll) {
+          FileBasedIndex.getInstance().run {
+            val scope = ClojureDefinitionService.getClojureSearchScope(project)
+            processAllKeys(KEYWORD_FQN_INDEX, { fqn ->
+              getFilesWithKey(KEYWORD_FQN_INDEX, mutableSetOf(fqn), { file ->
+                val idx = fqn.indexOf('/')
+                consumer(fqn.substring(idx + 1), if (idx > 0) fqn.substring(0, idx) else "", file)
+                true
+              }, scope)
+            }, project)
           }
         }
-        val ref = if (simpleParent !is CKeyword) element.reference as? CSymbolReference else null
+        val ref = if (thisForm !is CKeyword) element.reference as? CSymbolReference else null
         val bindingsVec: CVec? = (element.parent as? CVec)?.run { if (ref?.resolve()?.navigationElement == element) this else null }
         if (ref != null && bindingsVec == null) {
           ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
             override fun execute(it: PsiElement, state: ResolveState): Boolean {
               when (it) {
-                is CDef -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.def.name)
+                is CList -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.def!!.name)
                     .withIcon((it as NavigationItem).presentation!!.getIcon(false))
-                    .withTailText(" (${it.def.namespace})", true)
+                    .withTailText(" (${it.def!!.namespace})", true)
                 is CSymbol -> LookupElementBuilder.create(it, it.name)
                     .withIcon(ClojureIcons.SYMBOL)
                 is PsiNamedElement -> {
@@ -196,9 +204,12 @@ class ClojureCompletionContributor : CompletionContributor() {
           })
         }
         if (prefixNamespace == null && (bindingsVec == null || bindingsVec.parent is CMap)) {
-          StubIndex.getInstance().processAllKeys(NS_INDEX_KEY, project, { o ->
-            result.addElement(LookupElementBuilder.create(o).withIcon(ClojureIcons.NAMESPACE)); true
-          })
+          FileBasedIndex.getInstance().run {
+            processAllKeys(NS_INDEX, { ns ->
+              result.addElement(LookupElementBuilder.create(ns).withIcon(ClojureIcons.NAMESPACE))
+              true
+            }, project)
+          }
         }
       }
     })
@@ -217,40 +228,72 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
   }
 
   override fun generateDoc(element: PsiElement?, originalElement: PsiElement?): String? {
-    val def = ((element as? PomTargetPsiElement)?.navigationElement ?: element)
-        as? CNamed ?: return null
-    val nameSymbol = def.nameSymbol ?: return null
-    val sb = StringBuilder("<html>")
-    sb.append("<b>(${def.def.type}</b> ${def.def.namespace}/${def.def.name}<b>${if (def is CLForm) " …" else ""})</b>").append("<br>")
-    val docString = if (def.def.type == ClojureConstants.TYPE_PROTOCOL_METHOD) nameSymbol.findNext(CLiteral::class)
-    else nameSymbol.nextForm as? CLiteral
-    docString?.let {
-      if (it.literalType == ClojureTypes.C_STRING) {
-        sb.append("<br>").append(StringUtil.unquoteString(it.literalText)).append("<br>")
-      }
-    }
-    fun appendMap(m: CForm?) {
+    val target = (element as? PomTargetPsiElement)?.target
+    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
+    val resolved =
+        if (key != null && key.type == "keyword" &&
+            key.namespace == "" && ClojureConstants.NS_ALIKE_SYMBOLS.contains(key.name)) {
+          // adjust resolved element for (ns ...) macro keywords
+          ClojureDefinitionService.getInstance(element!!.project).getDefinition(key.name, LangKind.CLJ.ns, "def").navigationElement
+        }
+        else {
+          (element as? PomTargetPsiElement)?.navigationElement
+        }?.let {
+          it.asXTarget?.resolve() ?: it
+        } ?: element
+    val def = (resolved as? CList)?.def ?: key ?: return null
+
+    fun String.sanitize() = StringUtil.escapeXml(StringUtil.unquoteString(this))
+    fun StringBuilder.appendMap(m: CForm?) {
       val forms = (m as? CMap)?.forms ?: return
       for ((i, form) in forms.withIndex()) {
-        if (i % 2 == 0) sb.append("<br>").append("<b>").append(form.text).append("</b>   ")
-        else sb.append(StringUtil.unquoteString(form.text))
+        if (i % 2 == 0) append("<br>").append("<b>").append(form.text.sanitize()).append("</b>   ")
+        else append(form.text.sanitize())
       }
     }
-    appendMap(docString.nextForm)
-    for (m in nameSymbol.metas) {
-      appendMap(m.form)
+
+    val nameSymbol = resolved.findChild(Role.NAME) as? CSymbol
+    val sb = StringBuilder("<html>")
+    sb.append("<b>(${def.type}</b> ${def.qualifiedName}<b>${if (resolved is CLForm) " …" else ""})</b>").append("<br>")
+    val docLiteral =
+        if (def.type == "method") nameSymbol.findNext(CLiteral::class)
+        else nameSymbol.nextForm as? CLiteral
+    if (docLiteral != null) {
+      if (docLiteral.literalType == ClojureTypes.C_STRING) {
+        sb.append("<br>").append(docLiteral.literalText.sanitize()).append("<br>")
+      }
+    }
+    sb.appendMap(docLiteral.nextForm)
+    for (m in nameSymbol?.metas ?: emptyList()) {
+      sb.appendMap(m.form)
     }
     val result = sb
         .replace("\n(?:\\s*\n)+".toRegex(), "<p>")
         .replace("(?:\\.\\s)".toRegex(), ".<p>")
         .replace("(?:\\:\\s)".toRegex(), ":<br>")
-    val sourceFile = PsiUtilCore.getVirtualFile(def)
-    return scheduleSlowDocumentation(element!!, result, { element, sb -> appendSpecs(sb, element, sourceFile) })
+    val sourceFile = PsiUtilCore.getVirtualFile(resolved)
+    return scheduleSlowDocumentation(element!!, result, { e, s -> loadMoreInformation(s, def, e, sourceFile) })
+  }
+
+  private fun loadMoreInformation(sb: StringBuilder, def: IDef, element: PsiElement, sourceFile: VirtualFile?) {
+    val project = element.project
+    DumbService.getInstance(project).waitForSmartMode()
+    if (def.type == "ns") {
+      sb.append("<br>")
+      FileBasedIndex.getInstance().getFilesWithKey(NS_INDEX, mutableSetOf(def.name), { file ->
+        sb.append("<br><i>${file.presentableUrl}</i>")
+        true
+      }, ClojureDefinitionService.getClojureSearchScope(project))
+
+    }
+    else {
+      appendSpecs(sb, element, sourceFile)
+    }
   }
 
   private fun appendSpecs(sb: StringBuilder, element: PsiElement, sourceFile: VirtualFile?) {
     var first = true
-    for (ref in ReferencesSearch.search(element as PomTargetPsiElement)) {
+    for (ref in ReferencesSearch.search(element)) {
       val form = ref.element.thisForm
       val maybeSpec = form.parentForm as? CList
       val callSym = maybeSpec?.first ?: continue
@@ -286,6 +329,8 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
           provider(element, sb)
         }
       }
+      //todo handle "Fetching Documentation..." otherwise; now just wait a bit
+      TimeoutUtil.sleep(300)
       UIUtil.invokeLaterIfNeeded later@ {
         val component = QuickDocUtil.getActiveDocComponent(project) ?: return@later
         val prevText = component.text
@@ -303,8 +348,8 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
 
 class ClojureTargetElementEvaluator : TargetElementEvaluatorEx2() {
   override fun includeSelfInGotoImplementation(element: PsiElement) = false
-  override fun getNamedElement(element: PsiElement) = (element.parent as? CDef)?.run { if (nameSymbol == element) this else null }
-  override fun getGotoDeclarationTarget(element: PsiElement, navElement: PsiElement?) = (navElement as? CDef)?.nameSymbol ?: navElement
+  override fun getNamedElement(element: PsiElement) = element.parent.asDef?.run { if (findChild(Role.NAME) == element) this else null }
+  override fun getGotoDeclarationTarget(element: PsiElement, navElement: PsiElement?) = (navElement.asDef)?.findChild(Role.NAME) ?: navElement
   override fun getElementByReference(ref: PsiReference, flags: Int) = ref.resolve()
 }
 
@@ -324,20 +369,21 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
 
   override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
     // todo extend, extend-type, extend-protocol
-    val def = element.parent as? CDef ?: return null
-    val nameSym = def.run { if (nameSymbol == element) element else null } ?: return null
-    if (def.def.type == ClojureConstants.TYPE_PROTOCOL_METHOD) {
+    val form = element.parent.asDef ?: return null
+    val def = form.def ?: return null
+    val nameSym = form.run { if (findChild(Role.NAME) == element) element else null } ?: return null
+    if (def.type == "method") {
       return LineMarkerInfo(nameSym, nameSym.textRange, P1.icon!!, Pass.UPDATE_ALL,
           { "Protocol method implementations" },
-          { mouseEvent, t -> }, GutterIconRenderer.Alignment.LEFT)
+          { _, _ -> }, GutterIconRenderer.Alignment.LEFT)
     }
-    else if (def.def.type == "defmulti") {
+    else if (def.type == "defmulti") {
       return LineMarkerInfo(nameSym, nameSym.textRange, MM1.icon!!, Pass.UPDATE_ALL,
-          { "Multi-method implementations" }, { mouseEvent, t -> }, GutterIconRenderer.Alignment.RIGHT)
+          { "Multi-method implementations" }, { _, _ -> }, GutterIconRenderer.Alignment.RIGHT)
     }
-    else if (def.def.type == "defmethod") {
+    else if (def.type == "defmethod") {
       return LineMarkerInfo(nameSym, nameSym.textRange, MM2.icon!!, Pass.UPDATE_ALL,
-          { "Multi-method" }, { mouseEvent, t -> }, GutterIconRenderer.Alignment.LEFT)
+          { "Multi-method" }, { _, _ -> }, GutterIconRenderer.Alignment.LEFT)
     }
     return null
   }
@@ -346,7 +392,7 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
 class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
   override fun isAvailable(element: PsiElement?, editor: Editor?, file: PsiFile?): Boolean {
     if (editor == null || !editor.settings.isVariableInplaceRenameEnabled) return false
-    return (element as? PomTargetPsiElement)?.target is CTarget
+    return element.asCTarget != null
   }
 
   override fun createRenamer(elementToRename: PsiElement, editor: Editor?) = MyRenamer(elementToRename as PsiNamedElement, editor)
@@ -357,7 +403,7 @@ class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
     this(elementToRename, editor, elementToRename.name, elementToRename.name)
 
     override fun checkLocalScope() =
-        ((myElementToRename as? PomTargetPsiElement)?.target as CTarget).let { target ->
+        myElementToRename.asCTarget!!.let { target ->
           if (target.key.namespace == "" && (target.key.type == "argument" || target.key.type == "let-binding"))
             myElementToRename.navigationElement.findParent(CList::class)
           else super.checkLocalScope() }
@@ -369,7 +415,7 @@ class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
   }
 }
 
-class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList, CVec, CForm> {
+class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList, Any, CForm> {
   override fun updateParameterInfo(parameterOwner: CList, context: UpdateParameterInfoContext) =
       context.setCurrentParameter(parameterOwner.childForms.skip(1)
           .filter { !it.textMatches("&") }
@@ -382,7 +428,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
 
   override fun getActualParameterDelimiterType() = TokenType.WHITE_SPACE!!
   override fun getArgumentListAllowedParentClasses() = setOf(CList::class.java)
-  override fun getParametersForDocumentation(p: CVec?, context: ParameterInfoContext?) = arrayOf(p)
+  override fun getParametersForDocumentation(p: Any?, context: ParameterInfoContext?) = arrayOf(p)
   override fun tracksParameterIndex() = true
 
   override fun findElementForParameterInfo(context: CreateParameterInfoContext) =
@@ -396,23 +442,23 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
 
   override fun getActualParametersRBraceType() = ClojureTypes.C_PAREN2!!
 
-  override fun updateUI(proto: CVec?, context: ParameterInfoUIContext) {
+  override fun updateUI(proto: Any?, context: ParameterInfoUIContext) {
     val element = context.parameterOwner
-    if (!element.isValid || proto == null || !proto.isValid) return
+    if (!element.isValid || proto == null || proto is CVec && !proto.isValid) return
 
     val sb = StringBuilder()
     val highlight = intArrayOf(-1, -1)
     var i = 0
-    proto.childForms.forEach { o ->
+    arguments(proto).forEach { o ->
       if (i > 0) sb.append(" ")
-      if (o.textMatches("&")) {
+      if (o == "&") {
         sb.append("&")
       }
       else {
         if (i == context.currentParameterIndex) highlight[0] = sb.length
-        sb.append(o.text)
+        sb.append(o)
         if (i == context.currentParameterIndex) highlight[1] = sb.length
-        i ++
+        i++
       }
     }
     if (sb.isEmpty()) {
@@ -443,15 +489,18 @@ class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
     return resolvePrototypes(element).transform Function@ { proto ->
       val candidate = mutableListOf<InlayInfo>()
       val params = element.childForms.skip(1).iterator()
-      val args = proto.childForms.iterator()
+      val args = arguments(proto).iterator()
       var vararg = false
       while (args.hasNext() && params.hasNext()) {
         val param = params.next()
-        val arg = args.next().let { if (it.text == "&" && args.hasNext()) {
-          vararg = true
-          args.next()
-        } else it } as? CSymbol ?: return@Function null
-        candidate.add(InlayInfo(if (vararg) "..." + arg.name else arg.name, param.textRange.startOffset))
+        val arg = args.next().let {
+          if (it == "&" && args.hasNext()) {
+            vararg = true
+            args.next()
+          }
+          else it
+        }
+        candidate.add(InlayInfo(if (vararg) "..." + arg else arg, param.textRange.startOffset))
       }
       if (args.hasNext() || params.hasNext() && !vararg) return@Function null
       candidate
@@ -463,4 +512,20 @@ class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
   override fun getSupportedOptions(): List<Option> = ContainerUtil.newSmartList(OPTION)
   override fun isBlackListSupported(): Boolean = false
 
+}
+
+fun resolvePrototypes(call: CList): JBIterable<*> {
+  val target = call.first?.reference?.resolve()?.navigationElement
+  return target.asXTarget?.resolveStub()?.children?.jbIt() ?:
+      (target as? CList)?.let {
+        prototypes(it).transform { it.childForms.find { it is CVec } }.filter(CPForm::class)
+      } ?: JBIterable.empty<Any>()
+}
+
+fun arguments(proto: Any): JBIterable<String> {
+  if (proto is CVec) {
+    return proto.childForms.map { it.text }
+  }
+  if (proto is CPrototypeStub) return proto.args.jbIt()
+  return JBIterable.empty()
 }

@@ -17,42 +17,39 @@
 
 package org.intellij.clojure.psi.impl
 
-import com.intellij.ide.presentation.Presentation
-import com.intellij.ide.presentation.PresentationProvider
+import com.intellij.ide.util.PsiNavigationSupport
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.Ref
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.pom.Navigatable
 import com.intellij.pom.PomRenameableTarget
 import com.intellij.pom.PomTarget
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.pom.references.PomService
-import com.intellij.psi.PsiAnchor
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiTarget
+import com.intellij.psi.*
 import com.intellij.psi.impl.PomTargetPsiElementImpl
 import com.intellij.psi.search.EverythingGlobalScope
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
-import com.intellij.psi.stubs.StubIndex
 import com.intellij.psi.util.PsiModificationTracker
-import com.intellij.util.Processor
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.FactoryMap
+import com.intellij.util.containers.JBTreeTraverser
+import com.intellij.util.indexing.FileBasedIndex
+import com.intellij.util.indexing.ID
+import com.intellij.util.ui.EmptyIcon
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CORE_NAMESPACES
-import org.intellij.clojure.ClojureConstants.NS_ALIKE_SYMBOLS
 import org.intellij.clojure.getIconForType
 import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
-import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
-import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
-import org.intellij.clojure.util.filter
-import org.intellij.clojure.util.findParent
-import org.intellij.clojure.util.isIn
-import org.intellij.clojure.util.parentForms
+import org.intellij.clojure.psi.stubs.CStub
+import org.intellij.clojure.util.*
+import javax.swing.Icon
+import kotlin.reflect.KClass
 
 /**
  * @author gregsh
@@ -67,13 +64,11 @@ private object NULL_TARGET : PomTarget {
   override fun isValid() = true
 }
 
-data class SymKey(override val name: String, override val namespace: String, override val type: String) : DefInfo
-
-fun DefInfo?.matches(info: DefInfo?) = this != null && info != null && name == info.name &&
+fun IDef?.matches(info: IDef?) = this != null && info != null && name == info.name &&
     (type == info.type && namespace == info.namespace ||
         namespace.isIn(CORE_NAMESPACES) && info.namespace.isIn(CORE_NAMESPACES))
 
-fun CSymbol?.resolveInfo(): DefInfo? = ((this?.reference?.resolve() as? PomTargetPsiElement)?.target as? CTarget)?.key
+fun CSymbol?.resolveInfo(): IDef? = this?.reference?.resolve().asCTarget?.key
 
 class ClojureDefinitionService(val project: Project) {
   companion object {
@@ -100,11 +95,11 @@ class ClojureDefinitionService(val project: Project) {
 
   fun getNamespace(symbol: CSymbol): PsiElement {
     val namespace = (symbol.qualifier ?: symbol).name
-    return map[SymKey(namespace, namespace, "ns")]!!
+    return map[SymKey(namespace, "", "ns")]!!
   }
 
   fun getNamespace(namespace: String): PsiElement {
-    return map[SymKey(namespace, namespace, "ns")]!!
+    return map[SymKey(namespace, "", "ns")]!!
   }
 
   fun getAlias(alias: String, namespace: String, o: CSymbol): PsiElement {
@@ -112,14 +107,19 @@ class ClojureDefinitionService(val project: Project) {
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
-  fun getDefinition(o: CDef): PsiElement {
-    val targetMap = if (o.def.type == "defn-") o.containingFile.map else map
-    return targetMap[SymKey(o.def.name, o.def.namespace, if (o.def.type == "defmethod") "defmulti" else o.def.type)]!!
+  fun getDefinition(o: CList): PsiElement {
+    val def = o.def ?: throw AssertionError("not definition")
+    val targetMap = if (def.type == "defn-") o.containingFile.map else map
+    return targetMap[SymKey(def.name, def.namespace, if (def.type == "defmethod") "defmulti" else def.type)]!!
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
   fun getDefinition(name: String, namespace: String, type: String): PsiElement {
     return map[SymKey(name, namespace, type)]!!
+  }
+
+  fun getDefinition(key: SymKey): PsiElement {
+    return map[key]!!
   }
 
   fun getKeyword(o: CKeyword): PsiElement {
@@ -132,7 +132,7 @@ class ClojureDefinitionService(val project: Project) {
     val isLocal = topVec != null && !(topVec.parent.let { it is CList && it.first?.name == "binding" })
     val symKey = if (isLocal) {
       val isArgument = o.findParent(CList::class)?.let {
-        it is CDef || it.first.let { it == null || it.name.isIn(ClojureConstants.FN_ALIKE_SYMBOLS) }
+        it.role == Role.DEF || it.first.let { it == null || it.name.isIn(ClojureConstants.FN_ALIKE_SYMBOLS) }
       } ?: false
       SymKey(o.name, "", if (isArgument) "argument" else "let-binding")
     }
@@ -164,22 +164,50 @@ class ClojureDefinitionService(val project: Project) {
   }
 
   private fun createPomElement(owner: PsiElement?, target: CTarget): PsiElement {
-    return if (owner == null) PomTargetPsiElementImpl(project, target)
-    else object : PomTargetPsiElementImpl(project, target) {
+    return if (owner == null) CPomTargetElement(project, target)
+    else object : CPomTargetElement(project, target) {
       override fun getUseScope() = LocalSearchScope(owner)
     }
   }
 
 }
 
-internal class CTargetPresentation : PresentationProvider<CTarget>() {
-  override fun getName(t: CTarget?) = t?.key?.name
-  override fun getTypeName(t: CTarget?) = t?.key?.type
+private open class CPomTargetElement(project: Project, target: PomTarget) : PomTargetPsiElementImpl(project, target) {
+  override fun getName(): String? {
+    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
+    return key?.name ?: super.getName()
+  }
 
-  override fun getIcon(t: CTarget?) = getIconForType(t?.key?.type ?: "")
+  override fun getPresentableText(): String? {
+    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
+    if (key?.type == "keyword") return ":" + key.qualifiedName
+    else if (key != null) return "(${key.type} ${key.qualifiedName})"
+    return super.getPresentableText()
+  }
+
+  override fun getLocationString(): String? {
+    val file = containingFile
+    if (file != null) return "(" + file.name + ")"
+    return null
+  }
+
+  override fun getIcon(): Icon? {
+    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
+    return key?.let { getIconForType(it.type) } ?: EmptyIcon.ICON_16
+  }
+
+  override fun getTypeName(): String {
+    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
+    return key?.type ?: super.getTypeName()
+  }
+
+  override fun getContainingFile(): PsiFile? {
+    val psiFile = (target as? CTarget)?.navigationElement?.containingFile ?: (target as? XTarget)?.psiFile
+    if (psiFile != null) return psiFile
+    return super.getContainingFile()
+  }
 }
 
-@Presentation(provider=CTargetPresentation::class)
 internal class CTarget(val project: Project,
                        val map: Map<SymKey, PsiElement>,
                        val key: SymKey) : PsiTarget, PomRenameableTarget<Any> {
@@ -191,7 +219,7 @@ internal class CTarget(val project: Project,
 
   override fun getNavigationElement(): PsiElement {
     val data = target
-    return data as? PsiElement ?: PomService.convertToPsi(project, NULL_TARGET)
+    return data ?: PomService.convertToPsi(project, NULL_TARGET)
   }
 
   override fun getName(): String {
@@ -206,26 +234,22 @@ internal class CTarget(val project: Project,
       val modificationCount = PsiModificationTracker.SERVICE.getInstance(project).modificationCount
       if (userData is Long && userData == modificationCount) return null
       if (DumbService.getInstance(project).isDumb) return null
-      if (key.namespace == "") return null
-      var result: PsiElement? = null
-      val processor = Processor<PsiElement> {
-        if (it is CFile && it.namespace == key.namespace ||
-            it is CDef && it.def.namespace == key.namespace ||
-            it is CKeyword && it.namespace == key.namespace) {
-          result = it
-        }
-        result == null
+      if (key.namespace == "" && key.type != "ns") return null
+
+      fun <K, V> findFile(id: ID<K, V>, key: K): VirtualFile? = FileBasedIndex.getInstance().run {
+        val found = Ref.create<VirtualFile>()
+        val scope = ClojureDefinitionService.getClojureSearchScope(project)
+        processValues(id, key, null, { file, _:V -> found.set(file); false }, scope)
+        found.get()
+      }
+      val file = when (key.type) {
+        in "ns" -> findFile(NS_INDEX, key.name)
+        "keyword" -> findFile(KEYWORD_FQN_INDEX, key.qualifiedName)
+        else -> findFile(DEF_FQN_INDEX, key.qualifiedName)
       }
 
-      val scope = ClojureDefinitionService.getClojureSearchScope(project)
-      StubIndex.getInstance().apply {
-        when (key.type) {
-          in NS_ALIKE_SYMBOLS -> processElements(NS_INDEX_KEY, key.namespace, project, scope, CFile::class.java, processor)
-          "keyword" -> processElements(KEYWORD_INDEX_KEY, key.name, project, scope, CKeyword::class.java, processor)
-          else -> processElements(DEF_INDEX_KEY, key.name, project, scope, CDef::class.java, processor)
-        }
-        Unit
-      }
+      val result: PsiElement? = wrapWithNavigationElement(project, key, file)
+
       return result.apply {
         map[key]?.putUserData(SOURCE_KEY, if (this == null) modificationCount else PsiAnchor.create(this))
       }
@@ -234,3 +258,51 @@ internal class CTarget(val project: Project,
   override fun setName(newName: String) = null
   override fun isWritable() = true
 }
+
+fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?): NavigatablePsiElement {
+  fun <C : CForm> locate(k: SymKey, clazz: KClass<C>): (CFile) -> Navigatable? = { f ->
+    f.cljTraverser().traverse().filter(clazz).find {
+      if (k.type == "keyword") it is CKeyword && it.namespace == k.namespace
+      else it is CList && it.def?.run { name == k.name && namespace == k.namespace } ?: false
+    }
+  }
+
+  val result = when (key.type) {
+    in "ns" -> CPomTargetElement(project, XTarget(project, key, file, { it }))
+    "keyword" -> CPomTargetElement(project, XTarget(project, key, file, locate(key, CKeywordBase::class)))
+    else -> CPomTargetElement(project, XTarget(project, key, file, locate(key, CListBase::class)))
+  }
+  return result
+}
+
+internal class XTarget(val project: Project,
+              val key: SymKey,
+              val file: VirtualFile?,
+              private val resolver: (CFile) -> Navigatable?) : PomTarget {
+  val psiFile: PsiFile?
+    get() = if (file == null) null else PsiManager.getInstance(project).findFile(file)
+
+  override fun canNavigate() = canNavigateToSource()
+  override fun canNavigateToSource(): Boolean = psiFile?.let { PsiNavigationSupport.getInstance().canNavigate(it) } ?: false
+  override fun isValid(): Boolean = file == null || file.isValid
+
+  override fun navigate(requestFocus: Boolean) {
+    (resolve() as? Navigatable ?: psiFile)?.navigate(requestFocus)
+  }
+
+  fun resolve(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as PsiElement else it }
+
+  fun resolveStub(): CStub? = (psiFile as? CFileImpl)?.fileStubForced?.let { stub ->
+    JBTreeTraverser<CStub> { o -> o.childrenStubs }
+        .withRoot(stub)
+        .filter(IDef::class.java).find {
+      it.name == key.name && it.type == key.type && it.namespace == key.namespace
+    } as CStub
+  }
+}
+
+internal val PsiElement?.asCTarget: CTarget?
+  get() = (this as? PomTargetPsiElement)?.target as? CTarget
+
+internal val PsiElement?.asXTarget: XTarget?
+  get() = (this as? PomTargetPsiElement)?.target as? XTarget

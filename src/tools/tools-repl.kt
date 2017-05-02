@@ -307,7 +307,7 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon, pro
             consoleView = console as LanguageConsoleView
           }
           return ArrayUtil.mergeArrays(super.createActions(console, processHandler, executor), arrayOf<AnAction>(
-              ConsoleHistoryController.getController(console as LanguageConsoleView?).browseHistory,
+              ConsoleHistoryController.getController(console as LanguageConsoleView).browseHistory,
               ActionManager.getInstance().getAction("clojure.repl.exclusive.mode")))
         }
 

@@ -71,7 +71,7 @@ class ClojureHighlightingLexerTest : ClojureLexerTestCase(ClojureHighlightingLex
 class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testFirstAndSimple() = doCodeTest(";line\n(+ 1 2 3)\n(clojure.core/str \"a\" '.. '.-a val 123 :key)")
   fun testSimpleRecover() = doCodeTest("//// 42 : x (abc [: x : y z] 2/3) )1 sym)")
-  fun testSimpleFixes() = doCodeTest(".1 ;comment\n1;unclosed eof\n\"x")
+  fun testSimpleFixes() = doCodeTest(".1 x .-;comment\n1;unclosed eof\n\"x")
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
 
   fun testParseClojureLang() = walkAndParse(::walkClojureLang)
@@ -125,15 +125,25 @@ abstract class ClojureParsingTestCase(o : ClojureParserDefinitionBase) : Parsing
 }
 
 class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
-  override fun getBasePath() = TEST_DATA_PATH + "/highlighting"
+  override fun getTestDataPath() = TEST_DATA_PATH + "/highlighting"
   override fun setUp() {
     super.setUp()
     FileBasedIndex.getInstance().ensureUpToDate(StubUpdatingIndex.INDEX_ID, myFixture.project, null)
     myFixture.enableInspections(ClojureResolveInspection::class.java)
   }
 
+  fun testClojureFixes() = doTest("clj")
+
   fun testClojureLang() = walkAndHighlight(::walkClojureLang)
   fun testClojureScript() = walkAndHighlight(::walkClojureScriptLang)
+
+  fun doTest(extension: String): Unit {
+    myFixture.configureByFile(getTestName(false) + ".$extension")
+    myFixture.checkHighlighting()
+  }
+
+//  fun testClojureFile() = "/clojure/core.clj".let { file ->
+//    walkAndHighlight { block -> walkFs(CLJ_LIB_FS, file, block) } }
 
   fun walkAndHighlight(walker: ((Path, String) -> Unit) -> Unit) {
     val stat = object {
@@ -166,6 +176,6 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
       println("${getTestName(false)}\n${this}")
     } }
     println("Processed in ${StringUtil.formatDuration(stat.duration)}\n")
-    UsefulTestCase.assertSameLinesWithFile("$basePath/${getTestName(false)}.txt".replace("/", File.separator), report.toString())
+    UsefulTestCase.assertSameLinesWithFile("$testDataPath/${getTestName(false)}.txt".replace("/", File.separator), report.toString())
   }
 }

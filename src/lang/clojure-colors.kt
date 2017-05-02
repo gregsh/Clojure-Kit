@@ -67,7 +67,8 @@ object ClojureColors {
   @JvmField val READER_MACRO = createTextAttributesKey("C_READER_MACRO")
   @JvmField val FN_ARGUMENT = createTextAttributesKey("C_FN_ARGUMENT", DefaultLanguageHighlighterColors.PARAMETER)
   @JvmField val LET_BINDING = createTextAttributesKey("C_LET_BINDING", DefaultLanguageHighlighterColors.LOCAL_VARIABLE)
-  @JvmField val NAMESPACE = createTextAttributesKey("C_NAMESPACE", DefaultLanguageHighlighterColors.PREDEFINED_SYMBOL)
+  @JvmField val NAMESPACE = createTextAttributesKey("C_NAMESPACE", DefaultLanguageHighlighterColors.IDENTIFIER)
+  @JvmField val ALIAS = createTextAttributesKey("C_ALIAS", DefaultLanguageHighlighterColors.IDENTIFIER)
   @JvmField val DYNAMIC = createTextAttributesKey("C_DYNAMIC", DefaultLanguageHighlighterColors.PREDEFINED_SYMBOL)
 
   @JvmField val NS_COLORS: Map<String, TextAttributes> = ContainerUtil.newConcurrentMap()
@@ -193,7 +194,7 @@ class ClojureColorSettingsPage : ColorSettingsPage {
   <ns>clojure.core</ns>)
 
 <ign>(comment "clojure code fragments below")</ign>
-(alias c <sym>'clojure.core</sym>)
+(alias <as>core</as> <sym>'clojure.core</sym>)
 
 (defn mod
   "Modulus of num and div. Truncates toward negative infinity."
@@ -216,6 +217,7 @@ class ClojureColorSettingsPage : ColorSettingsPage {
 
   override fun getAdditionalHighlightingTagToDescriptorMap() = hashMapOf(
       "ns" to ClojureColors.NAMESPACE,
+      "as" to ClojureColors.ALIAS,
       "k" to ClojureColors.KEYWORD,
       "sym" to ClojureColors.QUOTED_SYM,
       "dyn" to ClojureColors.DYNAMIC,
@@ -251,6 +253,7 @@ class ClojureColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Entities//Function argument", ClojureColors.FN_ARGUMENT),
         AttributesDescriptor("Entities//Local binding", ClojureColors.LET_BINDING),
         AttributesDescriptor("Entities//Namespace", ClojureColors.NAMESPACE),
+        AttributesDescriptor("Entities//Aliases", ClojureColors.ALIAS),
         AttributesDescriptor("Entities//Dynamic", ClojureColors.DYNAMIC),
         AttributesDescriptor("Entities//Metadata", ClojureColors.METADATA),
         AttributesDescriptor("Entities//Reader macro", ClojureColors.READER_MACRO))

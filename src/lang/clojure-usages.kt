@@ -19,6 +19,8 @@ package org.intellij.clojure.lang.usages
 
 import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.navigation.ChooseByNameContributor
+import com.intellij.navigation.GotoClassContributor
+import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.openapi.project.Project
@@ -30,19 +32,15 @@ import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
-import com.intellij.psi.stubs.StubIndex
 import com.intellij.usageView.UsageViewTypeLocation
 import com.intellij.util.Processor
 import com.intellij.util.containers.JBIterable
+import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CLJS_CORE_PATH
 import org.intellij.clojure.ClojureConstants.CLJ_CORE_PATH
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.CTarget
-import org.intellij.clojure.psi.impl.ClojureDefinitionService
-import org.intellij.clojure.psi.stubs.DEF_INDEX_KEY
-import org.intellij.clojure.psi.stubs.KEYWORD_INDEX_KEY
-import org.intellij.clojure.psi.stubs.NS_INDEX_KEY
+import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.util.*
 import java.util.*
 
@@ -55,19 +53,19 @@ class ClojureFindUsagesProvider : FindUsagesProvider {
   override fun getHelpId(psiElement: PsiElement) = null
 
   override fun canFindUsagesFor(o: PsiElement) =
-      o is CKeyword || o is CDef || o is PomTargetPsiElement && o.target is CTarget
+      o is CKeyword || o is CList && o.def != null || o.asCTarget != null
 
   override fun getType(o: PsiElement) = when (o) {
     is CKeyword -> "keyword"
-    is CDef -> "(${o.def.type})"
-    is PomTargetPsiElement -> (o.target as CTarget).key.run { if (namespace == "") type else "($type)" }
+    is CList -> "(${o.def?.type})"
+    is PomTargetPsiElement -> o.asCTarget!!.key.run { if (namespace == "") type else "($type)" }
     else -> ""
   }
 
   override fun getNodeText(o: PsiElement, useFullName: Boolean) = when (o) {
     is CKeyword -> o.name
-    is CDef -> o.def.name
-    is PomTargetPsiElement -> (o.target as CTarget).name
+    is CList -> o.def?.name ?: "null"
+    is PomTargetPsiElement -> o.asCTarget!!.name
     else -> ""
   }
 }
@@ -77,8 +75,8 @@ class ClojureElementDescriptionProvider : ElementDescriptionProvider {
     if (location == UsageViewTypeLocation.INSTANCE) {
       return when (element) {
         is CKeyword -> "keyword"
-        is CDef -> "(${element.def.type})"
-        is PomTargetPsiElement -> (element.target as? CTarget)?.key?.run { if (namespace == "") type else "($type)" }
+        is CList -> "(${element.def?.type})"
+        is PomTargetPsiElement -> element.asCTarget?.key?.run { if (namespace == "") type else "($type)" }
         else -> null
       }
     }
@@ -86,22 +84,35 @@ class ClojureElementDescriptionProvider : ElementDescriptionProvider {
   }
 }
 
-class ClojureGotoSymbolContributor : ChooseByNameContributor {
+class ClojureGotoSymbolContributor : ChooseByNameContributor, GotoClassContributor {
+
+  private val indices = arrayOf(DEF_FQN_INDEX to "def", NS_INDEX to "ns", KEYWORD_FQN_INDEX to "keyword")
+
   override fun getItemsByName(name: String, pattern: String?, project: Project, includeNonProjectItems: Boolean): Array<NavigatablePsiElement> {
-    val scope = if (!includeNonProjectItems) GlobalSearchScope.projectScope(project) else null
-    val elements = JBIterable.empty<NavigatablePsiElement>()
-        .append(StubIndex.getElements(DEF_INDEX_KEY, name, project, scope, CDef::class.java))
-        .append(StubIndex.getElements(NS_INDEX_KEY, name, project, scope, CFile::class.java))
-        .append(StubIndex.getElements(KEYWORD_INDEX_KEY, name, project, scope, CKeyword::class.java).firstOrNull())
-    return elements.toList().toTypedArray()
+      val scope =
+          if (!includeNonProjectItems) GlobalSearchScope.projectScope(project)
+          else ClojureDefinitionService.getClojureSearchScope(project)
+    val idx = name.indexOf('/')
+    val namespace = if (idx > 0) name.substring(0, idx) else ""
+    val shortName = name.substring(idx + 1)
+
+    return indices.map { it.second to FileBasedIndex.getInstance().getContainingFiles(it.first, name, scope) }.
+        flatMap { (type, files) ->
+          (if (type == "keyword") files.jbIt().take(1) else files.jbIt()).map { file ->
+            wrapWithNavigationElement(project, SymKey(shortName, namespace, type), file)
+          }
+        }.toTypedArray()
   }
 
-  override fun getNames(project: Project, includeNonProjectItems: Boolean): Array<String> = StubIndex.getInstance().let {
-    JBIterable.from(it.getAllKeys<String>(DEF_INDEX_KEY, project))
-        .append(it.getAllKeys<String>(NS_INDEX_KEY, project))
-        .append(it.getAllKeys<String>(KEYWORD_INDEX_KEY, project))
-        .toList().toTypedArray()
+  override fun getNames(project: Project, includeNonProjectItems: Boolean): Array<String> {
+    return indices.flatMap { FileBasedIndex.getInstance().getAllKeys(it.first, project).jbIt() }.toTypedArray()
   }
+
+  override fun getQualifiedName(item: NavigationItem?): String? {
+    return ((item as? PomTargetPsiElement)?.target as? XTarget)?.key?.qualifiedName
+  }
+
+  override fun getQualifiedNameSeparator() = "/"
 }
 
 class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
@@ -119,7 +130,7 @@ class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
 
 class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
   override fun processQuery(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<PsiReference>) {
-    val targetKey = ((queryParameters.elementToSearch as? PomTargetPsiElement)?.target as? CTarget)?.key ?: return
+    val targetKey = queryParameters.elementToSearch.asCTarget?.key ?: return
     if (targetKey.type == "keyword" && (targetKey.name == "keys" || targetKey.name == "syms")) return
     val keyName = if (targetKey.type == "keyword") "keys" else "syms"
     val project = queryParameters.elementToSearch.project

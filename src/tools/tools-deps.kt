@@ -49,12 +49,8 @@ import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.io.SafeFileOutputStream
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.parser.ClojureLexer
-import org.intellij.clojure.parser.ClojureTokens.wsOrComment
 import org.intellij.clojure.psi.ClojureTypes
-import org.intellij.clojure.util.iterate
-import org.intellij.clojure.util.jbIt
-import org.intellij.clojure.util.notNulls
-import org.intellij.clojure.util.toIoFile
+import org.intellij.clojure.util.*
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
@@ -202,7 +198,7 @@ private fun gavToJar(gav: String) : VirtualFile? {
   while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_SYM) lexer.advance()
   if (lexer.tokenType != ClojureTypes.C_SYM) return null
   val i1 = lexer.tokenStart
-  while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_STRING && !wsOrComment(lexer.tokenType)) lexer.advance()
+  while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_STRING && !lexer.tokenType.wsOrComment()) lexer.advance()
   val artifact = gav.substring(i1, lexer.tokenStart)
   while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_STRING) lexer.advance()
   val version = if (lexer.tokenType == ClojureTypes.C_STRING) lexer.tokenText.trim('\"') else ""

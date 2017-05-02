@@ -19,7 +19,6 @@ package org.intellij.clojure.lang.usages
 
 import com.intellij.ide.util.treeView.AbstractTreeStructure
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.slicer.*
@@ -41,10 +40,11 @@ class ClojureSliceSupportProvider : SliceLanguageSupportProvider {
   override fun getExpressionAtCaret(atCaret: PsiElement, dataFlowToThis: Boolean) =
       (atCaret.thisForm as? CSForm)?.let {
         when (it) {
-          is CSymbol -> it.let { sym -> (sym.reference.resolve() as? PomTargetPsiElement)?.let {
-            if ((it.target as? CTarget)?.key?.type?.let { it == "let-binding" || it == "argument"} ?: false) it
+          is CSymbol -> it.let { sym ->
+            val type = sym.reference.resolve().asCTarget?.key?.type
+            if (type?.let { it == "let-binding" || it == "argument"} ?: false) it
             else null
-          } }
+          }
           else -> if (dataFlowToThis) null else it
         }}
 
@@ -59,7 +59,7 @@ class ClojureSliceSupportProvider : SliceLanguageSupportProvider {
       }
       append(FontUtil.spaceAndThinSpace())
       append("in ", SimpleTextAttributes.GRAY_ATTRIBUTES)
-      val def = (usage.element.parents().filter(CForm::class).last() as? CDef)?.def
+      val def = usage.element.parents().filter(CForm::class).last().asDef?.def
       if (def != null) {
         append(def.type, SimpleTextAttributes.GRAY_ATTRIBUTES)
         append(" " + def.name + " ")
@@ -103,7 +103,7 @@ class ClojureSliceUsage : SliceUsage {
           }
         }
         else -> {
-          val def = list.first?.reference?.resolve()?.navigationElement as? CDef ?: return
+          val def = list.first?.reference?.resolve()?.navigationElement.asDef ?: return
           val argIndex = list.childForms.indexOf(element) - 1
           if (argIndex < 0) return
           val argCount = list.childForms.size() - 1
@@ -132,7 +132,7 @@ class ClojureSliceUsage : SliceUsage {
       return
     }
     val list = element.parents().filter(CList::class).filter { it.iterate(CReaderMacro::class).isEmpty }.transform {
-      if (it.parent is CDef && it.childForms.first() is CVec) it.parent as CDef else it
+      if (it.parent.role == Role.DEF && it.childForms.first() is CVec) it.parent.asDef else it
     }.first() ?: return
     val type = listType(list) ?: return
     when {
@@ -143,7 +143,7 @@ class ClojureSliceUsage : SliceUsage {
         }
       }
       else -> {
-        val def = list as? CDef ?: return
+        val def = list.asDef ?: return
         val vec = element.parents().takeWhile { it != def }.filter(CVec::class).last() ?: return
         val partition = vec.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
         val argIndex = partition.flatten { it }.indexOf { it.isAncestorOf(element) }
@@ -155,7 +155,8 @@ class ClojureSliceUsage : SliceUsage {
           val partition1 = vec1.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
           otherSizes.set(partition1[0]?.size() ?: continue)
         }
-        ReferencesSearch.search(def, params.scope.toSearchScope()).forEach { usage ->
+        val usageTarget = ClojureDefinitionService.getInstance(def.project).getDefinition(def)
+        ReferencesSearch.search(usageTarget, params.scope.toSearchScope()).forEach { usage ->
           usage.element.parents().filter(CList::class).first()?.let { list ->
             if (list.first.let { it == usage.element || it?.name == "." && it == usage.element.parent }) {
               val params = list.childForms.skip(1)

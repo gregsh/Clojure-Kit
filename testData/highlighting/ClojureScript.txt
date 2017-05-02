@@ -1,10 +1,9 @@
-/cljs/analyzer.cljc                      0 errors, 20 warnings
+/cljs/analyzer.cljc                      0 errors, 19 warnings
       1981: unable to resolve 'cljs.tagged_literals'
       2002: unable to resolve 'JSValue'
       16740: unable to resolve 'vm'
       16803: unable to resolve 'vm'
       16843: unable to resolve 'vm'
-      17273: unable to resolve 'load-file'
       98158: unable to resolve 'JSValue'
       100490: unable to resolve '*alias-map*'
       100513: unable to resolve '*alias-map*'
@@ -37,15 +36,20 @@
       43293: unable to resolve '*alias-map*'
 /cljs/compiler/api.clj                   0 errors, 0 warnings
 /cljs/compiler/macros.clj                0 errors, 0 warnings
-/cljs/core.cljc                          0 errors, 4 warnings
+/cljs/core.cljc                          0 errors, 6 warnings
+      1982: unable to resolve 'unchecked-divide'
+      5112: unable to resolve 'clojure.core'
       59263: unable to resolve 'parts'
       59405: unable to resolve 'parts'
       59559: unable to resolve 'parts'
       83541: unable to resolve 'IllegalArgumentException'
-/cljs/core.cljs                          0 errors, 7 warnings
+/cljs/core.cljs                          0 errors, 10 warnings
       31371: unable to resolve 'cljs.core.Var'
-      72928: unable to resolve 'append'
-      86717: unable to resolve 'push'
+      93562: unable to resolve 'apply-to'
+      93910: unable to resolve 'apply-to'
+      94271: unable to resolve 'apply-to'
+      94636: unable to resolve 'apply-to'
+      95036: unable to resolve 'apply-to'
       236917: unable to resolve 'i'
       236931: unable to resolve 'res'
       236977: unable to resolve 'res'
@@ -133,9 +137,7 @@
       109425: unable to resolve 'aseq'
       109454: unable to resolve 'aseq'
       109548: unable to resolve 'aseq'
-/cljs/reader.cljs                        0 errors, 3 warnings
-      8964: unable to resolve 'toString'
-      11170: unable to resolve 'substring'
+/cljs/reader.cljs                        0 errors, 1 warnings
       17598: unable to resolve 'cljs.core.PersistentQueue.EMPTY'
 /cljs/repl.cljc                          0 errors, 27 warnings
       2524: unable to resolve 'read-char'
@@ -167,11 +169,9 @@
       51430: unable to resolve 'read'
 /cljs/repl.cljs                          0 errors, 0 warnings
 /cljs/repl/browser.clj                   0 errors, 0 warnings
-/cljs/repl/nashorn.clj                   0 errors, 1 warnings
-      6358: unable to resolve 'NashornException'
-/cljs/repl/node.clj                      0 errors, 2 warnings
+/cljs/repl/nashorn.clj                   0 errors, 0 warnings
+/cljs/repl/node.clj                      0 errors, 1 warnings
       1955: unable to resolve 'read-str'
-      4008: unable to resolve 'start'
 /cljs/repl/reflect.clj                   0 errors, 0 warnings
 /cljs/repl/rhino.clj                     0 errors, 1 warnings
       6743: unable to resolve 'unwrap'
@@ -196,8 +196,7 @@
 /cljs/util.cljc                          0 errors, 0 warnings
 /clojure/browser/dom.cljs                0 errors, 0 warnings
 /clojure/browser/event.cljs              0 errors, 0 warnings
-/clojure/browser/net.cljs                0 errors, 2 warnings
-      4767: unable to resolve 'toLowerCase'
+/clojure/browser/net.cljs                0 errors, 1 warnings
       4831: unable to resolve 'WebSocket.EventType'
 /clojure/browser/repl.cljs               0 errors, 4 warnings
       5232: unable to resolve 'script'
@@ -208,11 +207,7 @@
 /clojure/data.cljs                       0 errors, 0 warnings
 /clojure/reflect.cljs                    0 errors, 0 warnings
 /clojure/set.cljs                        0 errors, 0 warnings
-/clojure/string.cljs                     0 errors, 4 warnings
-      2148: unable to resolve 'append'
-      2332: unable to resolve 'append'
-      2446: unable to resolve 'append'
-      5845: unable to resolve 'toString'
+/clojure/string.cljs                     0 errors, 0 warnings
 /clojure/walk.cljs                       0 errors, 0 warnings
 /clojure/zip.cljs                        0 errors, 0 warnings
-Total: 164 warnings in 53 files (1.19M chars)
+Total: 159 warnings in 53 files (1.19M chars)

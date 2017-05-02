@@ -21,7 +21,6 @@ import com.intellij.codeInspection.*
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
 import org.intellij.clojure.ClojureConstants
-import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.tools.Tool
@@ -61,15 +60,15 @@ class ClojureResolveInspection : LocalInspectionTool() {
         val qualifier = reference.qualifier?.apply {
           if (this.reference?.resolve() == null) return }
 
-        val language = (holder.file as CFileImpl).placeLanguage(o)
-        val isCljS = language == ClojureScriptLanguage
+        val langKind = (holder.file as CFileImpl).placeLanguage(o)
+        val isCljS = langKind == LangKind.CLJS
 
         if (resolve != null) return
         if (qualifier == null && !isCljS && ClojureConstants.TYPE_META_ALIASES.contains(o.name)) return
         if (qualifier == null && isCljS && ClojureConstants.CLJS_TYPES.contains(o.name)) return
         if (o.parent is CSymbol && o.parent.parent is CKeyword) return
         val quotesAndComments = o.parents().filter { it is CMetadata
-            || it is CForm && it !is CReaderCondImpl && it.findChild(CReaderMacro::class) != null
+            || it is CForm && it.role != Role.RCOND && it.findChild(CReaderMacro::class) != null
             || it is CList && it.first.resolveInfo().matches(ClojureDefinitionService.COMMENT_SYM)
         }.first()
         if (quotesAndComments != null) return

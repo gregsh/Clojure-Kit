@@ -21,7 +21,6 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.util.text.StringUtil.escapeToRegexp
 import com.intellij.openapi.util.text.StringUtil.nullize
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.psi.codeStyle.CodeStyleSettings
 import com.intellij.psi.codeStyle.CodeStyleSettingsManager
 import com.intellij.psi.codeStyle.LanguageCodeStyleSettingsProvider
 import com.intellij.testFramework.ParsingTestCase
@@ -40,11 +39,10 @@ class ClojureFormatterTest : LightPlatformCodeInsightFixtureTestCase() {
   override fun getTestDataPath() = "$TEST_DATA_PATH/formatter"
 
   val settingsManager: CodeStyleSettingsManager get() = CodeStyleSettingsManager.getInstance(project)
-  val tmpSettings: CodeStyleSettings get() = settingsManager.temporarySettings
 
   override fun setUp() {
     super.setUp()
-    settingsManager.run { temporarySettings = currentSettings.clone() }
+    settingsManager.run { setTemporarySettings(currentSettings.clone()) }
   }
 
   override fun tearDown() {
@@ -89,6 +87,7 @@ class ClojureFormatterTest : LightPlatformCodeInsightFixtureTestCase() {
   }
 
   fun evaluate(script : String) {
+    val tmpSettings = settingsManager.currentSettings
     val common = tmpSettings.getCommonSettings(ClojureLanguage)
     val custom = tmpSettings.getCustomSettings(ClojureCodeStyleSettings::class.java)
     val binding = Binding(mutableMapOf(

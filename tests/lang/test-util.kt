@@ -31,9 +31,9 @@ import java.nio.file.*
  */
 val TEST_DATA_PATH = FileUtil.toSystemIndependentName(File("testData").absolutePath)
 
-private val CLJ_LIB_FS = resourceFs(ClojureConstants.CLJ_CORE_PATH)
-private val CLJS_LIB_FS = resourceFs(ClojureConstants.CLJS_CORE_PATH)
-private val KNOWN_LIB_FS = resourceFsn(ClojureConstants.LEIN_PROJECT_CLJ)
+val CLJ_LIB_FS = resourceFs(ClojureConstants.CLJ_CORE_PATH)
+val CLJS_LIB_FS = resourceFs(ClojureConstants.CLJS_CORE_PATH)
+val KNOWN_LIB_FS = resourceFsn(ClojureConstants.LEIN_PROJECT_CLJ)
 
 fun walkClojureLang(block: (Path, String) -> Unit) = walkFs(CLJ_LIB_FS, block)
 fun walkClojureScriptLang(block: (Path, String) -> Unit) = walkFs(CLJS_LIB_FS, block)
@@ -45,7 +45,8 @@ fun resourceFs(resource: String) = ClojureLanguage.javaClass.getResource(resourc
 fun resourceFsn(resource: String) = ClojureLanguage.javaClass.classLoader.getResources(resource)
     .asSequence().sortedBy { it.file }.map { FileSystems.newFileSystem(it.toURI(), emptyMap<String, Any>()) }.toList()
 
-fun walkFs(fs: FileSystem, block: (Path, String) -> Unit) = Files.walk(fs.getPath("/"))
+fun walkFs(fs: FileSystem, block: (Path, String) -> Unit) = walkFs(fs, "/", block)
+fun walkFs(fs: FileSystem, root: String, block: (Path, String) -> Unit) = Files.walk(fs.getPath(root))
     .filter { FileUtilRt.getExtension(it.fileName?.toString() ?: "").startsWith("clj") }
     .sorted()
     .forEach {

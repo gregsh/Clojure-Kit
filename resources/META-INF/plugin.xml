@@ -67,10 +67,14 @@
     <codeInsight.parameterInfo language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInfoProvider"/>
     <codeInsight.parameterNameHints language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInlayHintsHandler"/>
 
+    <filetype.stubBuilder filetype="Clojure" implementationClass="org.intellij.clojure.psi.stubs.ClojureStubBuilder"/>
+    <stubElementTypeHolder class="org.intellij.clojure.psi.stubs.ClojureStubBuilder"/>
+
+    <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureNSIndex"/>
     <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureDefIndex"/>
-    <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureNSIndex"/>
-    <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureDefsIndex"/>
-    <stubIndex implementation="org.intellij.clojure.psi.stubs.ClojureKeywordIndex"/>
+    <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureDefFqnIndex"/>
+    <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureKeywordIndex"/>
+    <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureKeywordFqnIndex"/>
     <additionalLibraryRootsProvider implementation="org.intellij.clojure.lang.usages.ClojureLibraryRootsProvider"/>
     <gotoSymbolContributor implementation="org.intellij.clojure.lang.usages.ClojureGotoSymbolContributor"/>
     <lang.findUsagesProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureFindUsagesProvider"/>

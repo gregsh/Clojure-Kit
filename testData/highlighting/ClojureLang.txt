@@ -17,8 +17,7 @@
       5874: unable to resolve 'repl-requires'
 /clojure/core_deftype.clj                0 errors, 0 warnings
 /clojure/core_print.clj                  0 errors, 0 warnings
-/clojure/core_proxy.clj                  0 errors, 4 warnings
-      3488: unable to resolve 'getDeclaringClass'
+/clojure/core_proxy.clj                  0 errors, 3 warnings
       3507: unable to resolve 'isInterface'
       10625: unable to resolve 'getModifiers'
       18526: unable to resolve 'getPropertyDescriptors'
@@ -57,13 +56,11 @@
 /clojure/instant.clj                     0 errors, 0 warnings
 /clojure/java/browse.clj                 0 errors, 1 warnings
       729: unable to resolve 'toLowerCase'
-/clojure/java/browse_ui.clj              0 errors, 1 warnings
-      1120: unable to resolve 'getDocument'
+/clojure/java/browse_ui.clj              0 errors, 0 warnings
 /clojure/java/io.clj                     0 errors, 2 warnings
       12621: unable to resolve 'getChannel'
       12681: unable to resolve 'getChannel'
-/clojure/java/javadoc.clj                0 errors, 1 warnings
-      2499: unable to resolve 'toURI'
+/clojure/java/javadoc.clj                0 errors, 0 warnings
 /clojure/java/shell.clj                  0 errors, 0 warnings
 /clojure/main.clj                        0 errors, 1 warnings
       5931: unable to resolve 'getSimpleName'
@@ -189,4 +186,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings
 /clojure/xml.clj                         0 errors, 0 warnings
 /clojure/zip.clj                         0 errors, 0 warnings
-Total: 149 warnings in 42 files (715.68K chars)
+Total: 146 warnings in 42 files (715.68K chars)

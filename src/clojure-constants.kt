@@ -47,7 +47,7 @@ object ClojureConstants {
     monitor-enter monitor-exit
     . new set!
      fn* let* loop* letfn* case* import* reify* deftype*
-    in-ns
+    in-ns load-file
     """.trim()).toSet()
 
   @JvmStatic val CONTROL_SYMBOLS = "\\s+".toRegex().split("""
@@ -65,7 +65,7 @@ object ClojureConstants {
   @JvmStatic val DEF_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
     def defn defn- defmacro defonce deftype defrecord defstruct defmethod defmulti defprotocol
     def-aset definline definterface
-    define defcurried deftype* defrecord*
+    define defcurried deftype* defrecord* create-ns
     """.trim()).toSet()
 
   @JvmStatic val FN_ALIKE_SYMBOLS = "\\s+".toRegex().split("""fn fn* rfn""").toSet()
@@ -78,7 +78,7 @@ object ClojureConstants {
     """.trim()).toSet()
 
   @JvmStatic val NS_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
-    ns in-ns create-ns import require require-macros use refer refer-clojure alias
+    ns in-ns import require require-macros use refer refer-clojure alias
     """.trim()).toSet()
 
   @JvmStatic val TYPE_META_ALIASES = "\\s+".toRegex().split("""
@@ -86,7 +86,6 @@ object ClojureConstants {
      boolean booleans byte bytes char chars objects
     """.trim()).toSet()
 
-  @JvmStatic val TYPE_PROTOCOL_METHOD = "protocol method"
   @JvmStatic val LEIN_PROJECT_CLJ = "project.clj"
   @JvmStatic val BOOT_BUILD_BOOT = "build.boot"
 
@@ -127,9 +126,12 @@ object ClojureIcons {
   @JvmStatic val METHOD = AllIcons.Nodes.Method
 }
 
-fun getIconForType(type: String): Icon = when {
-  type.startsWith("defn") -> ClojureIcons.DEFN
+fun getIconForType(type: String): Icon? = when {
+  type == "keyword" -> null
+  type == "ns" -> ClojureIcons.NAMESPACE
+  type.startsWith("def") -> ClojureIcons.DEFN
   type == "defmacro" -> ClojureIcons.MACRO
+  type == "method" -> ClojureIcons.METHOD
   ClojureConstants.NS_ALIKE_SYMBOLS.contains(type) -> ClojureIcons.NAMESPACE
   else -> ClojureIcons.SYMBOL
 }

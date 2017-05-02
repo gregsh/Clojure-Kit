@@ -30,8 +30,9 @@ import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.lang.ClojureLanguage
+import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.CReaderCondImpl
+import org.intellij.clojure.psi.impl.CComposite
 import java.util.*
 import kotlin.reflect.KClass
 
@@ -45,14 +46,19 @@ inline fun <reified T : Any> Any?.forceCast(): T? = this as? T
 fun <E> E.isIn(c: Collection<E>) = c.contains(this)
 fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
 fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
+fun <E: Any> E?.asListOrEmpty() = if (this == null) emptyList<E>() else listOf(this)
 
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
-fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getStubOrPsiParentOfType(this, c.java)
+fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getParentOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findChild(c: KClass<T>) = PsiTreeUtil.getChildOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findNext(c: KClass<T>) = PsiTreeUtil.getNextSiblingOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findPrev(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
 
+val PsiElement?.role : Role get() = (this as? CElement)?.role ?: Role.NONE
+val PsiElement?.asDef : CList? get() = if (role == Role.DEF) this as? CList else null
+
 val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
+val PsiElement?.deepFirst: PsiElement? get() = if (this == null) null else PsiTreeUtil.getDeepestFirst(this)
 val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
 val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
 val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
@@ -61,10 +67,17 @@ val PsiElement?.thisForm: CForm? get() = (this as? CForm ?: findParent(CForm::cl
 val PsiElement?.parentForm: CForm? get() = thisForm.findParent(CForm::class)
 val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm })
 val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)
+fun IElementType?.wsOrComment() = this != null && (ClojureTokens.WHITESPACES.contains(this) || ClojureTokens.COMMENTS.contains(this))
 
+fun PsiElement?.findChild(role: Role) = iterate().find { (it as? CElement)?.role == role }
 fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi
 fun PsiElement?.findNext(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi
 fun PsiElement?.findPrev(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi
+
+val IDef.qualifiedName: String
+  get() = name.withNamespace(namespace)
+fun String.withNamespace(namespace: String) = if (namespace.isEmpty()) this else "$namespace/$this"
+fun String.withPackage(packageName: String) = if (packageName.isEmpty()) this else "$packageName.$this"
 
 fun VirtualFile.toIoFile() = VfsUtil.virtualToIoFile(this)
 
@@ -73,10 +86,16 @@ fun <T> JBIterable<T?>.notNulls(): JBIterable<T> = filter { it != null } as JBIt
 fun <T: Any, E: Any> JBIterable<T>.filter(c : KClass<E>) = filter(c.java)
 
 fun ASTNode?.iterate(): JBIterable<ASTNode> =
-    if (this == null) JBIterable.empty() else cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
+    if (this == null) JBIterable.empty() else cljNodeTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
+
+fun CComposite?.iterate(): JBIterable<PsiElement> = (this as PsiElement?).iterate()
 
 fun PsiElement?.iterate(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
+    if (this == null) JBIterable.empty()
+    else if (this is CFile) cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
+    else firstChild?.siblings() ?: JBIterable.empty()
+fun <E> SyntaxTraverser<E>.iterate(e: E) = withRoot(e).expandAndSkip(Conditions.equalTo(e)).traverse()
+fun <T> Iterator<T>.safeNext(): T? = if (hasNext()) next() else null
 
 fun <T: Any> PsiElement?.iterate(c: KClass<T>): JBIterable<T> = iterate().filter(c)
 
@@ -89,34 +108,41 @@ fun PsiElement?.siblings(): JBIterable<PsiElement> =
 fun PsiElement?.parents(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else SyntaxTraverser.psiApi().parents(this)
 
-fun cljTraverser(): SyntaxTraverser<PsiElement> = SyntaxTraverser.psiTraverser()
+fun _cljTraverser(): SyntaxTraverser<PsiElement> = SyntaxTraverser.psiTraverser()
     .forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
 
-fun cljNodeTraverser(): SyntaxTraverser<ASTNode> = SyntaxTraverser.astTraverser()
+fun _cljNodeTraverser(): SyntaxTraverser<ASTNode> = SyntaxTraverser.astTraverser()
     .forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
 
 fun cljLightTraverser(text: CharSequence,
                       language: Language = ClojureLanguage,
                       forcedRootType: IElementType? = null): SyntaxTraverser<LighterASTNode> {
+  val builder = parseTextLight(language, text, forcedRootType)
+  return SyntaxTraverser.lightTraverser(builder).forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
+}
+
+private fun parseTextLight(language: Language, text: CharSequence, forcedRootType: IElementType?): PsiBuilder {
   val parserDefinition = LanguageParserDefinitions.INSTANCE.forLanguage(language)
   val lexer = parserDefinition.createLexer(null)
   val parser = parserDefinition.createParser(null) as LightPsiParser
   val builder = PsiBuilderFactory.getInstance().createBuilder(parserDefinition, lexer, text)
   parser.parseLight(forcedRootType ?: parserDefinition.fileNodeType, builder)
-  return SyntaxTraverser.lightTraverser(builder).forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
+  return builder
 }
 
+fun PsiElement?.cljTraverser(): SyntaxTraverser<PsiElement> = org.intellij.clojure.util._cljTraverser().withRoot(this)
+fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverser().forceDisregard { e ->
+  (e as? CElement)?.role.let { r ->
+    r == Role.RCOND || r == Role.RCOND_S || e.parent.role.let { pr ->
+      pr == Role.RCOND_S && e.prevForm is CKeyword }
+  }
+}.forceIgnore { e -> e.parentForm?.role == Role.RCOND && e.prevForm !is CKeyword }
 
-fun PsiElement?.cljTraverser(): SyntaxTraverser<PsiElement> = org.intellij.clojure.util.cljTraverser().withRoot(this)
-fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverser().forceDisregard {
-  it is CReaderCondImpl || it is CPForm && (it.parent as? CReaderCondImpl)?.splicing ?: false
-}.forceIgnore { it.parent is CReaderCondImpl && (it !is CForm || it is CKeyword) }
+fun ASTNode?.cljNodeTraverser(): SyntaxTraverser<ASTNode> = org.intellij.clojure.util._cljNodeTraverser().withRoot(this)
 
-fun PsiElement?.cljTopLevelTraverser(): SyntaxTraverser<PsiElement> = cljTraverserRCAware().expand { it !is CForm || it is CReaderCondImpl }
-
-fun ASTNode?.cljTraverser(): SyntaxTraverser<ASTNode> = org.intellij.clojure.util.cljNodeTraverser().withRoot(this)
-
-fun PsiElement?.listOrVec(): CPForm? = this as? CList ?: this as? CVec
+fun PsiElement?.formPrefix(): JBIterable<CElement> = iterate()
+    .takeWhile { it is CMetadata || it is CReaderMacro || it.elementType.wsOrComment() }
+    .filter(CElement::class)
 
 val PsiElement.valueRange: TextRange get() = firstChild.siblings()
       .skipWhile { it is CReaderMacro || it is CMetadata || (it !is CToken && it !is CForm) }

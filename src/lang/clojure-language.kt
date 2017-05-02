@@ -36,7 +36,7 @@ import com.intellij.psi.tree.IFileElementType
 import com.intellij.psi.tree.TokenSet
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
-import org.intellij.clojure.psi.ClojureTypes
+import org.intellij.clojure.psi.ClojureTypes.*
 
 /**
  * @author gregsh
@@ -73,8 +73,8 @@ class ClojureBraceMatcher : PairedBraceMatcher {
   override fun getCodeConstructStart(file: PsiFile, openingBraceOffset: Int) = openingBraceOffset
   override fun isPairedBracesAllowedBeforeType(lbraceType: IElementType, tokenType: IElementType?) =
       tokenType == null || ClojureTokens.WHITESPACES.contains(tokenType) || ClojureTokens.COMMENTS.contains(tokenType)
-          || tokenType === ClojureTypes.C_COMMA || tokenType === ClojureTypes.C_PAREN2
-          || tokenType === ClojureTypes.C_BRACE2 || tokenType === ClojureTypes.C_BRACKET2
+          || tokenType === C_COMMA || tokenType === C_PAREN2
+          || tokenType === C_BRACE2 || tokenType === C_BRACKET2
 }
 
 class ClojureLiveTemplateContext : FileTypeBasedContextType("Clojure", "Clojure", ClojureFileType)
@@ -90,26 +90,24 @@ object ClojureTokens {
 
   @JvmField val LINE_COMMENT = IElementType("C_LINE_COMMENT", ClojureLanguage)
 
-  @JvmField val WHITESPACES = TokenSet.create(ClojureTypes.C_COMMA, TokenType.WHITE_SPACE)
+  @JvmField val WHITESPACES = TokenSet.create(C_COMMA, TokenType.WHITE_SPACE)
   @JvmField val COMMENTS = TokenSet.create(LINE_COMMENT)
-  @JvmField val STRINGS = TokenSet.create(ClojureTypes.C_STRING, ClojureTypes.C_STRING_UNCLOSED)
+  @JvmField val STRINGS = TokenSet.create(C_STRING, C_STRING_UNCLOSED)
 
-  @JvmField val SHARPS = TokenSet.create(ClojureTypes.C_SHARP, ClojureTypes.C_SHARP_COMMENT, ClojureTypes.C_SHARP_QMARK, ClojureTypes.C_SHARP_QMARK_AT, ClojureTypes.C_SHARP_EQ, ClojureTypes.C_SHARP_HAT, ClojureTypes.C_SHARP_QUOTE)
-  @JvmField val MACROS = TokenSet.orSet(SHARPS, TokenSet.create(ClojureTypes.C_AT, ClojureTypes.C_COLON, ClojureTypes.C_COLONCOLON, ClojureTypes.C_HAT, ClojureTypes.C_SYNTAX_QUOTE, ClojureTypes.C_TILDE))
+  @JvmField val SHARPS = TokenSet.create(C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_QUOTE)
+  @JvmField val MACROS = TokenSet.orSet(SHARPS, TokenSet.create(C_AT, C_COLON, C_COLONCOLON, C_HAT, C_SYNTAX_QUOTE, C_TILDE))
 
-  @JvmField val PAREN1_ALIKE = TokenSet.create(ClojureTypes.C_PAREN1, ClojureTypes.C_BRACE1, ClojureTypes.C_BRACKET1)
-  @JvmField val PAREN2_ALIKE = TokenSet.create(ClojureTypes.C_PAREN2, ClojureTypes.C_BRACE2, ClojureTypes.C_BRACKET2)
+  @JvmField val PAREN1_ALIKE = TokenSet.create(C_PAREN1, C_BRACE1, C_BRACKET1)
+  @JvmField val PAREN2_ALIKE = TokenSet.create(C_PAREN2, C_BRACE2, C_BRACKET2)
   @JvmField val PAREN_ALIKE = TokenSet.orSet(PAREN1_ALIKE, PAREN2_ALIKE)
-  @JvmField val LIST_ALIKE = TokenSet.create(ClojureTypes.C_FUN, ClojureTypes.C_LIST, ClojureTypes.C_MAP, ClojureTypes.C_SET, ClojureTypes.C_VEC)
+  @JvmField val LIST_ALIKE = TokenSet.create(C_FUN, C_LIST, C_MAP, C_SET, C_VEC)
 
-  @JvmField val FORMS = TokenSet.create(ClojureTypes.C_CONSTRUCTOR, ClojureTypes.C_FORM, ClojureTypes.C_FUN, ClojureTypes.C_KEYWORD,
-      ClojureTypes.C_LIST, ClojureTypes.C_LITERAL, ClojureTypes.C_MAP, ClojureTypes.C_REGEXP,
-      ClojureTypes.C_SET, ClojureTypes.C_SYMBOL, ClojureTypes.C_VEC)
-
-  @JvmStatic fun wsOrComment(t: IElementType?) = t != null && (WHITESPACES.contains(t) || COMMENTS.contains(t))
+  @JvmField val FORMS = TokenSet.create(C_CONSTRUCTOR, C_FORM, C_FUN, C_KEYWORD,
+      C_LIST, C_LITERAL, C_MAP, C_REGEXP,
+      C_SET, C_SYMBOL, C_VEC)
 
   @JvmField val BRACE_PAIRS = listOf(
-      BracePair(ClojureTypes.C_PAREN1, ClojureTypes.C_PAREN2, false),
-      BracePair(ClojureTypes.C_BRACE1, ClojureTypes.C_BRACE2, false),
-      BracePair(ClojureTypes.C_BRACKET1, ClojureTypes.C_BRACKET2, false))
+      BracePair(C_PAREN1, C_PAREN2, false),
+      BracePair(C_BRACE1, C_BRACE2, false),
+      BracePair(C_BRACKET1, C_BRACKET2, false))
 }

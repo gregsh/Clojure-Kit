@@ -128,7 +128,7 @@ class ClojureFormattingBlock(node: ASTNode,
     val psi = myNode.psi
     val psi1 = block1.node.psi!!
     val psi2 = child2.node.psi!!
-    if (psi !is CForm && (psi1 is CDef || psi1 is CForm && psi2 is CDef)) {
+    if (psi !is CForm && (psi1.role != Role.NONE || psi1 is CForm && psi2.role != Role.NONE)) {
       return context.newLineTop
     }
     val newLine = context.newLine
@@ -144,21 +144,23 @@ class ClojureFormattingBlock(node: ASTNode,
     }
     if (block2.sequenceIndex > 0 && !ClojureTokens.PAREN_ALIKE.contains(child2.node.elementType)) {
       val spaceIfShort = if (block1.textRange.length <= context.SHORT_REALLY) context.spaceOnly else null
-      when (psi) {
-        is CMap -> {
+      when {
+        psi is CMap -> {
           return if (block2.alignment == childAlignment && textRange.length > context.SHORT_ENOUGH) newLine
           else spaceIfShort
         }
-        is CDef -> when {
-          psi.def.type == "ns" -> if (block2.sequenceIndex > 1) return newLine
-          psi.def.type.startsWith("def") -> return if (psi2 is CVec) null
-          else if (block2.textRange.length < context.SHORT_ENOUGH) dependentSpacing3()
-          else newLine
+        psi.role == Role.NS -> when {
+          (psi as? CList)?.def?.type == "ns" -> if (block2.sequenceIndex > 1) return newLine
           else -> return newLine
         }
-        is CVec -> {
+        psi.role == Role.DEF -> {
+          if (psi2 is CVec) return null
+          else if (block2.textRange.length < context.SHORT_ENOUGH) dependentSpacing3()
+          else return newLine
+        }
+        psi is CVec -> {
           val parent = psi.parent.run { if (findChild(CForm::class) == psi) parent else this }
-          if (parent is CDef) return null
+          if (parent.role == Role.DEF) return null
           else (parent as? CList)?.first?.name.let {
             if (it != null && ClojureConstants.FN_ALIKE_SYMBOLS.contains(it)) return null
             else if (it != null && ClojureConstants.LET_ALIKE_SYMBOLS.contains(it) && parent == psi.parent) {
@@ -166,7 +168,7 @@ class ClojureFormattingBlock(node: ASTNode,
             }
           }
         }
-        is CList -> {
+        psi is CList -> {
           val type = psi.findChild(CSForm::class)?.let { (it as? CSymbol)?.name ?: (it as? CKeyword)?.name }
           return when (type) {
             in ClojureConstants.NS_ALIKE_SYMBOLS ->
@@ -198,7 +200,7 @@ class ClojureFormattingBlock(node: ASTNode,
 
     val psi = node.psi
     val minAlignIndex = if (nodeType != C_LIST || node.firstChildNode.elementType == C_READER_MACRO) 0
-    else if (psi is CDef || psi.parents().skip(1).filter(CForm::class).isEmpty) Integer.MAX_VALUE
+    else if (psi.role == Role.DEF || psi.parents().skip(1).filter(CForm::class).isEmpty) Integer.MAX_VALUE
     else if ((psi as? CList)?.first?.name?.let {
       ClojureConstants.FN_ALIKE_SYMBOLS.contains(it) || ClojureConstants.LET_ALIKE_SYMBOLS.contains(it) } ?: false) Integer.MAX_VALUE
     else 1
@@ -207,33 +209,33 @@ class ClojureFormattingBlock(node: ASTNode,
     val mapAlign = Alignment.createAlignment(true)
     val useMapAlign: (ASTNode, Int) -> Alignment? =
         if (psi is CMap || psi is CVec && (psi.parent as? CList)?.first?.name.isIn(ClojureConstants.LET_ALIKE_SYMBOLS)) {
-          { node, index -> if (index % 2 == 1) mapAlign else childAlignment }
+          { _, index -> if (index % 2 == 1) mapAlign else childAlignment }
         }
-        else if (psi is CVec || psi is CList && psi !is CDef) {
+        else if (psi is CVec || psi is CList && psi.role != Role.DEF) {
           val type = (psi as? CList)?.first?.name
           when (type) {
             "cond", "condp", "assert-args" ->  // (cond cond1 action1 ..)
-              { node, index -> if (index > 1 && index % 2 == 0) mapAlign else childAlignment }
+              { _, index -> if (index > 1 && index % 2 == 0) mapAlign else childAlignment }
             "cond->", "cond->>" ->  // (cond-> val cond1 action1 ..)
-              { node, index -> if (index > 2 && index % 2 == 1) mapAlign else childAlignment }
+              { _, index -> if (index > 2 && index % 2 == 1) mapAlign else childAlignment }
             "case" ->  // (case x value1 action1 ..)
-              { node, index -> if (index > 1 && index % 2 == 1) mapAlign else childAlignment }
+              { _, index -> if (index > 1 && index % 2 == 1) mapAlign else childAlignment }
             else ->
               psi.childForms.filter {
                 it is CKeyword && (it.nextForm?.nextForm.let { it is CKeyword || it == null } || it.prevForm.prevForm is CKeyword)
               }.let {
                 if (it.size() > 1) {
                   val set = it.map { it.nextForm?.node }.notNulls().toSet();
-                  { node: ASTNode, index: Int -> if (set.contains(node)) mapAlign else childAlignment }
+                  { node: ASTNode, _: Int -> if (set.contains(node)) mapAlign else childAlignment }
                 }
                 else {
-                  { node, index -> childAlignment }
+                  { _, _ -> childAlignment }
                 }
               }
           }
         }
         else {
-          { node, index -> childAlignment }
+          { _, _ -> childAlignment }
         }
     return node.iterate().transform(Function<ASTNode, ClojureFormattingBlock> f@ {
       val type = it.elementType

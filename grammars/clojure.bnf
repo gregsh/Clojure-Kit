@@ -2,10 +2,7 @@
   generate=[tokenAccessors="no" psi-factory="no" psi-classes-map="yes"]
   parserClass='org.intellij.clojure.parser.ClojureParser'
   parserImports=[
-    'static org.intellij.clojure.parser.ClojureParserUtil.adapt_builder_'
-    'static org.intellij.clojure.parser.ClojureParserUtil.parseTree'
-    'static org.intellij.clojure.parser.ClojureParserUtil.nospace'
-    'static org.intellij.clojure.parser.ClojureParserUtil.formRecover'
+    'static org.intellij.clojure.parser.ClojureParserUtil.*'
   ]
   psiPackage='org.intellij.clojure.psi'
   psiImplPackage='org.intellij.clojure.psi.impl'
@@ -13,7 +10,7 @@
   psiClassPrefix='C'
   psiVisitorName='ClojureVisitor'
   implements='org.intellij.clojure.psi.CElement'
-  extends='com.intellij.psi.impl.source.tree.CompositePsiElement'
+  extends='org.intellij.clojure.psi.impl.CComposite'
   mixin("list")="org.intellij.clojure.psi.impl.CListBase"
   mixin("keyword")="org.intellij.clojure.psi.impl.CKeywordBase"
 
@@ -63,9 +60,10 @@
     slash='/'
   ]
   extends("p_form|s_form")=form
-  extends("l_form|vec|set|map|constructor")=p_form
+  extends("vec|set|map|constructor|l_form|l_v_form")=p_form
   extends("symbol|keyword|literal")=s_form
   extends("fun|list")=l_form
+  implements("vec|list")=l_v_form
   extends("regexp")=literal
   extends("symbol_.*")=symbol
   elementType("symbol_.*")=symbol
@@ -88,25 +86,26 @@ private form_prefix ::= metadata | reader_macro
 private external form_recover ::= formRecover
 
 upper form_upper ::= form_inner {elementType=form name=form}
-private form_inner ::= p_forms
-  | s_forms | constructor
+private form_inner ::= p_forms | s_forms | constructor
 private p_forms ::= list | set | vec | map | fun
 private s_forms ::= symbol | keyword | literal | regexp
 
 fake p_form ::= form * {methods=[forms="form"]}
+fake l_v_form ::=
 fake l_form ::= {methods=[getFirst]}
 fake s_form ::=
 list ::= '(' list_body ')'
+  {methods=[getTextOffset getDef]}
 set ::= '#' '{' set_body '}'
 vec ::= '[' vec_body ']'
 map ::= '{' map_body '}'
 fun ::= '#' <<nospace>> '(' list_body ')'
-symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified '.'?
+symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified [!<<space>> '.']
   {methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference]}
 keyword ::= (':' | '::') <<nospace>> symbol_qualified
   {methods=[getName getNamespace getQualifiedName getTextOffset]}
 private symbol_qualified ::= symbol_plain symbol_nsq?
-symbol_plain ::=  sym
+symbol_plain ::= sym
 left symbol_nsq ::= '/' sym
 literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char
   {methods=[getLiteralType getLiteralText]}

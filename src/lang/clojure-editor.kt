@@ -50,6 +50,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.codeStyle.CodeStyleSettingsManager
+import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.RenameInputValidator
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
@@ -59,7 +60,6 @@ import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.ui.EmptyIcon
 import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider
-import org.intellij.clojure.ClojureConstants.DEF_ALIKE_SYMBOLS
 import org.intellij.clojure.ClojureConstants.FN_ALIKE_SYMBOLS
 import org.intellij.clojure.ClojureConstants.LET_ALIKE_SYMBOLS
 import org.intellij.clojure.formatter.ClojureCodeStyleSettings
@@ -68,7 +68,8 @@ import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.listType
+import org.intellij.clojure.psi.impl.fastDef
+import org.intellij.clojure.psi.impl.fastRole
 import org.intellij.clojure.util.*
 import javax.swing.Icon
 
@@ -147,15 +148,13 @@ class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
 
   override fun acceptElement(o: PsiElement) = when (o) {
     !is CPForm -> false
-    is CDef -> true
-    is CVec -> !o.isBindingVec()
+    is CVec -> o.fastRole != Role.ARG_VEC && o.fastRole != Role.BND_VEC
     is CList -> true
     else -> false
   }
 
   override fun getElementInfo(o: PsiElement): String = when (o) {
-    is CDef -> o.def.run { "($type $name)" }
-    is CList -> o.firstForm?.let {
+    is CList -> o.fastDef?.run { "($type $name)"} ?: o.firstForm?.let {
       val first = (it as? CSymbol)?.name
       val next = it.nextForm
       when {
@@ -198,14 +197,14 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
 
     override fun getChildrenBase(): Collection<MyElement> = element.let { o ->
       when {
-        o is CFile -> o.cljTopLevelTraverser().traverse().filter(CForm::class)
-        o is CForm && o.parent !is CForm -> o.cljTraverser().traverse().filter(CDef::class)
+        o is CFile -> o.iterateRCAware().filter(CForm::class)
+        o is CForm && o.parent !is CForm -> o.cljTraverser().traverse().map { it.asDef }.notNulls()
         else -> JBIterable.empty()
       }.transform(::MyElement).toList()
     }
 
-    override fun getPresentableText() = (element as? CForm)?.let { (it as? CDef)?.def?.name ?: getFormPlaceholderText(it, LONG_TEXT_MAX) } ?: ""
-    override fun getLocationString() = (element as? CDef)?.def?.type ?: ""
+    override fun getPresentableText() = (element as? CForm)?.run { asDef?.def?.name ?: getFormPlaceholderText(this, LONG_TEXT_MAX) } ?: ""
+    override fun getLocationString() = element.asDef?.def?.type ?: ""
     override fun getLocationPrefix() = " "
     override fun getLocationSuffix() = ""
 
@@ -224,51 +223,61 @@ class ClojureFoldingBuilder : FoldingBuilderEx() {
       }
       .transform { FoldingDescriptor(it, it.textRange) }.toList().toTypedArray()
 
-  override fun isCollapsedByDefault(node: ASTNode) = node.psi.let { it is CDef && it.def.type == "ns" }
+  override fun isCollapsedByDefault(node: ASTNode) = node.psi.role == Role.NS
 }
 
 private fun getFormPlaceholderText(o: CForm, max: Int = SHORT_TEXT_MAX) = when (o) {
   is CSForm -> o.text
-  is CDef -> o.def.run { "($type ${o.nameSymbol?.qualifiedName ?: name})" }
-  is CPForm -> StringBuilder().run {
-    val iterator = o.cljTraverser()
-        .expand { it !is CMetadata }
-        .traverse(TreeTraversal.LEAVES_DFS)
-        .typedIterator<TreeTraversal.TracingIt<PsiElement>>()
-    var wsOrComment = false
-    loop@ for (part in iterator) {
-      wsOrComment = if (part is PsiWhiteSpace || part is PsiComment) true
-      else { if (wsOrComment) append(" "); false }
-      when {
-        part is PsiWhiteSpace || part is PsiComment -> Unit
-        part is CMetadata -> append("^")
-        length < max -> {
-          part.text.let { text ->
-            if (max - length + 1 >= text.length) append(text)
-            else append(text, 0, max - length).append("…")
-          }
-        }
-        else -> {
-          var first = true
-          iterator.backtrace()
-              .skip(1)
-              .transform { PsiTreeUtil.getDeepestLast(it) }
-              .filter { ClojureTokens.PAREN2_ALIKE.contains(it.elementType) }
-              .unique().forEach {
-            if (first && it !== part) { first = false; if (!endsWith("… ") && !endsWith("…")) append("…") }
-            append(it.text)
-          }
-          break@loop
-        }
-      }
-    }
-    toString()
-  }
+  is CList -> o.fastDef?.run {
+    "($type $qualifiedName)"
+  } ?: dumpElementText(o, max)
+  is CForm -> dumpElementText(o, max)
   else -> o.javaClass.simpleName ?: "???"
 }
 
-private fun CVec.isBindingVec(): Boolean = (parent as? CList)?.let {
-  listType(it).run {
-    (isIn(LET_ALIKE_SYMBOLS) || isIn(DEF_ALIKE_SYMBOLS)) } &&
-      it.iterate(CVec::class).first() == this
-} ?: false
+private fun dumpElementText(o: PsiElement, max: Int) = StringBuilder().run {
+  val iterator = o.cljTraverser()
+      .forceIgnore { it is CMetadata }
+      .traverse(TreeTraversal.LEAVES_DFS)
+      .typedIterator<TreeTraversal.TracingIt<PsiElement>>()
+  var wsOrComment = false
+  var prevType: IElementType? = null
+  loop@ for (part in iterator) {
+    wsOrComment = if (part is PsiWhiteSpace || part is PsiComment) true
+    else {
+      val curType = part.elementType
+      if (wsOrComment && prevType != ClojureTypes.C_COMMA &&
+          !ClojureTokens.PAREN1_ALIKE.contains(prevType) &&
+          !ClojureTokens.PAREN2_ALIKE.contains(curType)) {
+        append(" ")
+      }
+      prevType = curType
+      false
+    }
+    when {
+      part is PsiWhiteSpace || part is PsiComment -> Unit
+      part is CMetadata -> append("^")
+      length < max -> {
+        part.text.let { text ->
+          if (max - length + 1 >= text.length) append(text)
+          else append(text, 0, max - length).append("…")
+        }
+      }
+      else -> {
+        var first = true
+        iterator.backtrace()
+            .skip(1)
+            .transform { PsiTreeUtil.getDeepestLast(it) }
+            .filter { ClojureTokens.PAREN2_ALIKE.contains(it.elementType) }
+            .unique().forEach {
+          if (first && it !== part) {
+            first = false; if (!endsWith("… ") && !endsWith("…")) append("…")
+          }
+          append(it.text)
+        }
+        break@loop
+      }
+    }
+  }
+  toString()
+}

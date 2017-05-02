@@ -25,10 +25,10 @@ import com.intellij.psi.FileViewProvider
 import com.intellij.psi.TokenType
 import com.intellij.psi.impl.source.tree.CompositeElement
 import com.intellij.psi.tree.IElementType
-import com.intellij.psi.tree.TokenSet
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.psi.impl.CFileImpl
+import org.intellij.clojure.util.wsOrComment
 import java.lang.reflect.Constructor
 
 /**
@@ -87,19 +87,19 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
 class ClojureParserUtil {
   @Suppress("UNUSED_PARAMETER")
   companion object {
-    @JvmStatic fun adapt_builder_(root: IElementType, builder: PsiBuilder, parser: PsiParser, extendsSets: Array<TokenSet>?): PsiBuilder {
-      return GeneratedParserUtilBase.adapt_builder_(root, builder, parser, extendsSets)
-    }
-
     @JvmStatic fun parseTree(b: PsiBuilder, l: Int, p: GeneratedParserUtilBase.Parser) =
         GeneratedParserUtilBase.parseAsTree(GeneratedParserUtilBase.ErrorState.get(b), b, l, GeneratedParserUtilBase.DUMMY_BLOCK, false, p, GeneratedParserUtilBase.TRUE_CONDITION)
 
     @JvmStatic fun nospace(b: PsiBuilder, l: Int): Boolean {
-      if (ClojureTokens.WHITESPACES.contains(b.rawLookup(0))) {
+      if (space(b, l)) {
         b.mark().apply { b.tokenType; error("no <whitespace> allowed") }
             .setCustomEdgeTokenBinders(WhitespacesBinders.GREEDY_LEFT_BINDER, WhitespacesBinders.GREEDY_RIGHT_BINDER)
       }
       return true
+    }
+
+    @JvmStatic fun space(b: PsiBuilder, l: Int): Boolean {
+      return b.rawLookup(0).wsOrComment() || b.rawLookup(-1).wsOrComment()
     }
 
     @JvmStatic fun formRecover(b: PsiBuilder, l: Int) =

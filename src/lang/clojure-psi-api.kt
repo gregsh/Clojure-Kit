@@ -17,22 +17,33 @@
 
 package org.intellij.clojure.psi
 
-import com.intellij.lang.ASTNode
 import com.intellij.psi.NavigatablePsiElement
 import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiNameIdentifierOwner
-import com.intellij.psi.PsiQualifiedNamedElement
-import com.intellij.psi.impl.source.tree.CompositeElement
 import com.intellij.psi.impl.source.tree.LeafPsiElement
-import com.intellij.psi.tree.ICompositeElementType
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.ILeafElementType
 import com.intellij.util.containers.JBIterable
+import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureLanguage
 
-interface ClojureElementType : ICompositeElementType {
-  override fun createCompositeNode(): ASTNode = ClojureTreeElement(this as IElementType)
+enum class LangKind(val ns: String) {
+  CLJ(ClojureConstants.CLOJURE_CORE),
+  CLJS(ClojureConstants.CLJS_CORE),
+  CLJR(ClojureConstants.CLOJURE_CORE)
 }
+
+enum class Role {
+  NONE, DEF, NS, NAME,
+  RCOND, RCOND_S,
+  ARG_VEC, BND_VEC, FIELD_VEC, BODY,
+  ARG, BND, FIELD, PROTOTYPE
+}
+
+interface CElement : NavigatablePsiElement {
+  val role: Role
+}
+
+interface ClojureElementType
 class ClojureTokenType(name: String) : IElementType(name, ClojureLanguage), ILeafElementType {
   override fun createLeafNode(leafText: CharSequence) = CToken(this, leafText)
 }
@@ -41,34 +52,28 @@ class CToken(tokenType: ClojureTokenType, text: CharSequence) : LeafPsiElement(t
 
 interface CFile : PsiFile {
   val namespace: String
-  val definitions: JBIterable<CDef>
-  val imports: JBIterable<CList>
+
+  fun defs(dialect: LangKind = LangKind.CLJ): JBIterable<CList>
 }
 
-interface CElement : NavigatablePsiElement
-interface CNamed : CForm, PsiNameIdentifierOwner, PsiQualifiedNamedElement {
-  val def: DefInfo
-  val nameSymbol: CSymbol?
-
-  fun meta(key: String): String? = null
-
-  override fun getName(): String
-}
-
-interface CDef : CList, CNamed
-
-interface DefInfo {
+interface IDef {
   val type: String
   val name: String
   val namespace: String
 }
 
-private class ClojureTreeElement(type: IElementType) : CompositeElement(type) {
-  override fun clearCaches() {
-    super.clearCaches()
-    if (elementType == ClojureTypes.C_LIST) {
-      // prevent accidental confusion of CList and CDef
-      clearPsi()
-    }
-  }
+data class SymKey(
+    override val name: String,
+    override val namespace: String,
+    override val type: String
+) : IDef {
+  constructor(def : IDef): this(def.name, def.namespace, def.type)
 }
+
+class Defn(
+    val key: SymKey,
+    val protos: List<Prototype>
+) : IDef by key
+
+class Prototype(val args : List<String>, argVec: CVec?)
+

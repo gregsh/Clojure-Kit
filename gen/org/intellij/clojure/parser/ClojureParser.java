@@ -10,10 +10,7 @@ import com.intellij.lang.ASTNode;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.lang.PsiParser;
 import com.intellij.lang.LightPsiParser;
-import static org.intellij.clojure.parser.ClojureParserUtil.adapt_builder_;
-import static org.intellij.clojure.parser.ClojureParserUtil.parseTree;
-import static org.intellij.clojure.parser.ClojureParserUtil.nospace;
-import static org.intellij.clojure.parser.ClojureParserUtil.formRecover;
+import static org.intellij.clojure.parser.ClojureParserUtil.*;
 
 @SuppressWarnings({"SimplifiableIfStatement", "UnusedAssignment"})
 public class ClojureParser implements PsiParser, LightPsiParser {
@@ -156,8 +153,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // p_forms
-  //   | s_forms | constructor
+  // p_forms | s_forms | constructor
   static boolean form_inner(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "form_inner")) return false;
     boolean r;
@@ -655,7 +651,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // '/' | ('.' | '.-') sym? | symbol_qualified '.'?
+  // '/' | ('.' | '.-') sym? | symbol_qualified [!<<space>> '.']
   public static boolean symbol(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "symbol")) return false;
     boolean r;
@@ -696,7 +692,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return true;
   }
 
-  // symbol_qualified '.'?
+  // symbol_qualified [!<<space>> '.']
   private static boolean symbol_2(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "symbol_2")) return false;
     boolean r;
@@ -707,11 +703,32 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r;
   }
 
-  // '.'?
+  // [!<<space>> '.']
   private static boolean symbol_2_1(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "symbol_2_1")) return false;
-    consumeToken(b, C_DOT);
+    symbol_2_1_0(b, l + 1);
     return true;
+  }
+
+  // !<<space>> '.'
+  private static boolean symbol_2_1_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_2_1_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = symbol_2_1_0_0(b, l + 1);
+    r = r && consumeToken(b, C_DOT);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // !<<space>>
+  private static boolean symbol_2_1_0_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbol_2_1_0_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _NOT_);
+    r = !space(b, l + 1);
+    exit_section_(b, l, m, r, false, null);
+    return r;
   }
 
   /* ********************************************************** */
