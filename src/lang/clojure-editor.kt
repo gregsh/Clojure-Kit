@@ -17,7 +17,9 @@
 
 package org.intellij.clojure.editor
 
+import com.intellij.codeInsight.editorActions.SelectWordUtil
 import com.intellij.codeInsight.editorActions.SimpleTokenSetQuoteHandler
+import com.intellij.codeInsight.editorActions.wordSelection.AbstractWordSelectioner
 import com.intellij.ide.structureView.StructureViewModel
 import com.intellij.ide.structureView.StructureViewModelBase
 import com.intellij.ide.structureView.StructureViewTreeElement
@@ -30,12 +32,15 @@ import com.intellij.lang.PsiStructureViewFactory
 import com.intellij.lang.folding.FoldingBuilderEx
 import com.intellij.lang.folding.FoldingDescriptor
 import com.intellij.lang.refactoring.NamesValidator
+import com.intellij.lexer.StringLiteralLexer
 import com.intellij.navigation.LocationPresentation
 import com.intellij.navigation.NavigationItem
+import com.intellij.openapi.command.CommandProcessor
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.highlighter.HighlighterIterator
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.TextRange
 import com.intellij.patterns.ElementPattern
 import com.intellij.patterns.PatternCondition
 import com.intellij.patterns.PlatformPatterns
@@ -44,6 +49,7 @@ import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
+import com.intellij.psi.codeStyle.CodeStyleSettingsManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.RenameInputValidator
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
@@ -56,6 +62,7 @@ import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider
 import org.intellij.clojure.ClojureConstants.DEF_ALIKE_SYMBOLS
 import org.intellij.clojure.ClojureConstants.FN_ALIKE_SYMBOLS
 import org.intellij.clojure.ClojureConstants.LET_ALIKE_SYMBOLS
+import org.intellij.clojure.formatter.ClojureCodeStyleSettings
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.lang.ClojureTokens
@@ -69,15 +76,38 @@ import javax.swing.Icon
  * @author gregsh
  */
 class ClojureCommenter : Commenter {
-  override fun getLineCommentPrefix() = ";"
+  override fun getLineCommentPrefix() = codeStyleAwarePrefix()
   override fun getBlockCommentPrefix() = null
   override fun getBlockCommentSuffix() = null
-  override fun getCommentedBlockCommentPrefix() = blockCommentPrefix
-  override fun getCommentedBlockCommentSuffix() = blockCommentSuffix
+  override fun getCommentedBlockCommentPrefix() = null
+  override fun getCommentedBlockCommentSuffix() = null
+
+  private fun codeStyleAwarePrefix(): String {
+    val project = CommandProcessor.getInstance().currentCommandProject ?: return ";"
+    val settings = CodeStyleSettingsManager.getSettings(project).getCustomSettings(ClojureCodeStyleSettings::class.java)
+    return if (settings.USE_2SEMI_COMMENT) ";;" else ";"
+  }
 }
 
 class ClojureQuoteHandler : SimpleTokenSetQuoteHandler(ClojureTokens.STRINGS) {
   override fun hasNonClosedLiteral(editor: Editor?, iterator: HighlighterIterator?, offset: Int) = true
+}
+
+class ClojureWordSelectioner : AbstractWordSelectioner() {
+  override fun canSelect(e: PsiElement?): Boolean {
+    return ClojureTokens.STRINGS.contains(e.elementType)
+  }
+
+  override fun select(e: PsiElement, editorText: CharSequence?, cursorOffset: Int, editor: Editor?): MutableList<TextRange> {
+    val result = super.select(e, editorText, cursorOffset, editor)
+    if (ClojureTokens.STRINGS.contains(e.elementType)) {
+      val range = e.textRange
+      SelectWordUtil.addWordHonoringEscapeSequences(
+          editorText, range, cursorOffset, StringLiteralLexer('\"', e.elementType), result)
+      result.add(TextRange(range.startOffset + 1, range.endOffset - 1))
+    }
+    return result
+  }
 }
 
 class ClojureSpellCheckingStrategy : SpellcheckingStrategy() {

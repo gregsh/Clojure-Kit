@@ -28,6 +28,7 @@ import com.intellij.psi.codeStyle.CommonCodeStyleSettings
 import com.intellij.psi.codeStyle.LanguageCodeStyleSettingsProvider
 import org.intellij.clojure.formatter.ClojureCodeStyleSettings
 import org.intellij.clojure.lang.ClojureLanguage
+import org.intellij.clojure.ui.forms.CodeStyleOtherTab
 
 /**
  * @author gregsh
@@ -43,7 +44,12 @@ class ClojureCodeStyleConfigurable(settings: CodeStyleSettings, cloneSettings: C
   override fun createPanel(settings: CodeStyleSettings): CodeStyleAbstractPanel = Panel(currentSettings, settings)
   override fun getHelpTopic() = null
 
-  private class Panel (currentSettings: CodeStyleSettings, settings: CodeStyleSettings) : TabbedLanguageCodeStylePanel(ClojureLanguage, currentSettings, settings)
+  private class Panel(currentSettings: CodeStyleSettings, settings: CodeStyleSettings) :
+      TabbedLanguageCodeStylePanel(ClojureLanguage, currentSettings, settings) {
+    init {
+      addTab(CodeStyleOtherTab(ClojureLanguage, currentSettings, settings))
+    }
+  }
 }
 
 class ClojureLangCodeStyleSettingsProvider : LanguageCodeStyleSettingsProvider() {

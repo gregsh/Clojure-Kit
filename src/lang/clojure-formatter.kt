@@ -42,14 +42,17 @@ import org.intellij.clojure.util.*
  * @author gregsh
  */
 class ClojureCodeStyleSettings (container: CodeStyleSettings?) : CustomCodeStyleSettings("ClojureCodeStyleSettings", container) {
+  @JvmField var USE_2SEMI_COMMENT: Boolean = false
 }
+
+fun CodeStyleSettings.getClojureSettings() = getCustomSettings(ClojureCodeStyleSettings::class.java)!!
 
 class ClojureFormattingModelBuilder : FormattingModelBuilder {
   override fun getRangeAffectingIndent(file: PsiFile?, offset: Int, elementAtOffset: ASTNode?) = null
 
   override fun createModel(element: PsiElement, settings: CodeStyleSettings): FormattingModel {
     val common = settings.getCommonSettings(ClojureLanguage)
-    val custom = settings.getCustomSettings(ClojureCodeStyleSettings::class.java)
+    val custom = settings.getClojureSettings()
     val spacingBuilder = createSpacingBuilder(common, custom)
     val props = Context(common, custom, spacingBuilder)
     val block = ClojureFormattingBlock(element.node, props, null, null, null, -1)
