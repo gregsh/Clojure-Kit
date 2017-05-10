@@ -20,6 +20,7 @@ package org.intellij.clojure.tools
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.ExecutionManager
 import com.intellij.execution.Executor
+import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.configurations.RunProfileState
@@ -148,10 +149,11 @@ class ReplExecuteAction : DumbAwareAction() {
 }
 
 class ReplExclusiveModeAction : ToggleAction() {
+  override fun isDumbAware() = true
 
   override fun isSelected(e: AnActionEvent): Boolean =
-      chooseRepl(e)?.consoleView?.isExclusiveModeOn()
-          ?: (allRepls(e.project).find { it.consoleView.isExclusiveModeOn() } != null)
+      chooseRepl(e)?.let { isExclusive(it.consoleView) } ?:
+          (allRepls(e.project).find { isExclusive(it.consoleView) } != null)
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
     val project = e.project ?: return
@@ -159,7 +161,7 @@ class ReplExclusiveModeAction : ToggleAction() {
     chooseRepl(e) { chosen, fromPopup ->
       allRepls(project).forEach { repl ->
         val isChosen = (state || fromPopup) && repl === chosen
-        EXCLUSIVE_MODE_KEY.set(repl.consoleView.consoleEditor, isChosen)
+        setExclusive(repl.consoleView, isChosen)
         val executor = DefaultRunExecutor.getRunExecutorInstance()
         contentManager.findContentDescriptor(executor, repl.processHandler)?.let { descriptor ->
           if (isChosen) {
@@ -186,7 +188,7 @@ class ReplExclusiveModeAction : ToggleAction() {
           list.cellRenderer = object : ColoredListCellRenderer<ReplConnection>() {
             override fun customizeCellRenderer(list: JList<out ReplConnection>, value: ReplConnection?, index: Int, selected: Boolean, hasFocus: Boolean) {
               if (value != null) {
-                val exclusive = value.consoleView.isExclusiveModeOn()
+                val exclusive = isExclusive(value.consoleView)
                 val connected = value.repl.isConnected
                 val attrs = when {
                   connected -> if (exclusive) SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES else SimpleTextAttributes.REGULAR_ATTRIBUTES
@@ -213,7 +215,11 @@ class ReplExclusiveModeAction : ToggleAction() {
 
 }
 
-private fun LanguageConsoleView.isExclusiveModeOn() = EXCLUSIVE_MODE_KEY.get(consoleEditor) == true
+private fun isExclusive(consoleView: LanguageConsoleView) =
+    EXCLUSIVE_MODE_KEY.get(consoleView.consoleEditor) == true
+
+private fun setExclusive(consoleView: LanguageConsoleView, value: Boolean) =
+    EXCLUSIVE_MODE_KEY.set(consoleView.consoleEditor, value)
 
 private fun allRepls(project: Project?) =
     if (project == null) JBIterable.empty()
@@ -236,45 +242,42 @@ fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String) {
     "REPL [${if (it == null || it == projectDir) projectDir.name else VfsUtil.getRelativePath(projectDir, it)}]"
   }
 
-  ExecutionManager.getInstance(project).contentManager.allDescriptors.run {
-    find {
-      Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, PsiUtilCore.getVirtualFile(file))
-    } ?: find {
-      (it.executionConsole as? LanguageConsoleView)?.isExclusiveModeOn() ?: false
-    } ?: find {
-      Comparing.equal(title, it.displayName)
-    }
-  }?.let { content ->
-    content.attachedContent!!.run { manager.setSelectedContent(this) }
+  val allDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
+  val ownContent = allDescriptors.find {
+    Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, PsiUtilCore.getVirtualFile(file))
+  }
+  val exclusiveContent = allDescriptors.find {
+    (it.executionConsole as? LanguageConsoleView)?.let { isExclusive(it) } ?: false
+  }
+  val sameTitleContent = allDescriptors.find { Comparing.equal(title, it.displayName) }
+  val contentToReuse = ownContent ?: exclusiveContent ?: sameTitleContent
+  if (contentToReuse != null) {
+    contentToReuse.attachedContent!!.run { manager.setSelectedContent(this) }
 
-    NREPL_CLIENT_KEY.get(content.processHandler).run {
-      if (processHandler.isProcessTerminating || processHandler.isProcessTerminated) {
-        consoleView.println()
-        processFactory().run {
-          consoleView.attachToProcess(this)
-          NREPL_CLIENT_KEY.get(this).let { rcNew ->
-            rcNew.processFactory = processFactory
-            rcNew.consoleView = consoleView
-            startNotify()
-            rcNew
-          }
-        }
+    var repl = NREPL_CLIENT_KEY.get(contentToReuse.processHandler)
+    if (repl.processHandler.isProcessTerminating || repl.processHandler.isProcessTerminated) {
+      val oldRepl = repl
+      oldRepl.consoleView.println()
+      val newProcess = oldRepl.processFactory()
+      repl.consoleView.attachToProcess(newProcess)
+      repl = NREPL_CLIENT_KEY.get(newProcess)
+      repl.processFactory = oldRepl.processFactory
+      repl.consoleView = oldRepl.consoleView
+      newProcess.startNotify()
+    }
+    contentToReuse.processHandler = repl.processHandler
+    repl.consoleView.consoleEditor.let {
+      if (editor == it || !it.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer) {
+        val command = WriteAction.compute<String, Exception> { it.document.run { val s = getText(); setText(""); s } }
+        repl.sendCommand(command)
+        ConsoleHistoryController.addToHistory(repl.consoleView, command)
       }
-      else this
-    }.apply {
-      content.processHandler = processHandler
-      consoleView.consoleEditor.let {
-        if (editor == it || !it.document.text.trim().isEmpty() && editor == consoleView.historyViewer) {
-          val command = WriteAction.compute<String, Exception> { it.document.run { val s = getText(); setText(""); s } }
-          sendCommand(command)
-          ConsoleHistoryController.addToHistory(consoleView, command)
-        }
-        else {
-          sendCommand(text)
-        }
+      else {
+        repl.sendCommand(text)
       }
     }
-  } ?: run {
+  }
+  else {
     var initialText: String? = text
     createNewRunContent(project, title, LOCAL_ICON) {
       newProcessHandler(project, projectDir?.toIoFile()).apply {
@@ -288,7 +291,7 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon, pro
   val existingDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
   val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")",
       existingDescriptors.map { it.displayName }.toSet().let { { s: String -> !it.contains(s) }})
-  object : RunProfile {
+  val profile = object : RunProfile {
     override fun getIcon() = icon
     override fun getName() = uniqueTitle
 
@@ -315,13 +318,14 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon, pro
             LanguageConsoleImpl(project, uniqueTitle, ClojureLanguage).apply {
               consoleEditor.setFile(virtualFile)
               ConsoleHistoryController(ReplConsoleRootType, title, this).install()
+              setExclusive(this, allRepls(project).find { isExclusive(it.consoleView) } == null)
             }
       }
     }
-  }.run {
-    ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), this)
-        .build().run { ExecutionManager.getInstance(project).restartRunProfile(this) }
   }
+  val environment = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), profile).build()
+//  ExecutionManager#restartRunProfile is not dumb-aware, run manually..
+  ProgramRunnerUtil.executeConfiguration(environment, false, true)
 }
 
 class ReplConnection(val repl: NReplClient,
