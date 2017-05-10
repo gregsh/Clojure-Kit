@@ -295,9 +295,10 @@ internal class XTarget(val project: Project,
   fun resolveStub(): CStub? = (psiFile as? CFileImpl)?.fileStubForced?.let { stub ->
     JBTreeTraverser<CStub> { o -> o.childrenStubs }
         .withRoot(stub)
-        .filter(IDef::class.java).find {
-      it.name == key.name && it.type == key.type && it.namespace == key.namespace
-    } as CStub
+        .filter(IDef::class.java)
+        .find {
+          it.name == key.name && it.type == key.type && it.namespace == key.namespace
+        } as? CStub
   }
 }
 
