@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.5.0</version>
+  <version>0.7.0-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="162.2525" until-build="173.*"/>
+  <idea-version since-build="171.3780" until-build="173.*"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript</description>
@@ -15,12 +15,10 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>REPL: connect to remote REPL</li>
-      <li>REPL: send all commands to one specific REPL</li>
-      <li>REPL: console history actions</li>
-      <li>Completion: complete namespaces and keywords</li>
-      <li>Structural editing: improved caret handling</li>
-      <li>Main menu: add clojure actions to Edit and Tools</li>
+      <li>REPL: the first repl gets exclusive mode by default</li>
+      <li>Code style: ;; (double-semicolon) commenting toggle</li>
+      <li>Quickdoc: search and display related specs</li>
+      <li>Internals: redesigned AST/PSI, name resolution, indices and etc.</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>

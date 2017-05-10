@@ -36,6 +36,13 @@ to redirect all commands to one specific REPL.
 
 Change log
 ==========
+0.7.0-snapshot
+
+* REPL: the first repl gets exclusive mode by default
+* Code style: ;; (double-semicolon) commenting toggle
+* Quickdoc: search and display related specs
+* Internals: redesigned AST/PSI, name resolution, indices and etc.
+
 0.5.0
 
 * REPL: connect to remote REPL
