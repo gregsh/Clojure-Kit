@@ -34,9 +34,7 @@ import com.intellij.openapi.editor.ex.EditorEx
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.ProperTextRange
 import com.intellij.openapi.util.TextRange
-import com.intellij.psi.PsiDocumentManager
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiWhiteSpace
+import com.intellij.psi.*
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiUtilBase
 import org.intellij.clojure.lang.ClojureTokens
@@ -104,12 +102,12 @@ abstract class CPFormActionBase(private val handler: (CPForm, Document, caret: C
 }
 
 abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
-                                        val handler: (CFile, Document, Caret) -> Boolean)
+                                        val handler: (CFile, EditorEx, Caret) -> Boolean)
   : EditorWriteActionHandler(true) {
   constructor(original: EditorWriteActionHandler,
-              handler: (CFile, Document, Caret, Boolean) -> Boolean,
+              handler: (CFile, EditorEx, Caret, Boolean) -> Boolean,
               forward: Boolean)
-      : this(original, { file, document, caret -> handler(file, document, caret, forward) })
+      : this(original, { file, editor, caret -> handler(file, editor, caret, forward) })
   override fun executeWriteAction(editor: Editor, caret: Caret?, dataContext: DataContext) {
     if (!perform(editor, caret, dataContext)) {
       original.executeWriteAction(editor, caret, dataContext)
@@ -124,8 +122,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
     val file = (if (editor === originalEditor) originalFile
     else PsiDocumentManager.getInstance(project).getPsiFile(editor.document))
         as? CFile ?: return false
-    PsiDocumentManager.getInstance(project).commitDocument(editor.document)
-    return handler(file, editor.document, editor.caretModel.currentCaret)
+    return handler(file, editor as EditorEx, editor.caretModel.currentCaret)
   }
 }
 
@@ -224,8 +221,13 @@ private fun barf(form: CPForm, document: Document, caret: Caret, forward: Boolea
 }
 
 private fun splice(form: CPForm, document: Document, caret: Caret): Unit {
-  val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
-  val range = (form.parent as? CMetadata ?: form).textRange
+  splice(0, form, document, caret)
+}
+
+private fun splice(base: Int = 0, form: CPForm, document: Document, caret: Caret): Unit {
+  val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }
+      .map { it.textRange.shiftRight(base) }.toList()
+  val range = (form.parent as? CMetadata ?: form).textRange.shiftRight(base)
   val replacement = when (parens.size) {
     2 -> ProperTextRange(parens[0].endOffset, parens[1].startOffset)
     1 -> ProperTextRange(parens[0].endOffset, range.endOffset)
@@ -270,23 +272,30 @@ private fun kill(range: TextRange, document: Document): Unit {
   document.replaceString(o1, o2, "")
 }
 
-private fun kill(file: CFile, document: Document, caret: Caret, forward: Boolean): Boolean {
+private fun kill(file: CFile, editor: EditorEx, caret: Caret, forward: Boolean): Boolean {
   if (caret.hasSelection()) return false
-  val offset = caret.offset
-  val elementAt = file.findElementAt(if (forward) offset else offset - 1)
+  val offset = if (forward) caret.offset else Math.max(caret.offset - 1, 0)
+  val iterator = editor.highlighter.createIterator(offset)
+  if (iterator.atEnd() || iterator.start != offset) return false
+  val tokenType = iterator.tokenType
+  val paren1 = ClojureTokens.PAREN1_ALIKE.contains(tokenType)
+  val paren2 = ClojureTokens.PAREN2_ALIKE.contains(tokenType)
+  val macros = ClojureTokens.MACROS.contains(tokenType)
+  if (!paren1 && !paren2 && (!forward || !macros)) return false
+
+  val (base, elementAt) = leafElementAtNoCommit(file.project, editor, offset, file.language) ?: return false
   val form = elementAt.findParent(CPForm::class) ?: return false
-  if (isNotBalanced(caret.editor as? EditorEx ?: return false)) return false
-  val paren1 = ClojureTokens.PAREN1_ALIKE.contains(elementAt.elementType)
-  val paren2 = ClojureTokens.PAREN2_ALIKE.contains(elementAt.elementType)
+
+  if (isNotBalanced(editor)) return false
   if (!paren1 && !paren2) {
-    if (!forward || elementAt == null || elementAt.textRange.startOffset != form.textRange.startOffset) return false
-    kill(elementAt.let { it.parent as? CMetadata ?: form }.textRange, document)
+    if (elementAt.textRange.startOffset != form.textRange.startOffset) return false
+    kill(elementAt.let { it.parent as? CMetadata ?: form }.textRange.shiftRight(base), editor.document)
   }
   else if (forward && paren1 || !forward && paren2) {
-    kill(form.let { it.parent as? CMetadata ?: it }.textRange, document)
+    kill(form.let { it.parent as? CMetadata ?: it }.textRange.shiftRight(base), editor.document)
   }
   else {
-    splice(form, document, caret)
+    splice(base, form, editor.document, caret)
   }
   return true
 }
@@ -297,8 +306,18 @@ private fun CFile.formAt(offset: Int): CForm? {
   }.thisForm
 }
 
+private fun leafElementAtNoCommit(project: Project, editor: EditorEx, offset: Int, language: Language): Pair<Int, PsiElement>? {
+  if (offset < 0 || editor.document.textLength == 0) return null
+  val range = formContextRangeApprox(editor, offset, Mode.CONTEXT)
+  val text = range.subSequence(editor.document.immutableCharSequence)
+  val file = PsiFileFactory.getInstance(project).createFileFromText("a", language, text, false, false)
+  val adjusted = offset - range.startOffset
+  val leafAt = file.findElementAt(adjusted) ?: return null
+  return range.startOffset to leafAt
+}
+
 private fun nextFormRangeNoCommit(editor: EditorEx, offset: Int, language: Language): TextRange? {
-  val approx = nextFormRangeApprox(editor, offset)
+  val approx = findRangeApprox(editor, offset, true, true)
   val tailText = editor.document.immutableCharSequence.subSequence(approx.startOffset, approx.endOffset)
 
   val r = cljLightTraverser(tailText, language).let { s ->
@@ -307,27 +326,60 @@ private fun nextFormRangeNoCommit(editor: EditorEx, offset: Int, language: Langu
   return r?.shiftRight(approx.startOffset)
 }
 
+enum class Mode { LEFT, RIGHT, CONTEXT, FULL }
 
-private fun nextFormRangeApprox(editor: EditorEx, offset: Int): TextRange {
+fun formContextRangeApprox(editor: EditorEx, offset: Int, mode: Mode) = when (mode) {
+  Mode.LEFT -> findRangeApprox(editor, offset, true, false)
+  Mode.RIGHT -> findRangeApprox(editor, offset, true, true)
+  Mode.CONTEXT -> findRangeApprox(editor, offset, true, false).union(findRangeApprox(editor, offset, true, true))
+  Mode.FULL -> findRangeApprox(editor, offset, false, false).union(findRangeApprox(editor, offset, false, true))
+}
+
+private fun findRangeApprox(editor: EditorEx, offset: Int, siblings: Boolean, forward: Boolean): TextRange {
   val iterator = editor.highlighter.createIterator(offset)
-  val start = iterator.start
-
+  if (iterator.atEnd()) return TextRange(offset, offset)
+  val pos = if (forward) iterator.start else iterator.end
   val counter = ParenCounter()
-  while (!iterator.atEnd() && start < offset) {
-    iterator.advance()
+  if (forward && iterator.start < offset) {
+    while (!iterator.atEnd() && iterator.start < offset) {
+      iterator.advance()
+    }
   }
+  else if (!forward && ClojureTokens.PAREN_ALIKE.contains(iterator.tokenType)) {
+    if (ClojureTokens.PAREN1_ALIKE.contains(iterator.tokenType)) {
+      iterator.retreat()
+    }
+    else {
+      while (!iterator.atEnd()) {
+        counter.visit(iterator.tokenType)
+        iterator.retreat()
+        if (counter.isBalanced) break
+      }
+    }
+  }
+
   var wasOpen = false
   while (!iterator.atEnd()) {
-    counter.visit(iterator.tokenType)
-    if (counter.parens < 0) break
+    val tokenType = iterator.tokenType
+    counter.visit(tokenType)
+    val pp = counter.parens
+    if (pp < 0 || !forward && pp > 0) break
     if (counter.braces == 0 && counter.brackets == 0) {
-      if (wasOpen && counter.parens <= 0) break
-      if (!wasOpen && counter.parens > 0) wasOpen = true
+      if (siblings) {
+        if (wasOpen && (forward && pp <= 0 || !forward && pp >= 0)) break
+        if (!wasOpen && (forward && pp > 0 || !forward && pp < 0)) wasOpen = true
+      }
     }
-    iterator.advance()
+    if (forward) iterator.advance() else iterator.retreat()
   }
-  val end = if (!iterator.atEnd()) iterator.end else editor.document.textLength
-  return TextRange(start, end)
+  if (forward) {
+    val end = if (!iterator.atEnd()) iterator.end else editor.document.textLength
+    return TextRange(pos, end)
+  }
+  else {
+    val start = if (!iterator.atEnd()) iterator.end else 0
+    return TextRange(start, pos)
+  }
 }
 
 private fun isNotBalanced(editor: EditorEx, skipAtOffset: Int = -1): Boolean {

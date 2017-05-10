@@ -3,6 +3,8 @@ package org.intellij.clojure.lang
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.IdeActions
+import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
 import org.intellij.clojure.actions.*
@@ -98,9 +100,21 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testRiseFix2() = doTest("a <selection>:ns/kwd b</selection>", "a (:ns/kwd b)")
   fun testRiseFix3() = doTest("a :<selection>ns/kwd b</selection>", "a (:ns/kwd b)")
 
+  fun testContext1() = checkFormContext("x ()* y (|)* x", Mode.CONTEXT)
+  fun testContext2() = checkFormContext("x () (*a b| c)* x", Mode.CONTEXT)
+  fun testContext3() = checkFormContext("x ()* ^{} |(a b c)* x", Mode.CONTEXT)
+  fun testContext4() = checkFormContext("x ()* ^{} (a b c|)* x", Mode.CONTEXT)
 
   fun doTest(before: String, after: String) = testAction.run(before, after)
   fun doType(before: String, what: String, after: String) = doTest(before, after) { myFixture.type(what) }
+
+  fun checkFormContext(before: String, mode: Mode) = myFixture.run {
+    val context = before.indexOf('*').let { TextRange(it, before.indexOf('*', it + 1) - 2) }
+    assertTrue(context.startOffset >= 0 && context.endOffset >= 0)
+    configureByText(ClojureFileType, before.replace("|", "<caret>").replace("*", ""))
+    val range = formContextRangeApprox(myFixture.editor as EditorEx, myFixture.editor.caretModel.offset, mode)
+    assertEquals(myFixture.editor.document.getText(context), myFixture.editor.document.getText(range))
+  }
 
   private val testAction: AnAction
     get() = getTestName(false).let { name ->
