@@ -58,7 +58,10 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
   override fun createLexer(project: Project?) = ClojureLexer(fileNodeType.language)
   override fun createParser(project: Project?) = ClojureParser()
   override fun createFile(viewProvider: FileViewProvider?) = CFileImpl(viewProvider!!, fileNodeType.language)
-  override fun createElement(node: ASTNode?) = throw UnsupportedOperationException()
+  override fun createElement(node: ASTNode?) = throw UnsupportedOperationException(
+      "$node" + (node?.elementType?.language ?: fileNodeType.language).let {
+        "; ASTFactory(${it.id})=${LanguageASTFactory.INSTANCE.forLanguage(it)}"
+      })
 
   override fun getStringLiteralElements() = ClojureTokens.STRINGS
   override fun getWhitespaceTokens() = ClojureTokens.WHITESPACES
