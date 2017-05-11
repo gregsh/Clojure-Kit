@@ -28,6 +28,7 @@ import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.intellij.psi.scope.BaseScopeProcessor
+import com.intellij.psi.scope.NameHint
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.ArrayUtil
@@ -178,12 +179,20 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val refText = rangeInElement.substring(myElement.text)
     val result = arrayListOf<PsiElement>()
     val nsQualifier = myElement.nextSibling.elementType == ClojureTypes.C_SLASH
-    processDeclarations(service, refText, ResolveState.initial(), object : BaseScopeProcessor() {
+    processDeclarations(service, refText, ResolveState.initial(), object : BaseScopeProcessor(), NameHint {
       override fun handleEvent(event: PsiScopeProcessor.Event, associated: Any?) {
         if (event == SKIP_RESOLVE) {
           myElement.putUserData(RESOLVE_SKIPPED, true)
         }
       }
+
+      @Suppress("UNCHECKED_CAST")
+      override fun <T : Any?> getHint(hintKey: Key<T>) = when (hintKey) {
+        NameHint.KEY -> this
+        else -> null
+      } as T?
+
+      override fun getName(state: ResolveState) = refText
 
       override fun execute(it: PsiElement, state: ResolveState): Boolean {
         val target = when {

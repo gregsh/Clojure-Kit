@@ -51,3 +51,13 @@
   (union)
   (<warning>intersection</warning> #{1} #{1 2})
   )
+
+(do
+  (<warning>no-forward-def</warning>)
+  (defn no-forward-def [] (no-forward-def))
+  (no-forward-def)
+  )
+(do
+  (alias 'clojure.set-alias clojure.set)
+  (defn no-resolve-to-alias [] [<warning>clojure.set-alias</warning> clojure.set-alias/union])
+  )

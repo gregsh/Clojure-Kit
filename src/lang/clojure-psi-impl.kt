@@ -27,6 +27,7 @@ import com.intellij.psi.FileViewProvider
 import com.intellij.psi.PsiElement
 import com.intellij.psi.ResolveState
 import com.intellij.psi.SyntaxTraverser
+import com.intellij.psi.scope.NameHint
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.stubs.StubTreeLoader
 import com.intellij.util.SmartList
@@ -156,7 +157,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val namespace = namespace
     val publicOnly = language == ClojureLanguage && namespace != placeNs
     val defService = ClojureDefinitionService.getInstance(project)
-    if (placeFile !== this) fileStub?.let { fileStub ->
+    if (placeFile !== this) {
       val s = JBTreeTraverser<CStub> { o -> o.childrenStubs }.withRoot(fileStub)
           .filter(CListStub::class.java)
           .filter { it.key.namespace == namespace && !(publicOnly && it.key.type == "defn-") }
@@ -166,23 +167,26 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       return true
     }
     val langKind = placeLanguage(place)
-    val defs = defs().filter { it.def!!.namespace == namespace && !(publicOnly && it.def!!.type == "defn-") }
-    defs.forEach { if (!processor.execute(it, state)) return false }
+    val placeOffset = place.textRange.startOffset
 
-    if (placeFile !== this) return true
+    defs().filter { it.def!!.namespace == namespace && !(publicOnly && it.def!!.type == "defn-") }
+        .takeWhile { it.textRange.startOffset < placeOffset }
+        .forEach { if (!processor.execute(it, state)) return false }
 
     var langKindNSVisited = false
+    val refText = processor.getHint(NameHint.KEY)?.getName(state)
     val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
     val forceAlias = state.get(ALIAS_KEY)
-    val placeOffset = place.textRange.startOffset
     val index = this.state.imports.binarySearchBy(placeOffset, 0, this.state.imports.size, { it.range.startOffset })
         .let { if (it < 0) Math.min(-it - 1, this.state.imports.size) else it }
     val insideImport = this.state.imports.subList(0, index).find { it.range.contains(placeOffset) } != null
     for (import in this.state.imports.subList(0, index).asReversed()
         .filter { it.langKind == langKind && (placeOffset < it.scopeEnd || it.scopeEnd < 0) }
         .flatMap { it.imports }) {
-      if (!import.isPlatform && import.aliasSym != null) {
-        if (!processor.execute(defService.getAlias(import.alias, import.namespace, import.aliasSym), state)) return false
+      if (refText == null || isQualifier) {
+        if (!import.isPlatform && import.aliasSym != null) {
+          if (!processor.execute(defService.getAlias(import.alias, import.namespace, import.aliasSym), state)) return false
+        }
       }
       if (forceAlias != null) continue
       if (import.isPlatform) {
