@@ -177,12 +177,9 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val refText = processor.getHint(NameHint.KEY)?.getName(state)
     val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
     val forceAlias = state.get(ALIAS_KEY)
-    val index = this.state.imports.binarySearchBy(placeOffset, 0, this.state.imports.size, { it.range.startOffset })
-        .let { if (it < 0) Math.min(-it - 1, this.state.imports.size) else it }
-    val insideImport = this.state.imports.subList(0, index).find { it.range.contains(placeOffset) } != null
-    for (import in this.state.imports.subList(0, index).asReversed()
-        .filter { it.langKind == langKind && (placeOffset < it.scopeEnd || it.scopeEnd < 0) }
-        .flatMap { it.imports }) {
+    val imports = importsAtOffset(placeOffset, langKind)
+    val insideImport = imports.find { it.range.contains(placeOffset) } != null
+    for (import in imports.flatMap { it.imports }) {
       if (refText == null || isQualifier) {
         if (!import.isPlatform && import.aliasSym != null) {
           if (!processor.execute(defService.getAlias(import.alias, import.namespace, import.aliasSym), state)) return false
@@ -225,6 +222,26 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       return processNamespace(langKind.ns, state, processor, this)
     }
     return true
+  }
+
+  private fun importsAtOffset(placeOffset: Int, langKind: LangKind): List<Imports> {
+    val index = this.state.imports.binarySearchBy(placeOffset, 0, this.state.imports.size, { it.range.startOffset })
+        .let { if (it < 0) Math.min(-it - 1, this.state.imports.size) else it }
+    val imports = this.state.imports.subList(0, index).asReversed()
+        .filter { it.langKind == langKind && (placeOffset < it.scopeEnd || it.scopeEnd < 0) }
+    return imports
+  }
+
+  fun aliasesAtPlace(place: PsiElement): Map<String, String> {
+    val langKind = placeLanguage(place)
+    val placeOffset = place.textRange.startOffset
+
+    val imports = importsAtOffset(placeOffset, langKind)
+    val insideImport = imports.find { it.range.contains(placeOffset) } != null
+    if (insideImport) return emptyMap()
+    return imports.flatMap { it.imports }
+        .filter { it.aliasSym != null }
+        .associateBy({ it.namespace }, { it.alias })
   }
 
 

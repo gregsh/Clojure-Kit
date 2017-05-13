@@ -140,6 +140,10 @@ class ClojureCompletionContributor : CompletionContributor() {
         val project = element.project
         val service = ClojureDefinitionService.getInstance(project)
 
+        val aliases = parameters.originalPosition?.let {
+          (originalFile as CFileImpl).aliasesAtPlace(it)
+        } ?: emptyMap()
+
         val thisForm = element.thisForm
         val visited = ContainerUtil.newTroveSet<String>()
         val prefixedResult = if (thisForm == null) result
@@ -148,9 +152,9 @@ class ClojureCompletionContributor : CompletionContributor() {
             .let { result.withPrefixMatcher(it) }
         val consumer: (String, String, VirtualFile) -> Unit = { name, ns, file ->
           if (showAll || prefixNamespace == null || ns == prefixNamespace) {
-            val qualifiedName = if (ns == "") name else "$ns/$name"
-            if (visited.add(qualifiedName)) {
-              val s = if (prefixNamespace == null && fileNamespace == ns) "::$name" else ":$qualifiedName"
+            val qualifiedName = name.withNamespace(aliases[ns] ?: ns)
+            val s = if (prefixNamespace == null && fileNamespace == ns) "::$name" else ":$qualifiedName"
+            if (visited.add(s) && prefixedResult.prefixMatcher.prefixMatches(s)) {
               prefixedResult.addElement(LookupElementBuilder.create(s)
                   .withTypeText(file.name, true)
                   .bold())
@@ -177,14 +181,21 @@ class ClojureCompletionContributor : CompletionContributor() {
         if (ref != null && bindingsVec == null) {
           ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
             override fun execute(it: PsiElement, state: ResolveState): Boolean {
-              when (it) {
-                is CList -> LookupElementBuilder.create(it, state.get(RENAMED_KEY) ?: it.def!!.name)
+              val name = state.get(RENAMED_KEY) ?:
+                  when (it) {
+                    is CList -> it.def?.name
+                    is CSymbol -> it.name
+                    is PsiNamedElement -> it.name
+                    else -> null
+                  } ?: return true
+              if (!prefixedResult.prefixMatcher.prefixMatches(name)) return true
+              val lookupItem = when (it) {
+                is CList -> LookupElementBuilder.create(it, name)
                     .withIcon((it as NavigationItem).presentation!!.getIcon(false))
                     .withTailText(" (${it.def!!.namespace})", true)
-                is CSymbol -> LookupElementBuilder.create(it, it.name)
+                is CSymbol -> LookupElementBuilder.create(it, name)
                     .withIcon(ClojureIcons.SYMBOL)
                 is PsiNamedElement -> {
-                  val name = state.get(RENAMED_KEY) ?: it.name!!
                   val types = service.java.getMemberTypes(it as NavigatablePsiElement)
                   val size = types.size
                   LookupElementBuilder.create(it, name)
@@ -197,11 +208,31 @@ class ClojureCompletionContributor : CompletionContributor() {
                         else if (size == 1 && (it as? PsiPresentableMetaData)?.typeName == "Method") withPresentableText("$name()")
                       else this }
                 }
-                else -> null
-              }?.let { result.addElement(it) }
+                else -> return true
+              }
+              result.addElement(lookupItem)
               return true
             }
           })
+          if (showAll) {
+            FileBasedIndex.getInstance().run {
+              val scope = ClojureDefinitionService.getClojureSearchScope(project)
+              processAllKeys(DEF_FQN_INDEX, { fqn ->
+                getFilesWithKey(DEF_FQN_INDEX, mutableSetOf(fqn), { file ->
+                  val idx = fqn.indexOf('/')
+                  val name = fqn.substring(idx + 1)
+                  val ns = if (idx > 0) fqn.substring(0, idx) else ""
+                  val qualifiedName = name.withNamespace(aliases[ns] ?: ns)
+                  if (visited.add(qualifiedName) && prefixedResult.prefixMatcher.prefixMatches(qualifiedName)) {
+                    prefixedResult.addElement(LookupElementBuilder.create(qualifiedName)
+                        .withIcon(ClojureIcons.DEFN)
+                        .withTypeText(file.name, true))
+                  }
+                  true
+                }, scope)
+              }, project)
+            }
+          }
         }
         if (prefixNamespace == null && (bindingsVec == null || bindingsVec.parent is CMap)) {
           FileBasedIndex.getInstance().run {
