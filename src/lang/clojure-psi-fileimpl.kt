@@ -178,9 +178,12 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
 
     val langKind = placeLanguage(place)
     val placeOffset = place.textRange.startOffset
+    val inMacro = (place.parent as? CList)?.first?.let {
+      !it.textRange.containsOffset(placeOffset) && it.resolveInfo()?.type == "defmacro"
+    } ?: false
 
     defs().filter { it.def!!.namespace == namespace && !(publicOnly && it.def!!.type == "defn-") }
-        .takeWhile { it.textRange.startOffset < placeOffset }
+        .takeWhile { inMacro || it.textRange.startOffset < placeOffset }
         .forEach { if (!processor.execute(it, state)) return false }
 
     var langKindNSVisited = false

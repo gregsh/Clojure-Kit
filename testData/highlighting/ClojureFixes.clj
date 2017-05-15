@@ -58,6 +58,11 @@
   (no-forward-def)
   )
 (do
+  (defmacro some-macro)
+  (some-macro allow-forward-decl-in-spec)
+  (defn allow-forward-decl-in-spec)
+  )
+(do
   (alias 'clojure.set-alias clojure.set)
   (defn no-resolve-to-alias [] [<warning>clojure.set-alias</warning> clojure.set-alias/union])
   )
