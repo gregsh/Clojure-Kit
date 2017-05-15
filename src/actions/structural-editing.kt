@@ -276,7 +276,8 @@ private fun kill(file: CFile, editor: EditorEx, caret: Caret, forward: Boolean):
   if (caret.hasSelection()) return false
   val offset = if (forward) caret.offset else Math.max(caret.offset - 1, 0)
   val iterator = editor.highlighter.createIterator(offset)
-  if (iterator.atEnd() || iterator.start != offset) return false
+  if (iterator.atEnd()) return false
+  if (forward && iterator.start != offset || !forward && iterator.end != offset + 1) return false
   val tokenType = iterator.tokenType
   val paren1 = ClojureTokens.PAREN1_ALIKE.contains(tokenType)
   val paren2 = ClojureTokens.PAREN2_ALIKE.contains(tokenType)
