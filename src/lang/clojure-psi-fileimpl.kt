@@ -157,15 +157,25 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val namespace = namespace
     val publicOnly = language == ClojureLanguage && namespace != placeNs
     val defService = ClojureDefinitionService.getInstance(project)
+
     if (placeFile !== this) {
-      val s = JBTreeTraverser<CStub> { o -> o.childrenStubs }.withRoot(fileStub)
-          .filter(CListStub::class.java)
-          .filter { it.key.namespace == namespace && !(publicOnly && it.key.type == "defn-") }
-      s.forEach { stub ->
-        if (!processor.execute(defService.getDefinition(stub.key), state)) return false
+      val fileStub = fileStub
+      if (fileStub != null) {
+        val s = JBTreeTraverser<CStub> { o -> o.childrenStubs }
+            .withRoot(fileStub)
+            .filter(CListStub::class.java)
+            .filter { it.key.namespace == namespace && !(publicOnly && it.key.type == "defn-") }
+        s.forEach { stub ->
+          if (!processor.execute(defService.getDefinition(stub.key), state)) return false
+        }
+      }
+      else {
+        val s = defs().filter { it.def!!.namespace == namespace && !(publicOnly && it.def!!.type == "defn-") }
+        s.forEach { if (!processor.execute(it, state)) return false }
       }
       return true
     }
+
     val langKind = placeLanguage(place)
     val placeOffset = place.textRange.startOffset
 
