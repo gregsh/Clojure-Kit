@@ -55,6 +55,9 @@ test {
   include "**/*Test.class"
   scanForTestClasses false
   ignoreFailures true
+  beforeTest { descriptor ->
+    logger.lifecycle("Running ${descriptor}")
+  }
 }
 
 task plugin_jar(type: Jar, dependsOn: [rootProject.tasks['assemble']]) {
