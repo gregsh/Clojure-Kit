@@ -37,11 +37,15 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testKeywordNs8() = ":namespace/keyword".let { doTest("$it :nk<caret>", it, "$it $it") }
   fun testKeywordNs9() = ":namespace/keyword".let { doTest("$it nk<caret>", it, "$it $it") }
 
+  fun testFqn1() = doTest("(clojure.string/<caret>)", "blank?", "(clojure.string/blank?)")
+  fun testFqn2() = "clojure.string/blank?".let { doTest("(bla<caret>)", it, "($it)", 2) }
+  fun testFqn3() = "clojure.string/blank?".let { doTest("(clostribla<caret>)", it, "($it)", 2) }
+
 
   private fun doTest(text: String, select: String,
-                     expected: String = text.replace("<caret>", select)) = myFixture.run {
+                     expected: String = text.replace("<caret>", select), count: Int = 1) = myFixture.run {
     configureByText("a.clj", text)
-    complete(CompletionType.BASIC, 1)?.let { variants ->
+    complete(CompletionType.BASIC, count)?.let { variants ->
       val chosen = variants.find { it.lookupString == select }
       assertNotNull("'$select' variant not suggested", chosen)
       lookup.currentItem = chosen

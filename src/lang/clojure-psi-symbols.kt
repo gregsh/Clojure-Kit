@@ -158,12 +158,12 @@ class ClojureDefinitionService(val project: Project) {
       }
 
       override fun create(key: SymKey): PsiElement {
-        return createPomElement(owner, CTarget(project, this, key))
+        return createPomElement(owner, YTarget(project, key, this))
       }
     }
   }
 
-  private fun createPomElement(owner: PsiElement?, target: CTarget): PsiElement {
+  private fun createPomElement(owner: PsiElement?, target: YTarget): PsiElement {
     return if (owner == null) CPomTargetElement(project, target)
     else object : CPomTargetElement(project, target) {
       override fun getUseScope() = LocalSearchScope(owner)
@@ -172,17 +172,18 @@ class ClojureDefinitionService(val project: Project) {
 
 }
 
-private open class CPomTargetElement(project: Project, target: PomTarget) : PomTargetPsiElementImpl(project, target) {
-  override fun getName(): String? {
-    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
-    return key?.name ?: super.getName()
-  }
+private open class CPomTargetElement(project: Project, target: CTarget) :
+    PomTargetPsiElementImpl(project, target), PsiQualifiedNamedElement {
+
+  override fun getTarget(): CTarget = super.getTarget() as CTarget
+
+  override fun getName() = target.key.name
+  override fun getQualifiedName() = target.key.qualifiedName
 
   override fun getPresentableText(): String? {
-    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
-    if (key?.type == "keyword") return ":" + key.qualifiedName
-    else if (key != null) return "(${key.type} ${key.qualifiedName})"
-    return super.getPresentableText()
+    val key = target.key
+    if (key.type == "keyword") return ":" + key.qualifiedName
+    return "(${key.type} ${key.qualifiedName})"
   }
 
   override fun getLocationString(): String? {
@@ -191,39 +192,36 @@ private open class CPomTargetElement(project: Project, target: PomTarget) : PomT
     return null
   }
 
-  override fun getIcon(): Icon? {
-    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
-    return key?.let { getIconForType(it.type) } ?: EmptyIcon.ICON_16
-  }
+  override fun getIcon(): Icon? = getIconForType(target.key.type) ?: EmptyIcon.ICON_16
 
-  override fun getTypeName(): String {
-    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
-    return key?.type ?: super.getTypeName()
-  }
+  override fun getTypeName(): String = target.key.type
 
   override fun getContainingFile(): PsiFile? {
-    val psiFile = (target as? CTarget)?.navigationElement?.containingFile ?: (target as? XTarget)?.psiFile
+    val psiFile = (target as? YTarget)?.navigationElement?.containingFile ?: (target as? XTarget)?.psiFile
     if (psiFile != null) return psiFile
     return super.getContainingFile()
   }
 }
 
-internal class CTarget(val project: Project,
-                       val map: Map<SymKey, PsiElement>,
-                       val key: SymKey) : PsiTarget, PomRenameableTarget<Any> {
+abstract internal class CTarget(val project: Project,
+                                val key: SymKey) : PomRenameableTarget<Any> {
   override fun canNavigate() = true
   override fun canNavigateToSource() = true
   override fun isValid() = true
+  override fun getName(): String = key.name
+  override fun setName(newName: String) = null
+  override fun isWritable() = true
+}
+
+internal class YTarget(project: Project,
+                       key: SymKey,
+                       private val map: Map<SymKey, PsiElement>) : CTarget(project, key), PsiTarget {
   override fun navigate(requestFocus: Boolean) =
       (navigationElement as Navigatable).navigate(requestFocus)
 
   override fun getNavigationElement(): PsiElement {
     val data = target
     return data ?: PomService.convertToPsi(project, NULL_TARGET)
-  }
-
-  override fun getName(): String {
-    return key.name
   }
 
   private val target: PsiElement?
@@ -255,11 +253,9 @@ internal class CTarget(val project: Project,
       }
     }
 
-  override fun setName(newName: String) = null
-  override fun isWritable() = true
 }
 
-fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?): NavigatablePsiElement {
+internal fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?): NavigatablePsiElement {
   fun <C : CForm> locate(k: SymKey, clazz: KClass<C>): (CFile) -> Navigatable? = { f ->
     f.cljTraverser().traverse().filter(clazz).find {
       if (k.type == "keyword") it is CKeyword && it.namespace == k.namespace
@@ -275,10 +271,10 @@ fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?)
   return result
 }
 
-internal class XTarget(val project: Project,
-              val key: SymKey,
-              val file: VirtualFile?,
-              private val resolver: (CFile) -> Navigatable?) : PomTarget {
+internal class XTarget(project: Project,
+                       key: SymKey,
+                       val file: VirtualFile?,
+                       private val resolver: (CFile) -> Navigatable?) : CTarget(project, key) {
   val psiFile: PsiFile?
     get() = if (file == null) null else PsiManager.getInstance(project).findFile(file)
 
@@ -286,9 +282,7 @@ internal class XTarget(val project: Project,
   override fun canNavigateToSource(): Boolean = psiFile?.let { PsiNavigationSupport.getInstance().canNavigate(it) } ?: false
   override fun isValid(): Boolean = file == null || file.isValid
 
-  override fun navigate(requestFocus: Boolean) {
-    (resolve() as? Navigatable ?: psiFile)?.navigate(requestFocus)
-  }
+  override fun navigate(requestFocus: Boolean): Unit = (resolve() as? Navigatable ?: psiFile)?.navigate(requestFocus) ?: Unit
 
   fun resolve(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as PsiElement else it }
 

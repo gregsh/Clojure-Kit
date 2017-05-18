@@ -146,16 +146,18 @@ class ClojureCompletionContributor : CompletionContributor() {
 
         val thisForm = element.thisForm
         val visited = ContainerUtil.newTroveSet<String>()
-        val prefixedResult = if (thisForm == null) result
+        val qualifiedResult = if (thisForm == null) result
         else TextRange(thisForm.valueRange.startOffset, parameters.offset)
-            .substring(thisForm.containingFile.text)
+            .substring(originalFile.text)
             .let { result.withPrefixMatcher(it) }
+        val prefixedResult = result.withPrefixMatcher(
+            TextRange(parameters.position.textRange.startOffset, parameters.offset).substring(originalFile.text))
         val consumer: (String, String, VirtualFile) -> Unit = { name, ns, file ->
           if (showAll || prefixNamespace == null || ns == prefixNamespace) {
             val qualifiedName = name.withNamespace(aliases[ns] ?: ns)
             val s = if (prefixNamespace == null && fileNamespace == ns) "::$name" else ":$qualifiedName"
-            if (visited.add(s) && prefixedResult.prefixMatcher.prefixMatches(s)) {
-              prefixedResult.addElement(LookupElementBuilder.create(s)
+            if (visited.add(s) && qualifiedResult.prefixMatcher.prefixMatches(s)) {
+              qualifiedResult.addElement(LookupElementBuilder.create(s)
                   .withTypeText(file.name, true)
                   .bold())
             }
@@ -217,17 +219,12 @@ class ClojureCompletionContributor : CompletionContributor() {
           if (showAll) {
             FileBasedIndex.getInstance().run {
               val scope = ClojureDefinitionService.getClojureSearchScope(project)
-              processAllKeys(DEF_FQN_INDEX, { fqn ->
-                getFilesWithKey(DEF_FQN_INDEX, mutableSetOf(fqn), { file ->
-                  val idx = fqn.indexOf('/')
-                  val name = fqn.substring(idx + 1)
-                  val ns = if (idx > 0) fqn.substring(0, idx) else ""
-                  val qualifiedName = name.withNamespace(aliases[ns] ?: ns)
-                  if (visited.add(qualifiedName) && prefixedResult.prefixMatcher.prefixMatches(qualifiedName)) {
-                    prefixedResult.addElement(LookupElementBuilder.create(qualifiedName)
-                        .withIcon(ClojureIcons.DEFN)
-                        .withTypeText(file.name, true))
-                  }
+              processAllKeys(DEF_FQN_INDEX, { qualifiedName ->
+                if (!qualifiedResult.prefixMatcher.prefixMatches(qualifiedName)) return@processAllKeys true
+                getFilesWithKey(DEF_FQN_INDEX, mutableSetOf(qualifiedName), { file ->
+                  qualifiedResult.addElement(LookupElementBuilder.create(qualifiedName)
+                      .withIcon(ClojureIcons.DEFN)
+                      .withTypeText(file.name, true))
                   true
                 }, scope)
               }, project)
@@ -260,7 +257,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
 
   override fun generateDoc(element: PsiElement?, originalElement: PsiElement?): String? {
     val target = (element as? PomTargetPsiElement)?.target
-    val key = (target as? CTarget)?.key ?: (target as? XTarget)?.key
+    val key = (target as? CTarget)?.key
     val resolved =
         if (key != null && key.type == "keyword" &&
             key.namespace == "" && ClojureConstants.NS_ALIKE_SYMBOLS.contains(key.name)) {

@@ -112,7 +112,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               }
             }
           navElement is CForm -> javaType(navElement)
-          target is NavigatablePsiElement && target !is PomTargetPsiElement ->
+          target is NavigatablePsiElement && target.asNonCPom() != null ->
             if (form.parent.let { it is CSymbol || it is CList && it.first?.name == "catch" }) (target as? PsiQualifiedNamedElement)?.qualifiedName
             else java.getMemberTypes(target).firstOrNull()?.let {
               val index = it.indexOf('<'); if (index > 0) return it.substring(0, index) else it
@@ -124,9 +124,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         it.javaTypeMeta() ?: it.findNext(CVec::class)?.javaTypeMeta()
       } ?: form.first?.let {
         when (it.name) {
-          "new" -> ((it.nextForm as? CSymbol)?.reference?.resolve() as? PsiQualifiedNamedElement)?.qualifiedName
+          "new" -> (it.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
           "." -> javaType(it.firstChild as? CSymbol) ?:
-              ((it.nextForm as? CSymbol)?.reference?.resolve() as? PsiQualifiedNamedElement)?.qualifiedName ?:
+              (it.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName ?:
               javaType(it.nextForm?.nextForm)
           ".." -> javaType(it.siblings().filter(CForm::class).last())
           "var" -> ClojureConstants.C_VAR
@@ -429,13 +429,18 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               o.first.siblings().filter(CForm::class)
               .skip(if (type == "." || type == ".." || isInFirst) 1 else 0)
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(myElement) }.size()
-          val className = if (isCljs) null else siblings.first()?.let {form ->
-              if (form == myElement) null
-              else if ((type == "." || type == "..") && form is CSymbol && form.qualifier == null) {
-                  (form.reference.resolve() as? PsiQualifiedNamedElement)?.qualifiedName?.apply { scope = JavaHelper.Scope.STATIC }
-                      ?: service.javaType(form).apply { scope = JavaHelper.Scope.INSTANCE }
+          val className = if (isCljs) null
+          else siblings.first()?.let { form ->
+            if (form == myElement) return@let null
+            if ((type == "." || type == "..") && form is CSymbol && form.qualifier == null) {
+              val resolved = form.reference.resolve().asNonCPom()
+              if (resolved != null) {
+                scope = JavaHelper.Scope.STATIC
+                return@let resolved.qualifiedName
               }
-              else service.javaType(form).apply { scope = JavaHelper.Scope.INSTANCE }
+            }
+            scope = JavaHelper.Scope.INSTANCE
+            service.javaType(form)
           }
           val javaClass = findClass(className, service)
           if (index == 0 && javaClass != null && (type == "." || type == "..")) {
@@ -584,6 +589,10 @@ fun CFile.placeLanguage(place: PsiElement): LangKind =
 
 fun PsiScopeProcessor.skipResolve() =
     handleEvent(SKIP_RESOLVE, null).run { false }
+
+fun PsiElement?.asNonCPom() =
+    if (this !is PomTargetPsiElement || target !is CTarget) this as? PsiQualifiedNamedElement
+    else null
 
 private val SKIP_RESOLVE = object : PsiScopeProcessor.Event {}
 private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {

@@ -109,7 +109,7 @@ class ClojureGotoSymbolContributor : ChooseByNameContributor, GotoClassContribut
   }
 
   override fun getQualifiedName(item: NavigationItem?): String? {
-    return ((item as? PomTargetPsiElement)?.target as? XTarget)?.key?.qualifiedName
+    return (item as? PsiElement).asCTarget?.key?.qualifiedName
   }
 
   override fun getQualifiedNameSeparator() = "/"
