@@ -62,7 +62,7 @@ class ClojurePsiImplUtil {
     @JvmStatic fun getTextOffset(o: CListBase): Int =
         (if (o.role != Role.NONE) o.findChild(Role.NAME) ?: o else o).textRange.startOffset
 
-    @JvmStatic fun getFirst(o: CLForm): CSymbol? = o.findChild(CForm::class) as? CSymbol
+    @JvmStatic fun getFirst(o: CList): CSymbol? = o.findChild(CForm::class) as? CSymbol
     @JvmStatic fun getLiteralType(o: CLiteral): IElementType? = o.lastChild?.elementType
     @JvmStatic fun getLiteralText(o: CLiteral): String = o.lastChild?.text ?: ""
   }
@@ -76,7 +76,7 @@ open class CComposite(tokenType: IElementType) : CompositePsiElement(tokenType),
   internal var roleImpl: Role? = null
 }
 
-abstract class CListBase(nodeType: IElementType) : CLFormImpl(nodeType), CList, ItemPresentation {
+abstract class CListBase(nodeType: IElementType) : CLVFormImpl(nodeType), CList, ItemPresentation {
 
   override fun getPresentation() = this
   override fun getIcon(unused: Boolean): Icon? = when (role) {

@@ -308,7 +308,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       }
       else if (resolve is PsiQualifiedNamedElement && !service.java.getMemberTypes(target).isEmpty()) {
         // java.class/method-or-field
-        val processFields = parent !is CLForm || parent.first != element
+        val processFields = parent !is CList || parent.first != element
         val processMethods = !processFields || element.firstChild is CReaderMacro
         if (processFields) {
           val fields = service.java.findClassFields(resolve.qualifiedName, JavaHelper.Scope.STATIC, StringUtil.notNullize(refText, "*"))
@@ -345,7 +345,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
                                  lastParentRef: Ref<CForm>): Boolean {
     val isCljs = langKind == LangKind.CLJS
     var prevO: CForm = element
-    for (o in element.parents().filter(CLForm::class)) {
+    for (o in element.parents().filter(CList::class)) {
       val origType = listType(o) ?: continue
       val type = if (origType.endsWith("->") || origType.endsWith("->>"))
         (if (prevO is CSymbol) symType(prevO) else if (prevO is CList) listType(prevO) else origType) else origType
@@ -495,10 +495,10 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
 }
 
-fun prototypes(o: CLForm) = o.iterate(CLForm::class)
+fun prototypes(o: CList) = o.iterate(CList::class)
     .filter { it.firstChild?.nextSibling is CVec }.append(o)
 
-fun listType(o: CLForm): String? {
+fun listType(o: CList): String? {
   return o.asDef?.def?.type ?: symType(o.first ?: return null)
 }
 
@@ -510,7 +510,7 @@ fun symType(o: CSymbol): String {
   }
 }
 
-fun findBindingsVec(o: CLForm, mode: String): CVec? {
+fun findBindingsVec(o: CList, mode: String): CVec? {
   val isMethod = mode == "fn" && o.asDef?.def?.type == "defmethod"
   return (if (isMethod) o.first.siblings().filter(CForm::class).get(3) as? CVec
   else o.iterate(CVec::class).first())
@@ -549,7 +549,7 @@ fun processSpecialForms(langKind: LangKind, refText: String?, place: PsiElement,
   return true
 }
 
-fun processBindings(o: CLForm, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
+fun processBindings(o: CList, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
   val bindings = findBindingsVec(o, mode) ?: return true
   if (!processor.execute(bindings, state)) return false
   val roots = when (mode) {

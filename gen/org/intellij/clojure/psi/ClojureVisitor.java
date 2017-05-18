@@ -15,15 +15,11 @@ public class ClojureVisitor extends PsiElementVisitor {
   }
 
   public void visitFun(@NotNull CFun o) {
-    visitLForm(o);
+    visitList(o);
   }
 
   public void visitKeyword(@NotNull CKeyword o) {
     visitSForm(o);
-  }
-
-  public void visitLForm(@NotNull CLForm o) {
-    visitPForm(o);
   }
 
   public void visitLVForm(@NotNull CLVForm o) {
@@ -31,8 +27,7 @@ public class ClojureVisitor extends PsiElementVisitor {
   }
 
   public void visitList(@NotNull CList o) {
-    visitLForm(o);
-    // visitLVForm(o);
+    visitLVForm(o);
   }
 
   public void visitLiteral(@NotNull CLiteral o) {
@@ -72,8 +67,7 @@ public class ClojureVisitor extends PsiElementVisitor {
   }
 
   public void visitVec(@NotNull CVec o) {
-    visitPForm(o);
-    // visitLVForm(o);
+    visitLVForm(o);
   }
 
   public void visitElement(@NotNull CElement o) {

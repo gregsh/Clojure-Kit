@@ -285,7 +285,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
 
     val nameSymbol = resolved.findChild(Role.NAME) as? CSymbol
     val sb = StringBuilder("<html>")
-    sb.append("<b>(${def.type}</b> ${def.qualifiedName}<b>${if (resolved is CLForm) " …" else ""})</b>").append("<br>")
+    sb.append("<b>(${def.type}</b> ${def.qualifiedName}<b>${if (resolved is CList) " …" else ""})</b>").append("<br>")
     val docLiteral =
         if (def.type == "method") nameSymbol.findNext(CLiteral::class)
         else nameSymbol.nextForm as? CLiteral
@@ -466,10 +466,13 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
       context.file.findElementAt(context.offset)
           .parents()
           .filter(CList::class)
-          .find { it.findChild(ClojureTypes.C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset }?.let {
-        context.itemsToShow = resolvePrototypes(it).toList().toTypedArray()
-        it
-      }
+          .find {
+            it.findChild(ClojureTypes.C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset
+          }?.
+          let {
+            context.itemsToShow = resolvePrototypes(it).toList().toTypedArray()
+            it
+          }
 
   override fun getActualParametersRBraceType() = ClojureTypes.C_PAREN2!!
 

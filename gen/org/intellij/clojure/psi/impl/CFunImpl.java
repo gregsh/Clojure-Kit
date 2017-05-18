@@ -11,7 +11,7 @@ import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
 import com.intellij.psi.tree.IElementType;
 
-public class CFunImpl extends CLFormImpl implements CFun {
+public class CFunImpl extends CListImpl implements CFun {
 
   public CFunImpl(IElementType type) {
     super(type);

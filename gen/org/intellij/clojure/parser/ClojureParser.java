@@ -620,13 +620,15 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // '#' '{' set_body '}'
+  // '#' <<nospace>> '{' set_body '}'
   public static boolean set(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "set")) return false;
     if (!nextTokenIs(b, C_SHARP)) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_, C_SET, null);
-    r = consumeTokens(b, 2, C_SHARP, C_BRACE1);
+    r = consumeToken(b, C_SHARP);
+    r = r && nospace(b, l + 1);
+    r = r && consumeToken(b, C_BRACE1);
     p = r; // pin = '[\(\[\{]'
     r = r && report_error_(b, set_body(b, l + 1));
     r = p && consumeToken(b, C_BRACE2) && r;

@@ -5,11 +5,14 @@ import java.util.List;
 import org.jetbrains.annotations.*;
 import com.intellij.psi.PsiElement;
 
-public interface CList extends CLForm, CLVForm {
+public interface CList extends CLVForm {
 
   int getTextOffset();
 
   @Nullable
   IDef getDef();
+
+  @Nullable
+  CSymbol getFirst();
 
 }

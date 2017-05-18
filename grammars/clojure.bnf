@@ -60,10 +60,10 @@
     slash='/'
   ]
   extends("p_form|s_form")=form
-  extends("vec|set|map|constructor|l_form|l_v_form")=p_form
+  extends("set|map|constructor|l_v_form")=p_form
+  extends("vec|list")=l_v_form
+  extends("fun")=list
   extends("symbol|keyword|literal")=s_form
-  extends("fun|list")=l_form
-  implements("vec|list")=l_v_form
   extends("regexp")=literal
   extends("symbol_.*")=symbol
   elementType("symbol_.*")=symbol
@@ -92,11 +92,10 @@ private s_forms ::= symbol | keyword | literal | regexp
 
 fake p_form ::= form * {methods=[forms="form"]}
 fake l_v_form ::=
-fake l_form ::= {methods=[getFirst]}
 fake s_form ::=
 list ::= '(' list_body ')'
-  {methods=[getTextOffset getDef]}
-set ::= '#' '{' set_body '}'
+  {methods=[getTextOffset getDef getFirst]}
+set ::= '#' <<nospace>> '{' set_body '}'
 vec ::= '[' vec_body ']'
 map ::= '{' map_body '}'
 fun ::= '#' <<nospace>> '(' list_body ')'

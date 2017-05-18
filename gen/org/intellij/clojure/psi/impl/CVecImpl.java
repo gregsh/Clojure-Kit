@@ -11,7 +11,7 @@ import static org.intellij.clojure.psi.ClojureTypes.*;
 import org.intellij.clojure.psi.*;
 import com.intellij.psi.tree.IElementType;
 
-public class CVecImpl extends CPFormImpl implements CVec {
+public class CVecImpl extends CLVFormImpl implements CVec {
 
   public CVecImpl(IElementType type) {
     super(type);

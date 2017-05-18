@@ -372,7 +372,7 @@ private class RoleHelper {
   }
 
   private fun createDef(e: CListBase, key: SymKey): IDef {
-    val prototypes = e.iterate(CLForm::class)
+    val prototypes = e.iterate(CList::class)
         .map {
           (it.firstChild?.nextSibling as? CVec)?.also { setRole(it, Role.PROTOTYPE) }
         }
