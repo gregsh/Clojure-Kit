@@ -176,19 +176,25 @@ class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
 
 class ClojureStructureViewFactory : PsiStructureViewFactory {
   override fun getStructureViewBuilder(psiFile: PsiFile) = object : TreeBasedStructureViewBuilder() {
-    override fun createStructureViewModel(editor: Editor?) = MyModel(psiFile)
+    override fun createStructureViewModel(editor: Editor?) = MyModel(psiFile, editor)
     override fun isRootNodeShown() = false
   }
 
-  private class MyModel constructor(o: PsiFile) : StructureViewModelBase(o, MyElement(o)), StructureViewModel.ElementInfoProvider {
+  private class MyModel constructor(file: PsiFile, editor: Editor?) :
+      StructureViewModelBase(file, editor, MyElement(file)), StructureViewModel.ElementInfoProvider {
     init {
       withSuitableClasses(CForm::class.java)
     }
 
     override fun isAlwaysShowsPlus(o: StructureViewTreeElement) = false
-    override fun isAlwaysLeaf(o: StructureViewTreeElement) = o.value !is PsiFile
-    override fun shouldEnterElement(o: Any?) = false
-    override fun isSuitable(o: PsiElement?) = o is PsiFile || o is CForm
+    override fun isAlwaysLeaf(o: StructureViewTreeElement) = false
+    override fun shouldEnterElement(o: Any?) = true
+    override fun isSuitable(o: PsiElement?): Boolean {
+      if (o is PsiFile) return true
+      if (o !is CForm) return false
+      val count = o.parentForms.size()
+      return count == 0 || o.asDef != null
+    }
   }
 
   private class MyElement(o: PsiElement) : PsiTreeElementBase<PsiElement>(o), SortableTreeElement, LocationPresentation {
@@ -196,14 +202,28 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
     override fun getAlphaSortKey() = presentableText
 
     override fun getChildrenBase(): Collection<MyElement> = element.let { o ->
-      when {
-        o is CFile -> o.iterateRCAware().filter(CForm::class)
-        o is CForm && o.parent !is CForm -> o.cljTraverser().traverse().map { it.asDef }.notNulls()
+      when (o) {
+        is CFile -> o.iterateRCAware().filter(CForm::class)
+        is CForm -> o.cljTraverser()
+            .expand { it == o || it.asDef == null }
+            .traverse()
+            .skip(1).map { it.asDef }.notNulls()
         else -> JBIterable.empty()
       }.transform(::MyElement).toList()
     }
 
-    override fun getPresentableText() = (element as? CForm)?.run { asDef?.def?.name ?: getFormPlaceholderText(this, LONG_TEXT_MAX) } ?: ""
+    override fun getPresentableText(): String {
+      val element = element as? CForm ?: return ""
+      val def = element.asDef?.def
+      if (def != null) {
+        if (def.namespace != (element.containingFile as? CFile)?.namespace) {
+          return def.qualifiedName
+        }
+        return def.name
+      }
+      return getFormPlaceholderText(element, LONG_TEXT_MAX)
+    }
+
     override fun getLocationString() = element.asDef?.def?.type ?: ""
     override fun getLocationPrefix() = " "
     override fun getLocationSuffix() = ""

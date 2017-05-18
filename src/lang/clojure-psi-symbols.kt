@@ -153,7 +153,7 @@ class ClojureDefinitionService(val project: Project) {
 
   private fun createPomMap(owner : PsiElement? = null): Map<SymKey, PsiElement> {
     return object : FactoryMap<SymKey, PsiElement>() {
-      override fun createMap(): MutableMap<SymKey, PsiElement>? {
+      override fun createMap(): MutableMap<SymKey, PsiElement> {
         return ContainerUtil.createConcurrentWeakValueMap<SymKey, PsiElement>()
       }
 

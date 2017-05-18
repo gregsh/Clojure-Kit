@@ -347,7 +347,7 @@ private class RoleHelper {
           if (nameSym != null && nameSym.firstChild !is CReaderMacro ) {
             // optimization: delay up until the end, so that other threads may skip this
             val type = if (firstName == "create-ns") "ns" else firstName
-            val key = SymKey(nameSym.name, fileNS, type)
+            val key = SymKey(nameSym.name, resolveAlias(nameSym.qualifier?.name) ?: fileNS, type)
             setRole(nameSym, Role.NAME)
             delayedDefs.put(e, createDef(e, key))
             seenDefs.add(key.name)
