@@ -245,9 +245,11 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     return imports
   }
 
-  fun aliasesAtPlace(place: PsiElement): Map<String, String> {
-    val langKind = placeLanguage(place)
-    val placeOffset = place.textRange.startOffset
+  fun aliasesAtPlace(place: PsiElement?): Map<String, String> {
+    val langKind =
+        if (place != null) placeLanguage(place)
+        else if (language == ClojureScriptLanguage) LangKind.CLJS else LangKind.CLJ
+    val placeOffset = place?.textRange?.startOffset ?: textLength
 
     val imports = importsAtOffset(placeOffset, langKind)
     val insideImport = imports.find { it.range.contains(placeOffset) } != null

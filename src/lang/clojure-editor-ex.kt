@@ -42,6 +42,7 @@ import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.project.DumbService
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
@@ -134,53 +135,82 @@ class ClojureCompletionContributor : CompletionContributor() {
         val element = parameters.position.findParent(CSymbol::class) ?: return
         val originalFile = parameters.originalFile
         val fileNamespace = (originalFile as? CFile)?.namespace
-        val prefixNamespace = element.qualifier?.name
+        val noNsPrefix = element.qualifier?.name == null
         val showAll = parameters.invocationCount > 1
-
-        val project = element.project
-        val service = ClojureDefinitionService.getInstance(project)
-
-        val aliases = parameters.originalPosition?.let {
-          (originalFile as CFileImpl).aliasesAtPlace(it)
-        } ?: emptyMap()
-
         val thisForm = element.thisForm
-        val visited = ContainerUtil.newTroveSet<String>()
+        val project = element.project
+        val posExt = originalFile.virtualFile.extension
+        fun acceptFile(file: VirtualFile): Boolean {
+          val fileExt = file.extension
+          return !(posExt == "clj" && fileExt == "cljs")
+        }
+
+        @Suppress("NON_EXHAUSTIVE_WHEN")
+        when (thisForm.role) {
+          Role.ARG, Role.BND, Role.FIELD -> return
+          Role.NAME -> {
+            val type = thisForm.parentForm.asDef?.def?.type
+            if (noNsPrefix && type != "def" && type != "defn" && type != "defmacro") {
+              completeNamespaces(project, result)
+            }
+            return
+          }
+        }
+        val ref = if (thisForm !is CKeyword) element.reference as? CSymbolReference else null
+        val bindingsVec: CVec? = (element.parent as? CVec)?.run { if (ref?.resolve()?.navigationElement == element) this else null }
+        if (bindingsVec != null && bindingsVec.parentForm !is CMap) return
+
+        val aliases = (originalFile as CFileImpl).aliasesAtPlace(parameters.originalPosition)
+
         val qualifiedResult = if (thisForm == null) result
         else TextRange(thisForm.valueRange.startOffset, parameters.offset)
             .substring(originalFile.text)
             .let { result.withPrefixMatcher(it) }
         val prefixedResult = result.withPrefixMatcher(
-            TextRange(parameters.position.textRange.startOffset, parameters.offset).substring(originalFile.text))
-        val consumer: (String, String, VirtualFile) -> Unit = { name, ns, file ->
-          if (showAll || prefixNamespace == null || ns == prefixNamespace) {
-            val qualifiedName = name.withNamespace(aliases[ns] ?: ns)
-            val s = if (prefixNamespace == null && fileNamespace == ns) "::$name" else ":$qualifiedName"
-            if (visited.add(s) && qualifiedResult.prefixMatcher.prefixMatches(s)) {
-              qualifiedResult.addElement(LookupElementBuilder.create(s)
-                  .withTypeText(file.name, true)
-                  .bold())
+            TextRange(parameters.position.textRange.startOffset, parameters.offset)
+                .substring(originalFile.text))
+
+        if (thisForm is CKeyword || thisForm == null) {
+          val visited = ContainerUtil.newTroveSet<String>()
+          val prefixNamespace = (thisForm as? CKeyword)?.namespace
+          val consumer: (String, String, VirtualFile) -> Unit = consumer@ { name, ns, file ->
+            if (!showAll && !noNsPrefix && ns != prefixNamespace) return@consumer
+            val qualifiedName = ":" + name.withNamespace(ns)
+            val alias = aliases[ns]
+            val s =
+                if (noNsPrefix && fileNamespace == ns) "::$name"
+                else if (alias != null) "::$alias/$name"
+                else qualifiedName
+            if (!visited.add(s)) return@consumer
+            if (!qualifiedResult.prefixMatcher.prefixMatches(s) &&
+                !qualifiedResult.prefixMatcher.prefixMatches(qualifiedName)) return@consumer
+            qualifiedResult.addElement(LookupElementBuilder.create(s)
+                .withLookupString(qualifiedName)
+                .withTypeText(file.name, true)
+                .bold())
+          }
+          originalFile.cljTraverser().traverse().filter(CKeyword::class).filter { it != thisForm }.forEach { o ->
+            consumer(o.name, o.namespace, originalFile.virtualFile)
+          }
+          if (showAll) {
+            FileBasedIndex.getInstance().run {
+              val scope = ClojureDefinitionService.getClojureSearchScope(project)
+              processAllKeys(KEYWORD_FQN_INDEX, { fqn ->
+                val idx = fqn.indexOf('/')
+                val name = fqn.substring(idx + 1)
+                val ns = if (idx > 0) fqn.substring(0, idx) else ""
+                getFilesWithKey(KEYWORD_FQN_INDEX, mutableSetOf(fqn), { file ->
+                  if (acceptFile(file)) {
+                    consumer(name, ns, file)
+                  }
+                  true
+                }, scope)
+              }, project)
             }
           }
         }
-        originalFile.cljTraverser().traverse().filter(CKeyword::class).forEach { o ->
-          if (o != thisForm) consumer(o.name, o.namespace, originalFile.virtualFile)
-        }
-        if (thisForm is CKeyword || showAll) {
-          FileBasedIndex.getInstance().run {
-            val scope = ClojureDefinitionService.getClojureSearchScope(project)
-            processAllKeys(KEYWORD_FQN_INDEX, { fqn ->
-              getFilesWithKey(KEYWORD_FQN_INDEX, mutableSetOf(fqn), { file ->
-                val idx = fqn.indexOf('/')
-                consumer(fqn.substring(idx + 1), if (idx > 0) fqn.substring(0, idx) else "", file)
-                true
-              }, scope)
-            }, project)
-          }
-        }
-        val ref = if (thisForm !is CKeyword) element.reference as? CSymbolReference else null
-        val bindingsVec: CVec? = (element.parent as? CVec)?.run { if (ref?.resolve()?.navigationElement == element) this else null }
-        if (ref != null && bindingsVec == null) {
+        if (thisForm !is CKeyword && ref != null && bindingsVec == null) {
+          val service = ClojureDefinitionService.getInstance(project)
           ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
             override fun execute(it: PsiElement, state: ResolveState): Boolean {
               val name = state.get(RENAMED_KEY) ?:
@@ -219,28 +249,40 @@ class ClojureCompletionContributor : CompletionContributor() {
           if (showAll) {
             FileBasedIndex.getInstance().run {
               val scope = ClojureDefinitionService.getClojureSearchScope(project)
-              processAllKeys(DEF_FQN_INDEX, { qualifiedName ->
-                if (!qualifiedResult.prefixMatcher.prefixMatches(qualifiedName)) return@processAllKeys true
-                getFilesWithKey(DEF_FQN_INDEX, mutableSetOf(qualifiedName), { file ->
-                  qualifiedResult.addElement(LookupElementBuilder.create(qualifiedName)
-                      .withIcon(ClojureIcons.DEFN)
-                      .withTypeText(file.name, true))
+              processAllKeys(DEF_FQN_INDEX, { fqn ->
+                val idx = fqn.indexOf('/')
+                val ns = if (idx > 0) fqn.substring(0, idx) else ""
+                val name = fqn.substring(idx + 1)
+                val s = name.withNamespace(aliases[ns] ?: ns)
+                if (!qualifiedResult.prefixMatcher.prefixMatches(fqn) &&
+                    !qualifiedResult.prefixMatcher.prefixMatches(s)) return@processAllKeys true
+                getFilesWithKey(DEF_FQN_INDEX, mutableSetOf(fqn), { file ->
+                  if (acceptFile(file)) {
+                    qualifiedResult.addElement(LookupElementBuilder.create(s)
+                        .withLookupString(fqn)
+                        .withIcon(ClojureIcons.DEFN)
+                        .withTypeText(file.name, true))
+                  }
                   true
                 }, scope)
               }, project)
             }
           }
         }
-        if (prefixNamespace == null && (bindingsVec == null || bindingsVec.parent is CMap)) {
-          FileBasedIndex.getInstance().run {
-            processAllKeys(NS_INDEX, { ns ->
-              result.addElement(LookupElementBuilder.create(ns).withIcon(ClojureIcons.NAMESPACE))
-              true
-            }, project)
-          }
+        if (noNsPrefix && (bindingsVec == null || bindingsVec.parent is CMap)) {
+          completeNamespaces(project, result)
         }
       }
     })
+  }
+
+  private fun completeNamespaces(project: Project, result: CompletionResultSet) {
+    FileBasedIndex.getInstance().run {
+      processAllKeys(NS_INDEX, { ns ->
+        result.addElement(LookupElementBuilder.create(ns).withIcon(ClojureIcons.NAMESPACE))
+        true
+      }, project)
+    }
   }
 
   override fun beforeCompletion(context: CompletionInitializationContext) {
