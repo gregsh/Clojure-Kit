@@ -20,6 +20,7 @@ package org.intellij.clojure.psi.stubs
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiElement
 import com.intellij.psi.stubs.*
+import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.indexing.FileContent
 import org.intellij.clojure.ClojureConstants
@@ -31,6 +32,7 @@ import org.intellij.clojure.psi.SymKey
 import org.intellij.clojure.psi.impl.CFileImpl
 import org.intellij.clojure.util.asDef
 import org.intellij.clojure.util.cljTraverser
+import org.intellij.clojure.util.filter
 import kotlin.reflect.jvm.internal.impl.utils.SmartList
 
 /**
@@ -38,6 +40,23 @@ import kotlin.reflect.jvm.internal.impl.utils.SmartList
  */
 private val VERSION: Int = 1
 
+class ClojureStubBuilder : BinaryFileStubBuilder {
+  override fun getStubVersion() = VERSION
+  override fun acceptsFile(file: VirtualFile): Boolean = file.fileType == ClojureFileType
+  override fun buildStubTree(fileContent: FileContent?): Stub? {
+    return buildStubTree(fileContent?.psiFile as? CFile ?: return null)
+  }
+
+  companion object {
+    init {
+      SerializationManager.getInstance().run {
+        registerSerializer(CFileStub.SERIALIZER)
+        registerSerializer(CListStub.SERIALIZER)
+        registerSerializer(CPrototypeStub.SERIALIZER)
+      }
+    }
+  }
+}
 
 abstract class CStub(parent: CStub?) : ObjectStubBase<CStub>(parent) {
   init {
@@ -45,11 +64,18 @@ abstract class CStub(parent: CStub?) : ObjectStubBase<CStub>(parent) {
     parent?.children?.add(this)
   }
 
-  val children = SmartList<CStub>()
+  private val children = SmartList<CStub>()
+
   override fun getChildrenStubs() = children
 }
 
 class CFileStub(val namespace: String) : CStub(null) {
+
+  private val childMap = linkedMapOf<SymKey, CListStub>()
+
+  fun registerListStub(child: CListStub) { childMap.put(child.key, child) }
+  fun findChildStub(key: SymKey) = childMap[key]
+
   override fun getStubType() = SERIALIZER
 
   companion object {
@@ -71,6 +97,14 @@ class CFileStub(val namespace: String) : CStub(null) {
 class CListStub(val key: SymKey,
                 parent: CStub?) :
     CStub(parent), IDef by key {
+
+  init {
+    JBIterable.generate(parent, { it -> it.parentStub })
+        .filter(CFileStub::class)
+        .first()
+        ?.registerListStub(this)
+  }
+
   override fun getStubType() = SERIALIZER
   override fun toString() = key.toString()
 
@@ -125,52 +159,38 @@ private val BUILDING_STUBS: ThreadLocal<Boolean> = object : ThreadLocal<Boolean>
 
 internal fun isBuildingStubs() = BUILDING_STUBS.get()
 
-class ClojureStubBuilder : BinaryFileStubBuilder {
-  override fun getStubVersion() = VERSION
-  override fun acceptsFile(file: VirtualFile): Boolean = file.fileType == ClojureFileType
-  override fun buildStubTree(fileContent: FileContent?): Stub? {
-    val file = fileContent?.psiFile as? CFile ?: return null
-    BUILDING_STUBS.set(true)
-    return try {
-      buildStubTree(file)
-    }
-    finally {
-      BUILDING_STUBS.set(false)
-    }
+internal fun buildStubTree(file: CFile): CFileStub {
+  BUILDING_STUBS.set(true)
+  return try {
+    buildStubTreeImpl(file)
   }
-
-  private fun buildStubTree(file: CFile): CFileStub {
-    val fileStub = CFileStub(file.namespace)
-    val map = mutableMapOf<PsiElement, CStub>(file to fileStub)
-    val visited = mutableMapOf<SymKey, CStub>()
-    val s = file.cljTraverser().regard { it is CFile || it.asDef != null }.traverse().skip(1)
-    val traceIt: TreeTraversal.TracingIt<PsiElement> = s.typedIterator()
-    for (e in traceIt) {
-      val def = e.asDef!!.def!!
-      val key = SymKey(def)
-      val parentStub = map[traceIt.parent()]!!
-      map[e] = visited.getOrPut(key, {
-        val stub = CListStub(key, parentStub)
-        if (def is Defn) {
-          def.protos.forEach {
-            CPrototypeStub(it.args, stub)
-          }
-        }
-        stub
-      })
-    }
-    (file as? CFileImpl)?.fileStub = fileStub
-    return fileStub
-  }
-
-  companion object {
-    init {
-      SerializationManager.getInstance().run {
-        registerSerializer(CFileStub.SERIALIZER)
-        registerSerializer(CListStub.SERIALIZER)
-        registerSerializer(CPrototypeStub.SERIALIZER)
-      }
-    }
+  finally {
+    BUILDING_STUBS.set(false)
   }
 }
+
+private fun buildStubTreeImpl(file: CFile): CFileStub {
+  val fileStub = CFileStub(file.namespace)
+  val map = mutableMapOf<PsiElement, CStub>(file to fileStub)
+  val visited = mutableMapOf<SymKey, CStub>()
+  val s = file.cljTraverser().regard { it is CFile || it.asDef != null }.traverse().skip(1)
+  val traceIt: TreeTraversal.TracingIt<PsiElement> = s.typedIterator()
+  for (e in traceIt) {
+    val def = e.asDef!!.def!!
+    val key = SymKey(def)
+    val parentStub = map[traceIt.parent()]!!
+    map[e] = visited.getOrPut(key, {
+      val stub = CListStub(key, parentStub)
+      if (def is Defn) {
+        def.protos.forEach {
+          CPrototypeStub(it.args, stub)
+        }
+      }
+      stub
+    })
+  }
+  (file as? CFileImpl)?.fileStub = fileStub
+  return fileStub
+}
+
 

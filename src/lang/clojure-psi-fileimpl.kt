@@ -41,10 +41,7 @@ import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.stubs.CFileStub
-import org.intellij.clojure.psi.stubs.CListStub
-import org.intellij.clojure.psi.stubs.CStub
-import org.intellij.clojure.psi.stubs.isBuildingStubs
+import org.intellij.clojure.psi.stubs.*
 import org.intellij.clojure.util.*
 import java.lang.ref.SoftReference
 import java.util.*
@@ -68,17 +65,15 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       when {
         virtualFile !is VirtualFileWithId -> null
         stub0 != null || treeElement != null || isBuildingStubs() -> stub0
-        else -> {
-          val stub = StubTreeLoader.getInstance().readOrBuild(project, virtualFile, this)?.root as? CFileStub
-          fileStubRef = if (stub != null) SoftReference(stub) else null
-          stub
-        }
+        else -> fileStubForced
       }
     }
   internal val fileStubForced: CFileStub?
     get() = fileStubRef?.get() ?: run {
-      val stub = StubTreeLoader.getInstance().readOrBuild(project, virtualFile, this)?.root as? CFileStub
-      return stub.also { fileStub = it }
+      val stub = if (virtualFile !is VirtualFileWithId) buildStubTree(this)
+      else StubTreeLoader.getInstance().readFromVFile(project, virtualFile)?.root as? CFileStub ?: buildStubTree(this)
+      fileStub = stub
+      return stub
     }
 
 
@@ -369,23 +364,26 @@ private class RoleHelper {
         else if (ClojureConstants.LET_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.ns) {
           setRole(e.findChild(CVec::class), Role.BND_VEC)
         }
+        else if (ClojureConstants.FN_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.ns) {
+          processPrototypes(e).size()
+        }
       }
     }
   }
 
   private fun createDef(e: CListBase, key: SymKey): IDef {
-    val prototypes = e.iterate(CList::class)
-        .map {
-          (it.firstChild?.nextSibling as? CVec)?.also { setRole(it, Role.PROTOTYPE) }
-        }
-        .append(e.first.siblings().filter(CVec::class).first())
-        .notNulls()
-        .onEach { setRole(it, Role.ARG_VEC) }
+    val prototypes = processPrototypes(e)
         .map { Prototype(arguments(it).toList(), null) }
         .toList()
     if (prototypes.isEmpty()) return key
     return Defn(key, prototypes)
   }
+
+  private fun processPrototypes(e: CListBase): JBIterable<CVec> = e.iterate(CList::class)
+      .map { list -> (list.firstForm as? CVec)?.also { setRole(list, Role.PROTOTYPE) } }
+      .append(e.first.siblings().filter(CVec::class).first())
+      .notNulls()
+      .onEach { setRole(it, Role.ARG_VEC) }
 
   fun processInRCParenToken(e: CToken): Boolean {
     if (ClojureTokens.PAREN_ALIKE.contains(e.elementType) &&

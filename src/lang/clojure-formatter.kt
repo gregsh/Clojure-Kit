@@ -22,20 +22,25 @@ import com.intellij.formatting.alignment.AlignmentStrategy
 import com.intellij.lang.ASTNode
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.TokenType
 import com.intellij.psi.codeStyle.CodeStyleSettings
 import com.intellij.psi.codeStyle.CommonCodeStyleSettings
 import com.intellij.psi.codeStyle.CustomCodeStyleSettings
 import com.intellij.psi.formatter.common.AbstractBlock
 import com.intellij.psi.tree.IFileElementType
-import com.intellij.util.Function
+import com.intellij.util.SmartList
+import com.intellij.util.containers.SmartHashSet
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.ClojureTypes.*
+import org.intellij.clojure.psi.impl.resolveXTarget
+import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.util.*
 
 /**
@@ -61,25 +66,13 @@ class ClojureFormattingModelBuilder : FormattingModelBuilder {
 
   fun createSpacingBuilder(common: CommonCodeStyleSettings, custom: ClojureCodeStyleSettings): SpacingBuilder {
     return SpacingBuilder(common.rootSettings, ClojureLanguage)
-        .before(C_COMMA).spaceIf(common.SPACE_BEFORE_COMMA)
-        .after(C_COMMA).spaceIf(common.SPACE_AFTER_COMMA)
         .between(C_PAREN1, C_PAREN2).lineBreakOrForceSpace(false, false)
         .between(C_BRACE1, C_BRACE2).lineBreakOrForceSpace(false, false)
         .between(C_BRACKET1, C_BRACKET2).lineBreakOrForceSpace(false, false)
-        .after(C_PAREN1).lineBreakOrForceSpace(false, false)
-        .after(C_BRACE1).lineBreakOrForceSpace(false, false)
-        .after(C_BRACKET1).lineBreakOrForceSpace(false, false)
-        .before(C_PAREN2).lineBreakOrForceSpace(false, false)
-        .before(C_BRACE2).lineBreakOrForceSpace(false, false)
-        .before(C_BRACKET2).lineBreakOrForceSpace(false, false)
         .after(C_HAT).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP_COMMENT).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP_QMARK).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP_QMARK_AT).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP_EQ).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP_HAT).lineBreakOrForceSpace(false, false)
-        .after(C_SHARP_QUOTE).lineBreakOrForceSpace(false, false)
+        .after(ClojureTokens.SHARPS).lineBreakOrForceSpace(false, false)
+        .after(ClojureTokens.PAREN1_ALIKE).lineBreakOrForceSpace(false, false)
+        .before(ClojureTokens.PAREN2_ALIKE).lineBreakOrForceSpace(false, false)
   }
 }
 
@@ -92,7 +85,9 @@ data class Context(val common: CommonCodeStyleSettings,
 
   val newLineTop = Spacing.createSpacing(1, 1, 2, common.KEEP_LINE_BREAKS, common.KEEP_BLANK_LINES_IN_DECLARATIONS)!!
   val newLine = Spacing.createSpacing(1, 1, 1, common.KEEP_LINE_BREAKS, common.KEEP_BLANK_LINES_IN_CODE)!!
+  val noSpaces = Spacing.createSpacing(0, 0, 0, common.KEEP_LINE_BREAKS, common.KEEP_BLANK_LINES_IN_CODE)!!
   val spaceOnly = Spacing.createSpacing(1, 0, 0, false, 0)!!
+  val spaceOrKeepNL = Spacing.createSpacing(1, 0, 0, common.KEEP_LINE_BREAKS, common.KEEP_BLANK_LINES_IN_CODE)!!
 }
 
 class ClojureFormattingBlock(node: ASTNode,
@@ -128,13 +123,17 @@ class ClojureFormattingBlock(node: ASTNode,
     val psi = myNode.psi
     val psi1 = block1.node.psi!!
     val psi2 = child2.node.psi!!
-    if (psi !is CForm && (psi1.role != Role.NONE || psi1 is CForm && psi2.role != Role.NONE)) {
+    if (psi is CFile && (psi1 is CForm || psi2 is CForm)) {
+      if (psi1 !is CForm) return context.newLine
+      if (psi1 is CList && psi2 is CList && psi1.firstForm?.name == psi2.firstForm?.name) return context.newLine
+      if (psi2 is PsiWhiteSpace && psi2.textMatches(",")) return null
       return context.newLineTop
     }
+    if (psi2 is PsiWhiteSpace && psi2.textMatches(",")) return context.noSpaces
     val newLine = context.newLine
     fun dependentSpacing(r: TextRange) =
         if (r.length >= context.SHORT_ENOUGH && psi2 is CForm) newLine
-        else Spacing.createDependentLFSpacing(0, 1, r, context.common.KEEP_LINE_BREAKS, context.common.KEEP_BLANK_LINES_IN_CODE)
+        else Spacing.createDependentLFSpacing(1, 1, r, context.common.KEEP_LINE_BREAKS, context.common.KEEP_BLANK_LINES_IN_CODE)
     fun dependentSpacing1() = dependentSpacing(TextRange.create(textRange.startOffset, block2.textRange.startOffset))
     fun dependentSpacing2() = dependentSpacing(TextRange.create(block1.textRange.startOffset,
         if (psi2 is CSForm) block1.textRange.endOffset else block2.textRange.endOffset))
@@ -143,41 +142,50 @@ class ClojureFormattingBlock(node: ASTNode,
       if (psi1 is CMetadata) return dependentSpacing1()
     }
     if (block2.sequenceIndex > 0 && !ClojureTokens.PAREN_ALIKE.contains(child2.node.elementType)) {
-      val spaceIfShort = if (block1.textRange.length <= context.SHORT_REALLY) context.spaceOnly else null
+      val spaceIfShort = if (block1.textRange.length <= context.SHORT_REALLY) context.spaceOrKeepNL else null
+      val psiDef = (psi as? CList)?.def
       when {
         psi is CMap -> {
           return if (block2.alignment == childAlignment && textRange.length > context.SHORT_ENOUGH) newLine
           else spaceIfShort
         }
         psi.role == Role.NS -> when {
-          (psi as? CList)?.def?.type == "ns" -> if (block2.sequenceIndex > 1) return newLine
+          psiDef?.type == "ns" -> if (block2.sequenceIndex > 1) return newLine else context.spaceOrKeepNL
           else -> return newLine
         }
         psi.role == Role.DEF -> {
-          if (psi2 is CVec) return null
-          else if (block2.textRange.length < context.SHORT_ENOUGH) dependentSpacing3()
-          else return newLine
-        }
-        psi is CVec -> {
-          val parent = psi.parent.run { if (findChild(CForm::class) == psi) parent else this }
-          if (parent.role == Role.DEF) return null
-          else (parent as? CList)?.first?.name.let {
-            if (it != null && ClojureConstants.FN_ALIKE_SYMBOLS.contains(it)) return null
-            else if (it != null && ClojureConstants.LET_ALIKE_SYMBOLS.contains(it) && parent == psi.parent) {
-              return if (block2.sequenceIndex > 0 && block2.sequenceIndex % 2 == 0) newLine else null
-            }
+          return when {
+            psiDef?.type == "defmethod" && psi1.role == Role.NAME && psi2 is CForm -> context.spaceOnly
+            psiDef?.type == "defmethod" && psi2.role == Role.ARG_VEC -> dependentSpacing(textRange)
+            psi2.role == Role.ARG_VEC -> null
+            psi1.role == Role.ARG_VEC -> dependentSpacing(textRange)
+            block2.textRange.length < context.SHORT_ENOUGH -> dependentSpacing3()
+            else -> newLine
           }
         }
+        psi is CVec -> {
+          if (psi.role == Role.BND_VEC) {
+            return if (block2.sequenceIndex > 0 && block2.sequenceIndex % 2 == 0) newLine else null
+          }
+          else if (block2.alignment == childAlignment && textRange.length > context.SHORT_ENOUGH) return newLine
+        }
         psi is CList -> {
-          val type = psi.findChild(CSForm::class)?.let { (it as? CSymbol)?.name ?: (it as? CKeyword)?.name }
-          return when (type) {
+          val listName = psi.firstForm?.name
+          return when (listName) {
             in ClojureConstants.NS_ALIKE_SYMBOLS ->
               if (block2.sequenceIndex <= 1) dependentSpacing1() else if (ClojureTokens.LIST_ALIKE.contains(block2.node.elementType)) newLine else null
             "if" -> if (block2.sequenceIndex > 1) dependentSpacing(textRange) else null
-            "cond", "condp", "cond->", "cond->>", "assert-args", "case" ->
-              if (block2.sequenceIndex <= 1) spaceIfShort else if (block1.alignment != childAlignment) newLine else null
+            "cond", "assert-args", "condp", "cond->", "cond->>", "case" ->
+              if (block1.alignment != null && block1.alignment != childAlignment) newLine
+              else if (block2.sequenceIndex <= 1) spaceIfShort
+              else null
             in ClojureConstants.LET_ALIKE_SYMBOLS ->
               if (block2.sequenceIndex == 1 && psi2 is CVec) context.spaceOnly else dependentSpacing2()
+            "reify", "extend-type", "extend", "deftype" ->
+              if (psi2 is CSymbol && psi1 is CPForm) context.newLineTop else newLine
+            "extend-protocol" ->
+              if (block2.sequenceIndex == 1 && psi2 is CSymbol) return context.spaceOnly
+              else if (psi2 is CSymbol && psi1 is CPForm) context.newLineTop else newLine
             else -> dependentSpacing2()
           }
         }
@@ -199,57 +207,84 @@ class ClojureFormattingBlock(node: ASTNode,
     val nextIndex: ()->Int = if (!ClojureTokens.LIST_ALIKE.contains(nodeType)) {{ -1 }} else {{ if (afterLeftParen) ++prevIndex else -1 }}
 
     val psi = node.psi
-    val minAlignIndex = if (nodeType != C_LIST || node.firstChildNode.elementType == C_READER_MACRO) 0
-    else if (psi.role == Role.DEF || psi.parents().skip(1).filter(CForm::class).isEmpty) Integer.MAX_VALUE
-    else if ((psi as? CList)?.first?.name?.let {
-      ClojureConstants.FN_ALIKE_SYMBOLS.contains(it) || ClojureConstants.LET_ALIKE_SYMBOLS.contains(it) } ?: false) Integer.MAX_VALUE
-    else 1
+    val listName = (psi as? CList)?.first?.name
+    val hasBody = (psi as? CList)?.let {
+      val target = it.first.resolveXTarget() ?: return@let false
+      val name = target.key.name
+      if (target.key.namespace == LangKind.CLJ.ns || target.key.namespace == LangKind.CLJS.ns) {
+        ClojureConstants.SPECIAL_FORMS.contains(name) ||
+            ClojureConstants.CLJS_SPECIAL_FORMS.contains(name) ||
+            ClojureConstants.LET_ALIKE_SYMBOLS.contains(name) ||
+            ClojureConstants.DEF_ALIKE_SYMBOLS.contains(name) ||
+            name.startsWith("with-") || name.startsWith("if-") ||
+            name == "extend-protocol" || name == "extend-type" || name == "extend" || name == "deftype" ||
+            target.resolveStub()?.childrenStubs.jbIt().filter(CPrototypeStub::class).find {
+              val last = it.args.lastOrNull()
+              last == "body" || last == "clauses" || last == "specs"
+            } != null
+      }
+      else false
+    } ?: false
+
+    val minAlignIndex = when {
+      nodeType != C_LIST || node.firstChildNode.elementType == C_READER_MACRO -> 0
+      psi.role == Role.DEF || hasBody -> Integer.MAX_VALUE
+      psi.role == Role.PROTOTYPE -> 0
+      ClojureConstants.FN_ALIKE_SYMBOLS.contains(listName) || ClojureConstants.LET_ALIKE_SYMBOLS.contains(listName) -> Integer.MAX_VALUE
+      else -> {
+        if ((psi as? CList)?.first.let { isNLBetween(it, it.nextForm) }) 0 else 1
+      }
+    }
 
     val metaAlign = if (node.firstChildNode?.elementType == C_METADATA) Alignment.createAlignment() else null
     val mapAlign = Alignment.createAlignment(true)
-    val useMapAlign: (ASTNode, Int) -> Alignment? =
-        if (psi is CMap || psi is CVec && (psi.parent as? CList)?.first?.name.isIn(ClojureConstants.LET_ALIKE_SYMBOLS)) {
-          { _, index -> if (index % 2 == 1) mapAlign else childAlignment }
-        }
-        else if (psi is CVec || psi is CList && psi.role != Role.DEF) {
-          val type = (psi as? CList)?.first?.name
-          when (type) {
-            "cond", "condp", "assert-args" ->  // (cond cond1 action1 ..)
-              { _, index -> if (index > 1 && index % 2 == 0) mapAlign else childAlignment }
-            "cond->", "cond->>" ->  // (cond-> val cond1 action1 ..)
-              { _, index -> if (index > 2 && index % 2 == 1) mapAlign else childAlignment }
-            "case" ->  // (case x value1 action1 ..)
-              { _, index -> if (index > 1 && index % 2 == 1) mapAlign else childAlignment }
-            else ->
-              psi.childForms.filter {
+    val useMapAlign: (ASTNode, Int) -> Boolean =
+        when {
+          psi is CMap || psi is CVec && psi.role == Role.BND_VEC ->
+            { node, index -> index % 2 == 1 && node is CForm && !isNLBetween(node.prevForm, node) }
+          psi is CVec || psi is CList && psi.role != Role.DEF -> when (listName) {
+            "cond", "assert-args" ->  // (cond cond1 action1 ..)
+              { node, index -> index > 1 && index % 2 == 0 && node is CForm && !isNLBetween(node.prevForm, node) }
+            "cond->", "cond->>", "case" ->  // (cond-> val cond1 action1 ..)
+              { node, index -> index > 2 && index % 2 == 1 && node is CForm && !isNLBetween(node.prevForm, node) }
+            "condp" ->
+              { node, index -> index > 3 && index % 2 == 0 && node is CForm && !isNLBetween(node.prevForm, node) }
+            else -> {
+              val set = psi.childForms.filter {
                 it is CKeyword && (it.nextForm?.nextForm.let { it is CKeyword || it == null } || it.prevForm.prevForm is CKeyword)
-              }.let {
-                if (it.size() > 1) {
-                  val set = it.map { it.nextForm?.node }.notNulls().toSet();
-                  { node: ASTNode, _: Int -> if (set.contains(node)) mapAlign else childAlignment }
-                }
-                else {
-                  { _, _ -> childAlignment }
-                }
+              }.map { it.nextForm?.node }.notNulls().addAllTo(SmartHashSet())
+              if (set.size > 1) {
+                { node: ASTNode, _: Int -> set.contains(node) }
               }
+              else {
+                { _, _ -> false }
+              }
+            }
           }
+          else ->
+            { _, _ -> false }
         }
-        else {
-          { _, _ -> childAlignment }
-        }
-    return node.iterate().transform(Function<ASTNode, ClojureFormattingBlock> f@ {
+    val result = node.iterate().map {
       val type = it.elementType
       if (type == TokenType.WHITE_SPACE && it.textLength == 1 && it.text == "," ||
           type == TokenType.ERROR_ELEMENT && it.textLength > 0 ||
           ClojureTokens.COMMENTS.contains(type)) {
-        return@f ClojureFormattingBlock(it, context, wrap, if (afterLeftParen && prevIndex >= minAlignIndex) childAlignment else null, alignmentStrategy, prevIndex)
+        return@map ClojureFormattingBlock(
+            it, context, wrap,
+            if (afterLeftParen && prevIndex >= minAlignIndex) childAlignment else null,
+            alignmentStrategy, prevIndex)
       }
-      if (type == TokenType.WHITE_SPACE || type == TokenType.ERROR_ELEMENT) return@f null
+      if (type == TokenType.WHITE_SPACE || type == TokenType.ERROR_ELEMENT) return@map null
       val index = if (afterLeftParen) nextIndex()
       else { if (ClojureTokens.PAREN_ALIKE.contains(type)) afterLeftParen = true; -1 }
-      val align = if (index < minAlignIndex) metaAlign else useMapAlign(it, index)
+      val align = if (useMapAlign(it, index)) mapAlign else if (index < minAlignIndex) metaAlign else childAlignment
       ClojureFormattingBlock(it, context, wrap, align, alignmentStrategy, index)
-    }).notNulls().toList()
+    }.notNulls().addAllTo(SmartList())
+    return result
   }
 
 }
+
+private fun isNLBetween(e1: PsiElement?, e2: PsiElement?) =
+    e1 != null && e2 != null &&
+    StringUtil.indexOf(e1.containingFile.text, '\n', e1.textRange.startOffset, e2.textRange.startOffset) != -1

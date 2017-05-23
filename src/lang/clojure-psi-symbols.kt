@@ -35,9 +35,9 @@ import com.intellij.psi.search.EverythingGlobalScope
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.FactoryMap
-import com.intellij.util.containers.JBTreeTraverser
 import com.intellij.util.indexing.FileBasedIndex
 import com.intellij.util.indexing.ID
 import com.intellij.util.ui.EmptyIcon
@@ -69,6 +69,10 @@ fun IDef?.matches(info: IDef?) = this != null && info != null && name == info.na
         namespace.isIn(CORE_NAMESPACES) && info.namespace.isIn(CORE_NAMESPACES))
 
 fun CSymbol?.resolveInfo(): IDef? = this?.reference?.resolve().asCTarget?.key
+internal fun CSymbol?.resolveXTarget(): XTarget? = this?.reference?.resolve()?.let {
+  val target = it.asCTarget ?: return@let null
+  target as? XTarget ?: wrapWithNavigationElement(it.project, target.key, PsiUtilCore.getVirtualFile(it)).asXTarget
+}
 
 class ClojureDefinitionService(val project: Project) {
   companion object {
@@ -286,14 +290,7 @@ internal class XTarget(project: Project,
 
   fun resolve(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as PsiElement else it }
 
-  fun resolveStub(): CStub? = (psiFile as? CFileImpl)?.fileStubForced?.let { stub ->
-    JBTreeTraverser<CStub> { o -> o.childrenStubs }
-        .withRoot(stub)
-        .filter(IDef::class.java)
-        .find {
-          it.name == key.name && it.type == key.type && it.namespace == key.namespace
-        } as? CStub
-  }
+  fun resolveStub(): CStub? = (psiFile as? CFileImpl)?.fileStubForced?.findChildStub(key)
 }
 
 internal val PsiElement?.asCTarget: CTarget?

@@ -588,11 +588,7 @@ class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
 }
 
 fun resolvePrototypes(call: CList): JBIterable<*> {
-  val target = call.first?.reference?.resolve()?.navigationElement
-  return target.asXTarget?.resolveStub()?.children?.jbIt() ?:
-      (target as? CList)?.let {
-        prototypes(it).transform { it.childForms.find { it is CVec } }.filter(CPForm::class)
-      } ?: JBIterable.empty<Any>()
+  return call.first?.resolveXTarget()?.resolveStub()?.childrenStubs?.jbIt() ?: JBIterable.empty<Any>()
 }
 
 fun arguments(proto: Any): JBIterable<String> {

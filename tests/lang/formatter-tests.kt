@@ -51,6 +51,8 @@ class ClojureFormatterTest : LightPlatformCodeInsightFixtureTestCase() {
   }
 
   fun testSimple() = doTest()
+  fun testStyleGuide() = doTest()
+
   fun testCodeSample() = doTest(ClojureLangCodeStyleSettingsProvider().getCodeSample(
       LanguageCodeStyleSettingsProvider.SettingsType.INDENT_SETTINGS))
 
