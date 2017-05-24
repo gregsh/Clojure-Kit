@@ -327,7 +327,7 @@ private class RoleHelper {
       }
       // optimization: take other threads work into account
       else if (e is CListBase && (e as CComposite).roleImpl == Role.DEF) {
-        seenDefs.add(e.def!!.name)
+        seenDefs.add(e.def!!.qualifiedName)
       }
       else if (e is CListBase && processRCParenForm(e)) {
         Unit
@@ -337,8 +337,9 @@ private class RoleHelper {
         val firstName = first?.name ?: continue
         val langKind = currentLangKind()
         val ns = first.qualifier?.name?.let { resolveAlias(it) } ?:
-            if (seenDefs.contains(firstName)) fileNS else langKind.ns
+            if (seenDefs.contains(firstName.withNamespace(fileNS))) fileNS else langKind.ns
         if (ClojureConstants.DEF_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.ns ||
+            firstName != "defmethod" &&
             firstName.startsWith("def") && firstName != "default" && firstName != "def" /* clojure.spec/def */) {
           val nameSym = first.nextForm as? CSymbol
           if (nameSym != null && nameSym.firstChild !is CReaderMacro ) {
@@ -347,13 +348,22 @@ private class RoleHelper {
             val key = SymKey(nameSym.name, resolveAlias(nameSym.qualifier?.name) ?: fileNS, type)
             setRole(nameSym, Role.NAME)
             delayedDefs.put(e, createDef(e, key))
-            seenDefs.add(key.name)
+            seenDefs.add(key.qualifiedName)
+
+            if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(firstName)) {
+              if (firstName == "defrecord" || firstName == "deftype") {
+                setRole(e.findChild(CVec::class), Role.FIELD_VEC)
+              }
+              e.iterate(CList::class).filter { it.first?.name != null }.forEach {
+                setRole(it.first, Role.NAME)
+                it.iterate(CVec::class).forEach { setRole(it, Role.ARG_VEC) }
+              }
+            }
           }
         }
-        else if (delayedDefs[e.parentForm]?.type.let { t -> t == "defprotocol" || t == "defrecord"}) {
+        else if (delayedDefs[e.parentForm]?.type.let { t -> t == "defprotocol" || t == "definterface" }) {
           val key = SymKey(firstName, fileNS, "method")
           setRole(first, Role.NAME)
-          setRole(first.nextForm as? CVec, Role.ARG_VEC)
           delayedDefs.put(e, createDef(e, key))
           seenDefs.add(key.name)
         }
@@ -364,8 +374,24 @@ private class RoleHelper {
         else if (ClojureConstants.LET_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.ns) {
           setRole(e.findChild(CVec::class), Role.BND_VEC)
         }
-        else if (ClojureConstants.FN_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.ns) {
+        else if (ClojureConstants.FN_ALIKE_SYMBOLS.contains(firstName)/* && ns == langKind.ns*/) {
           processPrototypes(e).size()
+        }
+        else if (firstName == "letfn" && ns == langKind.ns) {
+          (first.nextForm as? CVec).iterate(CListBase::class).forEach {
+            setRole(it.first ?: return@forEach, Role.NAME)
+            processPrototypes(it).size()
+          }
+        }
+        else if (firstName == "defmethod" && ns == langKind.ns) {
+          setRole(first.nextForm, Role.NAME)
+          setRole((e.forms[3] as? CVec), Role.ARG_VEC)
+        }
+        else if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(firstName)) {
+          e.iterate(CList::class).forEach {
+            setRole(it.first ?: return@forEach, Role.NAME)
+            prototypes(it).flatMap { it.iterate(CVec::class) }.forEach { setRole(it, Role.ARG_VEC) }
+          }
         }
       }
     }

@@ -30,7 +30,9 @@ import com.intellij.codeInsight.hints.InlayParameterHintsProvider
 import com.intellij.codeInsight.hints.Option
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
+import com.intellij.codeInsight.navigation.NavigationUtil
 import com.intellij.icons.AllIcons
+import com.intellij.ide.util.DefaultPsiElementCellRenderer
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.documentation.DocumentationProviderEx
@@ -49,6 +51,7 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.patterns.StandardPatterns
+import com.intellij.pom.Navigatable
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
@@ -57,6 +60,7 @@ import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
+import com.intellij.ui.awt.RelativePoint
 import com.intellij.util.ProcessingContext
 import com.intellij.util.TimeoutUtil
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -72,6 +76,8 @@ import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.util.*
+import java.awt.event.MouseEvent
+import javax.swing.Icon
 
 /**
  * @author gregsh
@@ -425,9 +431,9 @@ class ClojureTargetElementEvaluator : TargetElementEvaluatorEx2() {
 
 class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
   companion object {
-    val P1 = Option("clojure.defprotocol", "Protocol method", AllIcons.Gutter.ImplementedMethod)
-    val P2 = Option("clojure.extend-protocol", "Protocol method implementation", AllIcons.Gutter.ImplementingMethod)
-    val MM1 = Option("clojure.defmulti", "Multi-method", AllIcons.Gutter.ImplementedMethod)
+    val P1 = Option("clojure.method.decl", "Method declaration", AllIcons.Gutter.ImplementedMethod)
+    val P2 = Option("clojure.method.impl", "Method implementation", AllIcons.Gutter.ImplementingMethod)
+    val MM1 = Option("clojure.defmulti", "Multi-method declaration", AllIcons.Gutter.ImplementedMethod)
     val MM2 = Option("clojure.defmethod", "Multi-method implementation", AllIcons.Gutter.ImplementingMethod)
   }
 
@@ -438,24 +444,70 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
   }
 
   override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
-    // todo extend, extend-type, extend-protocol
-    val form = element.parent.asDef ?: return null
-    val def = form.def ?: return null
-    val nameSym = form.run { if (findChild(Role.NAME) == element) element else null } ?: return null
-    if (def.type == "method") {
-      return LineMarkerInfo(nameSym, nameSym.textRange, P1.icon!!, Pass.UPDATE_ALL,
-          { "Protocol method implementations" },
-          { _, _ -> }, GutterIconRenderer.Alignment.LEFT)
+    if (element !is CSymbol || element.role != Role.NAME) return null
+    val def = element.parentForm.asDef?.def
+    val parentName = element.parentForm.firstForm?.name
+    val grandName = element.parentForm.parentForm.firstForm?.name
+    return when {
+      def?.type == "method" ->
+        LineMarkerInfo(element, element.textRange, P1.icon!!, Pass.UPDATE_ALL, { P1.name },
+          { event, sym -> showNavPopup(sym, event) }, GutterIconRenderer.Alignment.LEFT)
+      def?.type == "defmulti" ->
+        LineMarkerInfo(element, element.textRange, MM1.icon!!, Pass.UPDATE_ALL, { MM1.name },
+            { event, sym -> showNavPopup(sym, event) }, GutterIconRenderer.Alignment.RIGHT)
+      def == null && parentName == "defmethod" ->
+        LineMarkerInfo(element, element.textRange, MM2.icon!!, Pass.UPDATE_ALL, { MM2.name },
+            { _, sym -> navigate(sym.reference.resolve()) },
+            GutterIconRenderer.Alignment.LEFT)
+      def == null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
+        LineMarkerInfo(element, element.textRange, P2.icon!!, Pass.UPDATE_ALL, { P2.name },
+            { _, sym -> navigate(sym.reference.resolve()) },
+            GutterIconRenderer.Alignment.LEFT)
+      else -> null
     }
-    else if (def.type == "defmulti") {
-      return LineMarkerInfo(nameSym, nameSym.textRange, MM1.icon!!, Pass.UPDATE_ALL,
-          { "Multi-method implementations" }, { _, _ -> }, GutterIconRenderer.Alignment.RIGHT)
+  }
+
+  private fun navigate(e: PsiElement?) {
+    (e as? Navigatable)?.navigate(true)
+  }
+
+  private fun showNavPopup(sym: CSymbol, event: MouseEvent) {
+    val origParent = sym.parentForm
+    val target = sym.reference.resolve() ?: return
+    val result = mutableListOf<PsiElement>()
+    ReferencesSearch.search(target).forEach { ref ->
+      val e = ref.element as? CSymbol ?: return@forEach
+      val parent = e.parentForm
+      if (parent == origParent) return@forEach
+      if (parent?.firstForm?.name == "defmethod") result.add(parent)
+      else {
+        val grandName = parent?.parentForm?.firstForm?.name
+        if (grandName != null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName)) {
+          result.add(parent)
+        }
+      }
     }
-    else if (def.type == "defmethod") {
-      return LineMarkerInfo(nameSym, nameSym.textRange, MM2.icon!!, Pass.UPDATE_ALL,
-          { "Multi-method" }, { _, _ -> }, GutterIconRenderer.Alignment.LEFT)
-    }
-    return null
+    if (result.isEmpty()) return
+    NavigationUtil.getPsiElementPopup(result.toTypedArray(), object : DefaultPsiElementCellRenderer() {
+      override fun getElementText(element: PsiElement): String {
+        val form = element as? CListBase ?: return super.getElementText(element)
+        val formName = form.first?.name
+        if (formName == "defmethod") {
+          return "(${(form.forms[1] as? CSymbol)?.name} ${form.forms[2]?.text ?: ""})"
+        }
+        val parentForm = form.parentForm as CListBase
+        val grandName = parentForm.firstForm?.name
+        val selector =
+            if (grandName == "extend-protocol") form.prevSiblings().filter(CSymbol::class).first()?.qualifiedName
+            else (parentForm.forms[1] as? CSymbol)?.name
+        return "(${formName ?: ""} ${selector ?: ""})"
+      }
+
+      override fun getIcon(element: PsiElement?): Icon {
+        return ClojureIcons.METHOD
+      }
+    }, "Choose Implementation")
+        .show(RelativePoint(event))
   }
 }
 

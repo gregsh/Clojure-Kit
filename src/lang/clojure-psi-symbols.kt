@@ -18,6 +18,7 @@
 package org.intellij.clojure.psi.impl
 
 import com.intellij.ide.util.PsiNavigationSupport
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -114,7 +115,7 @@ class ClojureDefinitionService(val project: Project) {
   fun getDefinition(o: CList): PsiElement {
     val def = o.def ?: throw AssertionError("not definition")
     val targetMap = if (def.type == "defn-") o.containingFile.map else map
-    return targetMap[SymKey(def.name, def.namespace, if (def.type == "defmethod") "defmulti" else def.type)]!!
+    return targetMap[SymKey(def.name, def.namespace, def.type)]!!
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
@@ -132,7 +133,7 @@ class ClojureDefinitionService(val project: Project) {
   }
 
   fun getSymbol(o: CSymbol): PsiElement {
-    val topVec = o.parentForms.filter(CVec::class).last()
+    val topVec = o.parentForms.filter(CVec::class).find { it.role == Role.ARG_VEC || it.role == Role.BND_VEC }
     val isLocal = topVec != null && !(topVec.parent.let { it is CList && it.first?.name == "binding" })
     val symKey = if (isLocal) {
       val isArgument = o.findParent(CList::class)?.let {
@@ -224,7 +225,7 @@ internal class YTarget(project: Project,
       (navigationElement as Navigatable).navigate(requestFocus)
 
   override fun getNavigationElement(): PsiElement {
-    val data = target
+    val data: PsiElement? = ReadAction.compute<PsiElement?, Nothing> { target }
     return data ?: PomService.convertToPsi(project, NULL_TARGET)
   }
 

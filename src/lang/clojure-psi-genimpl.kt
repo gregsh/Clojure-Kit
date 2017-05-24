@@ -60,7 +60,8 @@ class ClojurePsiImplUtil {
     @JvmStatic fun getDef(o: CListBase): IDef? =
         if (o.role == Role.DEF || o.role == Role.NS) o.defImpl else null
     @JvmStatic fun getTextOffset(o: CListBase): Int =
-        (if (o.role != Role.NONE) o.findChild(Role.NAME) ?: o else o).textOffset
+        (if (o.role != Role.NONE) o.findChild(Role.NAME) else o.firstForm)?.textOffset
+            ?: o.textRange.startOffset
 
     @JvmStatic fun getFirst(o: CList): CSymbol? = o.findChild(CForm::class) as? CSymbol
     @JvmStatic fun getLiteralType(o: CLiteral): IElementType? = o.lastChild?.elementType

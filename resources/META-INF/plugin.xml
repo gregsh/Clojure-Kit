@@ -79,6 +79,7 @@
     <findUsagesHandlerFactory implementation="org.intellij.clojure.java.JavaHelper$AsmFindUsagesHandlerFactory"/>
     <projectService serviceInterface="org.intellij.clojure.psi.impl.ClojureDefinitionService"
                     serviceImplementation="org.intellij.clojure.psi.impl.ClojureDefinitionService" />
+    <projectService serviceImplementation="org.intellij.clojure.psi.impl.ClojureTypeCache" />
     <renameHandler implementation="org.intellij.clojure.editor.ClojureInplaceRenameHandler"/>
     <lang.namesValidator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureNamesValidator"/>
     <renameInputValidator implementation="org.intellij.clojure.editor.ClojureNamesValidator"/>

@@ -155,8 +155,6 @@ class ClojureFormattingBlock(node: ASTNode,
         }
         psi.role == Role.DEF -> {
           return when {
-            psiDef?.type == "defmethod" && psi1.role == Role.NAME && psi2 is CForm -> context.spaceOnly
-            psiDef?.type == "defmethod" && psi2.role == Role.ARG_VEC -> dependentSpacing(textRange)
             psi2.role == Role.ARG_VEC -> null
             psi1.role == Role.ARG_VEC -> dependentSpacing(textRange)
             block2.textRange.length < context.SHORT_ENOUGH -> dependentSpacing3()
@@ -174,6 +172,10 @@ class ClojureFormattingBlock(node: ASTNode,
           return when (listName) {
             in ClojureConstants.NS_ALIKE_SYMBOLS ->
               if (block2.sequenceIndex <= 1) dependentSpacing1() else if (ClojureTokens.LIST_ALIKE.contains(block2.node.elementType)) newLine else null
+            "defmethod" ->
+              if (psi1.role == Role.NAME && psi2 is CForm) context.spaceOnly
+              else if (psi2.role == Role.ARG_VEC) dependentSpacing(textRange)
+              else null
             "if" -> if (block2.sequenceIndex > 1) dependentSpacing(textRange) else null
             "cond", "assert-args", "condp", "cond->", "cond->>", "case" ->
               if (block1.alignment != null && block1.alignment != childAlignment) newLine
@@ -217,7 +219,8 @@ class ClojureFormattingBlock(node: ASTNode,
             ClojureConstants.LET_ALIKE_SYMBOLS.contains(name) ||
             ClojureConstants.DEF_ALIKE_SYMBOLS.contains(name) ||
             name.startsWith("with-") || name.startsWith("if-") ||
-            name == "extend-protocol" || name == "extend-type" || name == "extend" || name == "deftype" ||
+            name == "extend-protocol" || name == "extend-type" || name == "extend" ||
+            name == "deftype" || name == "defmethod" ||
             target.resolveStub()?.childrenStubs.jbIt().filter(CPrototypeStub::class).find {
               val last = it.args.lastOrNull()
               last == "body" || last == "clauses" || last == "specs"

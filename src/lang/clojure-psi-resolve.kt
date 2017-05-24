@@ -18,6 +18,7 @@
 package org.intellij.clojure.psi.impl
 
 import com.intellij.lang.Language
+import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.Ref
@@ -26,6 +27,8 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.pom.Navigatable
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
+import com.intellij.psi.impl.AnyPsiChangeListener
+import com.intellij.psi.impl.PsiManagerImpl
 import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.scope.NameHint
@@ -46,10 +49,24 @@ import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
-import java.util.concurrent.ConcurrentMap
 
 val RENAMED_KEY: Key<String> = Key.create("RENAMED_KEY")
 val ALIAS_KEY: Key<String> = Key.create("ALIAS_KEY")
+
+class ClojureTypeCache(val service: ClojureDefinitionService) {
+  companion object {
+    val INSTANCE_KEY = ServiceManager.createLazyKey(ClojureTypeCache::class.java)!!
+  }
+
+  val map = ContainerUtil.createConcurrentWeakMap<CForm, String>()
+  init {
+    service.project.messageBus.connect().subscribe(PsiManagerImpl.ANY_PSI_CHANGE_TOPIC, object : AnyPsiChangeListener.Adapter() {
+      override fun beforePsiChanged(isPhysical: Boolean) {
+        map.clear()
+      }
+    })
+  }
+}
 
 class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRight(-o.textRange.startOffset)) :
     PsiPolyVariantReferenceBase<CSymbol>(o, r), PsiQualifiedReference {
@@ -76,11 +93,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
     val NULL_TYPE = "*unknown*"
     val ourTypeGuard = RecursionManager.createGuard("javaType")!!
-    val ourTypeCache: ConcurrentMap<CForm, String> = ContainerUtil.createConcurrentWeakKeySoftValueMap<CForm, String>()
   }
 
   private fun ClojureDefinitionService.javaType(form: CForm?): String? {
     if (form == null) return null
+    val ourTypeCache = ClojureTypeCache.INSTANCE_KEY.getValue(project).map
     val cached = ourTypeCache[form] ?: ourTypeGuard.doPreventingRecursion(form, false) {
       val stamp = ourTypeGuard.markStack()
       val type = javaTypeImpl(form) ?: NULL_TYPE
@@ -128,7 +145,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         else {
           val first = form.firstForm
           when (first) {
-            is CAccess -> first.symbol.reference?.resolve().asNonCPom()?.qualifiedName
+            is CAccess -> first.symbol.reference.resolve().asNonCPom()?.qualifiedName
             is CSymbol -> when (first.name) {
               "new" -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
               "." -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName ?:
@@ -354,46 +371,57 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val isCljs = langKind == LangKind.CLJS
     val element = place.thisForm!!
     var prevO: CForm = element
-    for (o in prevO.parents().filter(CList::class)) {
-      val origType = formType(o) ?: continue
-      val type = if (origType.endsWith("->") || origType.endsWith("->>")) formType(prevO) ?: origType
-      else origType
-      if (prevO.parent is CVec && refText == "&") return processor.skipResolve()
-      val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
-      val isExtendProtocol = !isFnLike && o.parent.run {
-        this is CList && first?.name.let {
-          it == "proxy" || it == "defrecord" || it == "extend-protocol" || it == "extend-type"} }
-      if (o.role == Role.DEF && type == "deftype" || type == "reify") {
-        if (type == "deftype") {
-          val binding = o.first.findNext(CVec::class)
-          for (part in binding.iterate(CSymbol::class)) {
-            if (!processor.execute(part, state)) return false
-          }
+    for (o in prevO.parentForms) {
+      val origType = formType(o)
+      if (o !is CList || origType == null) {
+        lastParentRef.set(o)
+        if (refText == "&") {
+          if (o.role == Role.ARG_VEC || o.role == Role.BND_VEC) return processor.skipResolve()
         }
-        for (fn in o.iterate(CList::class)) {
-          val nameSymbol = fn.first
-          if (nameSymbol != null) {
-            if (!processor.execute(nameSymbol, state)) return false
-          }
-          for (prototype in prototypes(fn)) {
-            if (!prototype.isAncestorOf(myElement)) continue
-            if (!processBindings(prototype, "fn", state, processor, myElement)) return false
-          }
+        if (prevO == place) {
+          if (o.role == Role.ARG_VEC || o.role == Role.FIELD_VEC) return processor.execute(place, state)
         }
+        prevO = o
+        continue
       }
-      else if (o.role == Role.DEF && type == "defprotocol") {
-        for (prototype in o.iterate().filter { it.role == Role.DEF }) {
-          if (!processor.execute(prototype, state)) return false
-          for (binding in prototype.iterate(CVec::class)) {
-            if (!binding.isAncestorOf(element)) continue
-            for (part in binding.iterate(CSymbol::class)) {
-              if (!processor.execute(part, state)) return false
+      val type = if (origType.endsWith("->") || origType.endsWith("->>")) formType(prevO) ?: origType else origType
+      val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
+      if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(type)) {
+        for (part in (prevO as? CVec ?: o.findChild(Role.FIELD_VEC) as? CVec).iterate(CSymbol::class)) {
+          if (!processor.execute(part, state)) return false
+        }
+        if (prevO is CList) {
+          if (prevO.def != null) {
+            if (!processor.execute(prevO, state)) return false
+          }
+          else {
+            val methodName = prevO.first?.name
+            if (methodName != null) {
+              val protocolSym = if (type == "extend-protocol") o.forms[1] as? CSymbol
+              else prevO.prevSiblings().skip(1).find { it is CSymbol && it.role != Role.NAME }
+              val protocol = protocolSym?.reference?.resolve()
+              val protocolKey = protocol.asCTarget?.key
+
+              if (protocolKey != null) {
+                if (!processor.execute(service.getDefinition(methodName, protocolKey.namespace, "method"), state)) return false
+              }
+              else if (protocol is PsiQualifiedNamedElement) {
+                val methods = service.java.findClassMethods(protocol.qualifiedName, JavaHelper.Scope.INSTANCE, StringUtil.notNullize(refText, "*"), -1)
+                methods.forEach { if (!processor.execute(it, state)) return false }
+              }
+              for (prototype in prototypes(prevO)) {
+                if (!prototype.isAncestorOf(myElement)) continue
+                if (!processBindings(prototype, "fn", state, processor, myElement)) return false
+              }
             }
           }
         }
       }
-      else if (o.role == Role.DEF || isFnLike || isExtendProtocol) {
-        if (isFnLike || isExtendProtocol) {
+      else if (type == "defmethod") {
+        if (!processBindings(o, "fn", state, processor, myElement)) return false
+      }
+      else if (o.role == Role.DEF || isFnLike) {
+        if (isFnLike) {
           val nameSymbol = (if (isFnLike) o.first.nextForm else o.first) as? CSymbol
           if (nameSymbol != null) {
             if (!processor.execute(nameSymbol.parent.asDef ?: nameSymbol, state)) return false
@@ -528,9 +556,7 @@ fun formType(o: CForm): String? {
 }
 
 fun findBindingsVec(o: CList, mode: String): CVec? {
-  val isMethod = mode == "fn" && o.asDef?.def?.type == "defmethod"
-  return (if (isMethod) o.first.siblings().filter(CForm::class).get(3) as? CVec
-  else o.iterate(CVec::class).first())
+  return o.findChild(if (mode == "fn") Role.ARG_VEC else Role.BND_VEC) as? CVec
 }
 
 fun destruct(o: CForm?) = DESTRUCTURING.withRoot(o).traverse()
@@ -566,8 +592,8 @@ fun processSpecialForms(langKind: LangKind, refText: String?, place: PsiElement,
   return true
 }
 
-fun processBindings(o: CList, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
-  val bindings = findBindingsVec(o, mode) ?: return true
+fun processBindings(element: CList, mode: String, state: ResolveState, processor: PsiScopeProcessor, place: PsiElement): Boolean {
+  val bindings = findBindingsVec(element, mode) ?: return true
   if (!processor.execute(bindings, state)) return false
   val roots = when (mode) {
     "fn" -> JBIterable.of(bindings)

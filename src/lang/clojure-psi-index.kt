@@ -32,7 +32,7 @@ import java.io.DataOutput
 /**
  * @author gregsh
  */
-val VERSION = 201
+val VERSION = 202
 
 val NS_INDEX = ID.create<String, Unit>("clojure.ns")
 val DEF_INDEX = ID.create<String, Unit>("clojure.def")

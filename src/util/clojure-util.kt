@@ -105,6 +105,9 @@ fun PsiElement?.iterateRCAware(): JBIterable<PsiElement> =
 fun PsiElement?.siblings(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else JBIterable.generate(this, { it.nextSibling }).notNulls()
 
+fun PsiElement?.prevSiblings(): JBIterable<PsiElement> =
+    if (this == null) JBIterable.empty() else JBIterable.generate(this, { it.prevSibling }).notNulls()
+
 fun PsiElement?.parents(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else SyntaxTraverser.psiApi().parents(this)
 

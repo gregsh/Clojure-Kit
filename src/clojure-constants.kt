@@ -63,7 +63,7 @@ object ClojureConstants {
     """.trim()).toSet()
 
   @JvmStatic val DEF_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
-    def defn defn- defmacro defonce deftype defrecord defstruct defmethod defmulti defprotocol
+    def defn defn- defmacro defonce deftype defrecord defstruct defmulti defprotocol
     def-aset definline definterface
     define defcurried deftype* defrecord* create-ns
     """.trim()).toSet()
@@ -84,6 +84,10 @@ object ClojureConstants {
   @JvmStatic val TYPE_META_ALIASES = "\\s+".toRegex().split("""
     int ints long longs float floats double doubles void short shorts
      boolean booleans byte bytes char chars objects
+    """.trim()).toSet()
+
+  @JvmStatic val OO_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
+    defprotocol definterface deftype defrecord extend-protocol extend-type proxy reify
     """.trim()).toSet()
 
   @JvmStatic val LEIN_PROJECT_CLJ = "project.clj"
