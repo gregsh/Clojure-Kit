@@ -81,10 +81,11 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   "::"                   { yybegin(SYMBOL0); return C_COLONCOLON; }
   ":"                    { yybegin(SYMBOL0); return C_COLON; }
   ".-"  /  {SYM_CHAR}    { yybegin(SYMBOL0); return C_DOTDASH; }
+  ".-"                   { return C_SYM; }
   "."   /  {SYM_CHAR}    { yybegin(SYMBOL0); return C_DOT; }
-
+  "."                    { return C_SYM; }
   "/" {SYM_CHAR2} +      { yybegin(YYINITIAL); return BAD_CHARACTER; }
-  ".-" | "." | "/"       { return C_SYM; }
+  "/"                    { return C_SYM; }
 
   {SYM_START}{SYM_TAIL}? { yybegin(SYMBOL1); return C_SYM; }
 }

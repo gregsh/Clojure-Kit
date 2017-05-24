@@ -6,6 +6,10 @@ import com.intellij.psi.PsiElementVisitor;
 
 public class ClojureVisitor extends PsiElementVisitor {
 
+  public void visitAccess(@NotNull CAccess o) {
+    visitSForm(o);
+  }
+
   public void visitConstructor(@NotNull CConstructor o) {
     visitPForm(o);
   }

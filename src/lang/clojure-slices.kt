@@ -94,7 +94,7 @@ class ClojureSliceUsage : SliceUsage {
     }
     else {
       val list = element.parents().filter(CList::class).filter { it.iterate(CReaderMacro::class).isEmpty }.first() ?: return
-      val type = listType(list) ?: return
+      val type = formType(list) ?: return
       when {
         type == "let" && findBindingsVec(list, "let").isAncestorOf(element) -> {
           val bindings = findBindingsVec(list, "let")
@@ -134,7 +134,7 @@ class ClojureSliceUsage : SliceUsage {
     val list = element.parents().filter(CList::class).filter { it.iterate(CReaderMacro::class).isEmpty }.transform {
       if (it.parent.role == Role.DEF && it.childForms.first() is CVec) it.parent.asDef else it
     }.first() ?: return
-    val type = listType(list) ?: return
+    val type = formType(list) ?: return
     when {
       type == "let" && findBindingsVec(list, "let").isAncestorOf(element) -> {
         val bindings = findBindingsVec(list, "let")

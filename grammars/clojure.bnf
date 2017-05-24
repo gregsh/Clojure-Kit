@@ -63,10 +63,11 @@
   extends("set|map|constructor|l_v_form")=p_form
   extends("vec|list")=l_v_form
   extends("fun")=list
-  extends("symbol|keyword|literal")=s_form
+  extends("symbol|keyword|literal|access")=s_form
   extends("regexp")=literal
   extends("symbol_.*")=symbol
   elementType("symbol_.*")=symbol
+  elementType("access_.*")=access
   pin("list|set|vec|map|fun")="'[\(\[\{]'"
   pin("constructor|reader_cond")=1
   name("metadata|constructor|reader_.*")=form
@@ -88,7 +89,7 @@ private external form_recover ::= formRecover
 upper form_upper ::= form_inner {elementType=form name=form}
 private form_inner ::= p_forms | s_forms | constructor
 private p_forms ::= list | set | vec | map | fun
-private s_forms ::= symbol | keyword | literal | regexp
+private s_forms ::= symbol access_left? | keyword | literal | regexp | access
 
 fake p_form ::= form * {methods=[forms="form"]}
 fake l_v_form ::=
@@ -99,8 +100,8 @@ set ::= '#' <<nospace>> '{' set_body '}'
 vec ::= '[' vec_body ']'
 map ::= '{' map_body '}'
 fun ::= '#' <<nospace>> '(' list_body ')'
-symbol ::= '/' | ('.' | '.-') sym? | symbol_qualified [!<<space>> '.']
-  {methods=[symbol="" getName getQualifiedName getQualifier getTextOffset getReference]}
+symbol ::= symbol_qualified
+  {methods=[getName getQualifiedName getQualifier getTextOffset getReference]}
 keyword ::= (':' | '::') <<nospace>> symbol_qualified
   {methods=[getName getNamespace getQualifiedName getTextOffset]}
 private symbol_qualified ::= symbol_plain symbol_nsq?
@@ -109,6 +110,8 @@ left symbol_nsq ::= '/' sym
 literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char
   {methods=[getLiteralType getLiteralText]}
 regexp ::= '#' <<nospace>> string {extends=literal}
+access ::= ('.' | '.-') symbol
+left access_left ::= !<<space>> '.'
 constructor ::= '#' symbol form
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
 reader_macro ::= "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix

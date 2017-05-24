@@ -120,17 +120,25 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else -> null
         }
       }
-      is CList -> (form.asDef?.findChild(Role.NAME) as? CSymbol)?.let {
-        it.javaTypeMeta() ?: it.findNext(CVec::class)?.javaTypeMeta()
-      } ?: form.first?.let {
-        when (it.name) {
-          "new" -> (it.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
-          "." -> javaType(it.firstChild as? CSymbol) ?:
-              (it.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName ?:
-              javaType(it.nextForm?.nextForm)
-          ".." -> javaType(it.siblings().filter(CForm::class).last())
-          "var" -> ClojureConstants.C_VAR
-          else -> javaType(it)
+      is CList -> {
+        val nameSym = form.asDef?.findChild(Role.NAME) as? CSymbol
+        if (nameSym != null) {
+          nameSym.javaTypeMeta() ?: nameSym.findNext(CVec::class)?.javaTypeMeta()
+        }
+        else {
+          val first = form.firstForm
+          when (first) {
+            is CAccess -> first.symbol.reference?.resolve().asNonCPom()?.qualifiedName
+            is CSymbol -> when (first.name) {
+              "new" -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
+              "." -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName ?:
+                  javaType(first.nextForm?.nextForm) // method call
+              ".." -> javaType(first.siblings().filter(CForm::class).last())
+              "var" -> ClojureConstants.C_VAR
+              else -> javaType(first)
+            }
+            else -> javaType(first)
+          }
         }
       }
       else -> null
@@ -339,16 +347,17 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     return true
   }
 
-  private fun processParentForms(langKind: LangKind, refText: String?, element: CForm,
+  private fun processParentForms(langKind: LangKind, refText: String?, place: CForm,
                                  service: ClojureDefinitionService,
                                  state: ResolveState, processor: PsiScopeProcessor,
                                  lastParentRef: Ref<CForm>): Boolean {
     val isCljs = langKind == LangKind.CLJS
+    val element = place.thisForm!!
     var prevO: CForm = element
-    for (o in element.parents().filter(CList::class)) {
-      val origType = listType(o) ?: continue
-      val type = if (origType.endsWith("->") || origType.endsWith("->>"))
-        (if (prevO is CSymbol) symType(prevO) else if (prevO is CList) listType(prevO) else origType) else origType
+    for (o in prevO.parents().filter(CList::class)) {
+      val origType = formType(o) ?: continue
+      val type = if (origType.endsWith("->") || origType.endsWith("->>")) formType(prevO) ?: origType
+      else origType
       if (prevO.parent is CVec && refText == "&") return processor.skipResolve()
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       val isExtendProtocol = !isFnLike && o.parent.run {
@@ -418,20 +427,21 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
       }
       else if (type == "." || type == ".." || type == ".-" || type == ". id") {
-        if (prevO == element && prevO.parent == o || prevO is CList && prevO.first == element) {
+        if (prevO == element && prevO.parent == o || prevO is CList && prevO.firstForm == element) {
           val isProp = type == ".-"
           val isProp2 = refText != null && refText.startsWith("-")
           val isMethod = type == ". id"
           var scope = if (isProp) JavaHelper.Scope.INSTANCE else JavaHelper.Scope.STATIC
-          val isInFirst = o.first.isAncestorOf(myElement)
-          val siblings = if (origType.endsWith("->")) JBIterable.of(o.forms[1]) else
-            if (origType.endsWith("->")) JBIterable.of(prevO.prevForm) else
-              o.first.siblings().filter(CForm::class)
-              .skip(if (type == "." || type == ".." || isInFirst) 1 else 0)
-          val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(myElement) }.size()
+          val isInFirst = o.firstForm.isAncestorOf(element)
+
+          val siblings = if (origType.endsWith("->")) JBIterable.of(o.forms[1])
+          else if (origType.endsWith("->>")) JBIterable.of(prevO.prevForm)
+          else o.firstForm.siblings().filter(CForm::class).skip(if (type == "." || type == ".." || isInFirst) 1 else 0)
+
+          val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()
           val className = if (isCljs) null
           else siblings.first()?.let { form ->
-            if (form == myElement) return@let null
+            if (form == element) return@let null
             if ((type == "." || type == "..") && form is CSymbol && form.qualifier == null) {
               val resolved = form.reference.resolve().asNonCPom()
               if (resolved != null) {
@@ -449,7 +459,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           if (javaClass != null || !isCljs) {
             val classNameAdjusted = (javaClass as? PsiQualifiedNamedElement)?.qualifiedName ?: className ?: ClojureConstants.J_OBJECT
             if (type == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
-            val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && myElement.nextForm == null
+            val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
             val processMethods = !isProp
             if (processFields) {
               val fields = service.java.findClassFields(classNameAdjusted, scope, "*")
@@ -503,16 +513,18 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 fun prototypes(o: CList) = o.iterate(CList::class)
     .filter { it.firstChild?.nextSibling is CVec }.append(o)
 
-fun listType(o: CList): String? {
-  return o.asDef?.def?.type ?: symType(o.first ?: return null)
-}
-
-fun symType(o: CSymbol): String {
-  return when (o.firstChild?.elementType) {
-    ClojureTypes.C_DOT -> ". id"
-    ClojureTypes.C_DOTDASH -> ".-"
-    else -> o.name
+fun formType(o: CForm): String? {
+  val type = o.asDef?.def?.type
+  if (type != null) return type
+  val first = (o as? CList)?.firstForm ?: o
+  if (first is CSymbol) return first.name
+  else if (first is CAccess) {
+    val last = first.lastChild
+    if (last.elementType == ClojureTypes.C_DOT) return ". new"
+    else if (last is CSymbol && last.prevSibling.elementType == ClojureTypes.C_DOTDASH) return ".-"
+    else return ". id"
   }
+  return null
 }
 
 fun findBindingsVec(o: CList, mode: String): CVec? {

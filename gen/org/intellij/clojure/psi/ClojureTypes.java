@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 
 public interface ClojureTypes {
 
+  IElementType C_ACCESS = new ClojureNodeType("C_ACCESS");
   IElementType C_CONSTRUCTOR = new ClojureNodeType("C_CONSTRUCTOR");
   IElementType C_FORM = new ClojureNodeType("C_FORM");
   IElementType C_FUN = new ClojureNodeType("C_FUN");
@@ -74,6 +75,7 @@ public interface ClojureTypes {
     private static final LinkedHashMap<IElementType, Class<?>> ourMap = new LinkedHashMap<IElementType, Class<?>>();
 
     static {
+      ourMap.put(C_ACCESS, CAccessImpl.class);
       ourMap.put(C_CONSTRUCTOR, CConstructorImpl.class);
       ourMap.put(C_FORM, CFormImpl.class);
       ourMap.put(C_FUN, CFunImpl.class);

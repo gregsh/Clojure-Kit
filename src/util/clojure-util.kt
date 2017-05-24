@@ -63,7 +63,7 @@ val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
 val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
 val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
 val PsiElement?.thisForm: CForm? get() = (this as? CForm ?: findParent(CForm::class)).let {
-  ((it as? CSymbol)?.parent as? CSymbol ?: it).let { it?.parent as? CKeyword ?: it } }
+  ((it as? CSymbol)?.parent as? CSymbol ?: it).let { it?.parent as? CSForm ?: it } }
 val PsiElement?.parentForm: CForm? get() = thisForm.findParent(CForm::class)
 val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm })
 val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)

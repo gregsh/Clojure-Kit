@@ -24,7 +24,10 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     boolean r;
     b = adapt_builder_(t, b, this, EXTENDS_SETS_);
     Marker m = enter_section_(b, 0, _COLLAPSE_, null);
-    if (t == C_CONSTRUCTOR) {
+    if (t == C_ACCESS) {
+      r = access(b, 0);
+    }
+    else if (t == C_CONSTRUCTOR) {
       r = constructor(b, 0);
     }
     else if (t == C_FORM) {
@@ -74,10 +77,56 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   public static final TokenSet[] EXTENDS_SETS_ = new TokenSet[] {
-    create_token_set_(C_CONSTRUCTOR, C_FORM, C_FUN, C_KEYWORD,
-      C_LIST, C_LITERAL, C_MAP, C_REGEXP,
-      C_SET, C_SYMBOL, C_VEC),
+    create_token_set_(C_ACCESS, C_CONSTRUCTOR, C_FORM, C_FUN,
+      C_KEYWORD, C_LIST, C_LITERAL, C_MAP,
+      C_REGEXP, C_SET, C_SYMBOL, C_VEC),
   };
+
+  /* ********************************************************** */
+  // ('.' | '.-') symbol
+  public static boolean access(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "access")) return false;
+    if (!nextTokenIs(b, "<access>", C_DOT, C_DOTDASH)) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _COLLAPSE_, C_ACCESS, "<access>");
+    r = access_0(b, l + 1);
+    r = r && symbol(b, l + 1);
+    exit_section_(b, l, m, r, false, null);
+    return r;
+  }
+
+  // '.' | '.-'
+  private static boolean access_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "access_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = consumeToken(b, C_DOT);
+    if (!r) r = consumeToken(b, C_DOTDASH);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  /* ********************************************************** */
+  // !<<space>> '.'
+  public static boolean access_left(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "access_left")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _LEFT_, C_ACCESS, "<access left>");
+    r = access_left_0(b, l + 1);
+    r = r && consumeToken(b, C_DOT);
+    exit_section_(b, l, m, r, false, null);
+    return r;
+  }
+
+  // !<<space>>
+  private static boolean access_left_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "access_left_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _NOT_);
+    r = !space(b, l + 1);
+    exit_section_(b, l, m, r, false, null);
+    return r;
+  }
 
   /* ********************************************************** */
   // &('::' sym)
@@ -606,17 +655,36 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // symbol | keyword | literal | regexp
+  // symbol access_left? | keyword | literal | regexp | access
   static boolean s_forms(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "s_forms")) return false;
     boolean r;
     Marker m = enter_section_(b);
-    r = symbol(b, l + 1);
+    r = s_forms_0(b, l + 1);
     if (!r) r = keyword(b, l + 1);
     if (!r) r = literal(b, l + 1);
     if (!r) r = regexp(b, l + 1);
+    if (!r) r = access(b, l + 1);
     exit_section_(b, m, null, r);
     return r;
+  }
+
+  // symbol access_left?
+  private static boolean s_forms_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "s_forms_0")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = symbol(b, l + 1);
+    r = r && s_forms_0_1(b, l + 1);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // access_left?
+  private static boolean s_forms_0_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "s_forms_0_1")) return false;
+    access_left(b, l + 1);
+    return true;
   }
 
   /* ********************************************************** */
@@ -653,82 +721,13 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // '/' | ('.' | '.-') sym? | symbol_qualified [!<<space>> '.']
+  // symbol_qualified
   public static boolean symbol(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "symbol")) return false;
+    if (!nextTokenIs(b, C_SYM)) return false;
     boolean r;
-    Marker m = enter_section_(b, l, _COLLAPSE_, C_SYMBOL, "<symbol>");
-    r = consumeToken(b, C_SLASH);
-    if (!r) r = symbol_1(b, l + 1);
-    if (!r) r = symbol_2(b, l + 1);
-    exit_section_(b, l, m, r, false, null);
-    return r;
-  }
-
-  // ('.' | '.-') sym?
-  private static boolean symbol_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_1")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = symbol_1_0(b, l + 1);
-    r = r && symbol_1_1(b, l + 1);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // '.' | '.-'
-  private static boolean symbol_1_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_1_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = consumeToken(b, C_DOT);
-    if (!r) r = consumeToken(b, C_DOTDASH);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // sym?
-  private static boolean symbol_1_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_1_1")) return false;
-    consumeToken(b, C_SYM);
-    return true;
-  }
-
-  // symbol_qualified [!<<space>> '.']
-  private static boolean symbol_2(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_2")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
+    Marker m = enter_section_(b, l, _COLLAPSE_, C_SYMBOL, null);
     r = symbol_qualified(b, l + 1);
-    r = r && symbol_2_1(b, l + 1);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // [!<<space>> '.']
-  private static boolean symbol_2_1(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_2_1")) return false;
-    symbol_2_1_0(b, l + 1);
-    return true;
-  }
-
-  // !<<space>> '.'
-  private static boolean symbol_2_1_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_2_1_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = symbol_2_1_0_0(b, l + 1);
-    r = r && consumeToken(b, C_DOT);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  // !<<space>>
-  private static boolean symbol_2_1_0_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "symbol_2_1_0_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b, l, _NOT_);
-    r = !space(b, l + 1);
     exit_section_(b, l, m, r, false, null);
     return r;
   }
