@@ -287,11 +287,18 @@ internal class XTarget(project: Project,
   override fun canNavigateToSource(): Boolean = psiFile?.let { PsiNavigationSupport.getInstance().canNavigate(it) } ?: false
   override fun isValid(): Boolean = file == null || file.isValid
 
-  override fun navigate(requestFocus: Boolean): Unit = (resolve() as? Navigatable ?: psiFile)?.navigate(requestFocus) ?: Unit
+  override fun navigate(requestFocus: Boolean): Unit = (resolveForm() as? Navigatable ?: psiFile)?.navigate(requestFocus) ?: Unit
 
-  fun resolve(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as PsiElement else it }
+  fun resolveForm(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as PsiElement else it }
 
   fun resolveStub(): CStub? = (psiFile as? CFileImpl)?.fileStubForced?.findChildStub(key)
+
+  fun resolve(): PsiElement? =
+    // need to specify exact def-type, so plain getDefinition(key) won't work
+    resolveForm()?.let {
+      if (it is CKeyword) ClojureDefinitionService.getInstance(project).getDefinition(key)
+      else (it as? CList)?.def?.let { ClojureDefinitionService.getInstance(project).getDefinition(SymKey(it)) } ?: it
+    }
 }
 
 internal val PsiElement?.asCTarget: CTarget?

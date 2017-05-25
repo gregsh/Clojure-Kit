@@ -315,7 +315,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         else {
           (element as? PomTargetPsiElement)?.navigationElement
         }?.let {
-          it.asXTarget?.resolve() ?: it
+          it.asXTarget?.resolveForm() ?: it
         } ?: element
     val def = (resolved as? CList)?.def ?: key ?: return null
 

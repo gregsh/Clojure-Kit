@@ -76,6 +76,7 @@
     <additionalLibraryRootsProvider implementation="org.intellij.clojure.lang.usages.ClojureLibraryRootsProvider"/>
     <gotoSymbolContributor implementation="org.intellij.clojure.lang.usages.ClojureGotoSymbolContributor"/>
     <lang.findUsagesProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureFindUsagesProvider"/>
+    <usageTargetProvider implementation="org.intellij.clojure.lang.usages.ClojureUsageTargetProvider"/>
     <findUsagesHandlerFactory implementation="org.intellij.clojure.java.JavaHelper$AsmFindUsagesHandlerFactory"/>
     <projectService serviceInterface="org.intellij.clojure.psi.impl.ClojureDefinitionService"
                     serviceImplementation="org.intellij.clojure.psi.impl.ClojureDefinitionService" />

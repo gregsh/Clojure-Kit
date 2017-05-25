@@ -17,12 +17,14 @@
 
 package org.intellij.clojure.lang.usages
 
+import com.intellij.find.findUsages.PsiElement2UsageTargetAdapter
 import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.navigation.ChooseByNameContributor
 import com.intellij.navigation.GotoClassContributor
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.QueryExecutorBase
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.vfs.JarFileSystem
@@ -33,6 +35,8 @@ import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.usageView.UsageViewTypeLocation
+import com.intellij.usages.UsageTarget
+import com.intellij.usages.UsageTargetProvider
 import com.intellij.util.Processor
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
@@ -55,12 +59,7 @@ class ClojureFindUsagesProvider : FindUsagesProvider {
   override fun canFindUsagesFor(o: PsiElement) =
       o is CKeyword || o is CList && o.def != null || o.asCTarget != null
 
-  override fun getType(o: PsiElement) = when (o) {
-    is CKeyword -> "keyword"
-    is CList -> "(${o.def?.type})"
-    is PomTargetPsiElement -> o.asCTarget!!.key.run { if (namespace == "") type else "($type)" }
-    else -> ""
-  }
+  override fun getType(o: PsiElement) = getTypeTextImpl(o) ?: "???"
 
   override fun getNodeText(o: PsiElement, useFullName: Boolean) = when (o) {
     is CKeyword -> o.name
@@ -70,18 +69,31 @@ class ClojureFindUsagesProvider : FindUsagesProvider {
   }
 }
 
+class ClojureUsageTargetProvider : UsageTargetProvider {
+  override fun getTargets(editor: Editor?, file: PsiFile?): Array<UsageTarget>? =
+      UsageTarget.EMPTY_ARRAY
+
+  override fun getTargets(psiElement: PsiElement?): Array<UsageTarget>? {
+    val target = psiElement.asXTarget?.resolve() ?: return UsageTarget.EMPTY_ARRAY
+    return arrayOf(PsiElement2UsageTargetAdapter(target))
+  }
+}
+
 class ClojureElementDescriptionProvider : ElementDescriptionProvider {
   override fun getElementDescription(element: PsiElement, location: ElementDescriptionLocation): String? {
     if (location == UsageViewTypeLocation.INSTANCE) {
-      return when (element) {
-        is CKeyword -> "keyword"
-        is CList -> "(${element.def?.type})"
-        is PomTargetPsiElement -> element.asCTarget?.key?.run { if (namespace == "") type else "($type)" }
-        else -> null
-      }
+      return getTypeTextImpl(element)
     }
     return null
   }
+}
+
+private fun getTypeTextImpl(o: PsiElement): String? = when (o) {
+  is CKeyword -> "keyword"
+  // add parens to suppress capitalization in find dialog
+  is CList -> "(${o.def?.type ?: "???"})"
+  is PomTargetPsiElement -> "(${o.asCTarget?.key?.type ?: "???"})"
+  else -> null
 }
 
 class ClojureGotoSymbolContributor : ChooseByNameContributor, GotoClassContributor {
