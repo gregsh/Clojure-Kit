@@ -1,9 +1,6 @@
-/cljs/analyzer.cljc                      0 errors, 19 warnings
+/cljs/analyzer.cljc                      0 errors, 16 warnings
       1981: unable to resolve 'cljs.tagged_literals'
       2002: unable to resolve 'JSValue'
-      16740: unable to resolve 'vm'
-      16803: unable to resolve 'vm'
-      16843: unable to resolve 'vm'
       98158: unable to resolve 'JSValue'
       100490: unable to resolve '*alias-map*'
       100513: unable to resolve '*alias-map*'
@@ -36,12 +33,9 @@
       43293: unable to resolve '*alias-map*'
 /cljs/compiler/api.clj                   0 errors, 0 warnings
 /cljs/compiler/macros.clj                0 errors, 0 warnings
-/cljs/core.cljc                          0 errors, 6 warnings
+/cljs/core.cljc                          0 errors, 3 warnings
       1982: unable to resolve 'unchecked-divide'
       5112: unable to resolve 'clojure.core'
-      59263: unable to resolve 'parts'
-      59405: unable to resolve 'parts'
-      59559: unable to resolve 'parts'
       83541: unable to resolve 'IllegalArgumentException'
 /cljs/core.cljs                          0 errors, 10 warnings
       31371: unable to resolve 'cljs.core.Var'
@@ -139,7 +133,7 @@
       109548: unable to resolve 'aseq'
 /cljs/reader.cljs                        0 errors, 1 warnings
       17598: unable to resolve 'cljs.core.PersistentQueue.EMPTY'
-/cljs/repl.cljc                          0 errors, 27 warnings
+/cljs/repl.cljc                          0 errors, 18 warnings
       2524: unable to resolve 'read-char'
       2618: unable to resolve 'unread'
       3211: unable to resolve 'read-char'
@@ -147,16 +141,7 @@
       3418: unable to resolve 'read-char'
       3453: unable to resolve 'unread'
       4393: unable to resolve 'read'
-      9642: unable to resolve 'compiler-env'
-      9781: unable to resolve 'compiler-env'
-      9900: unable to resolve 'compiler-env'
       10097: unable to resolve 'read-str'
-      10152: unable to resolve 'compiler-env'
-      10185: unable to resolve 'compiler-env'
-      22715: unable to resolve 'spec'
-      22749: unable to resolve 'spec'
-      22755: unable to resolve 'spec'
-      22761: unable to resolve 'spec'
       29285: unable to resolve 'indexing-reader?'
       29353: unable to resolve 'get-column-number'
       29713: unable to resolve 'source-logging-push-back-reader'
@@ -198,11 +183,7 @@
 /clojure/browser/event.cljs              0 errors, 0 warnings
 /clojure/browser/net.cljs                0 errors, 1 warnings
       4831: unable to resolve 'WebSocket.EventType'
-/clojure/browser/repl.cljs               0 errors, 4 warnings
-      5232: unable to resolve 'script'
-      5259: unable to resolve 'script'
-      5485: unable to resolve 'script'
-      5536: unable to resolve 'script'
+/clojure/browser/repl.cljs               0 errors, 0 warnings
 /clojure/core/reducers.cljs              0 errors, 0 warnings
 /clojure/data.cljs                       0 errors, 0 warnings
 /clojure/reflect.cljs                    0 errors, 0 warnings
@@ -210,4 +191,4 @@
 /clojure/string.cljs                     0 errors, 0 warnings
 /clojure/walk.cljs                       0 errors, 0 warnings
 /clojure/zip.cljs                        0 errors, 0 warnings
-Total: 159 warnings in 53 files (1.19M chars)
+Total: 140 warnings in 53 files (1.19M chars)

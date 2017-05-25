@@ -372,8 +372,8 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val element = place.thisForm!!
     var prevO: CForm = element
     for (o in prevO.parentForms) {
-      val origType = formType(o)
-      if (o !is CList || origType == null) {
+      val type = formType(o)
+      if (o !is CList || type == null) {
         lastParentRef.set(o)
         if (refText == "&") {
           if (o.role == Role.ARG_VEC || o.role == Role.BND_VEC) return processor.skipResolve()
@@ -384,7 +384,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         prevO = o
         continue
       }
-      val type = if (origType.endsWith("->") || origType.endsWith("->>")) formType(prevO) ?: origType else origType
+      val innerType = if (type.endsWith("->") || type.endsWith("->>")) formType(prevO) ?: type else type
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(type)) {
         for (part in (prevO as? CVec ?: o.findChild(Role.FIELD_VEC) as? CVec).iterate(CSymbol::class)) {
@@ -448,29 +448,33 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           }
         }
       }
+      else if (type == "as->") {
+        val nameSymbol = o.forms[2] as? CSymbol
+        if (nameSymbol != null && !processor.execute(nameSymbol, state)) return false
+      }
       else if (type == "catch") {
         val forms = o.forms
         if (forms.size > 2) {
           if (!processor.execute(forms[2], state)) return false
         }
       }
-      else if (type == "." || type == ".." || type == ".-" || type == ". id") {
+      else if (innerType == "." || innerType == ".." || innerType == ".-" || innerType == ". id") {
         if (prevO == element && prevO.parent == o || prevO is CList && prevO.firstForm == element) {
-          val isProp = type == ".-"
+          val isProp = innerType == ".-"
           val isProp2 = refText != null && refText.startsWith("-")
-          val isMethod = type == ". id"
+          val isMethod = innerType == ". id"
           var scope = if (isProp) JavaHelper.Scope.INSTANCE else JavaHelper.Scope.STATIC
           val isInFirst = o.firstForm.isAncestorOf(element)
 
-          val siblings = if (origType.endsWith("->")) JBIterable.of(o.forms[1])
-          else if (origType.endsWith("->>")) JBIterable.of(prevO.prevForm)
-          else o.firstForm.siblings().filter(CForm::class).skip(if (type == "." || type == ".." || isInFirst) 1 else 0)
+          val siblings = if (type.endsWith("->")) JBIterable.of(o.forms[1])
+          else if (type.endsWith("->>")) JBIterable.of(prevO.prevForm)
+          else o.firstForm.siblings().filter(CForm::class).skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
 
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()
           val className = if (isCljs) null
           else siblings.first()?.let { form ->
             if (form == element) return@let null
-            if ((type == "." || type == "..") && form is CSymbol && form.qualifier == null) {
+            if ((innerType == "." || innerType == "..") && form is CSymbol && form.qualifier == null) {
               val resolved = form.reference.resolve().asNonCPom()
               if (resolved != null) {
                 scope = JavaHelper.Scope.STATIC
@@ -481,12 +485,12 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             service.javaType(form)
           }
           val javaClass = findClass(className, service)
-          if (index == 0 && javaClass != null && (type == "." || type == "..")) {
+          if (index == 0 && javaClass != null && (innerType == "." || innerType == "..")) {
             if (!processor.execute(javaClass, state)) return false
           }
           if (javaClass != null || !isCljs) {
             val classNameAdjusted = (javaClass as? PsiQualifiedNamedElement)?.qualifiedName ?: className ?: ClojureConstants.J_OBJECT
-            if (type == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
+            if (innerType == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
             val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
             val processMethods = !isProp
             if (processFields) {
@@ -500,7 +504,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           }
           // stop processing in certain cases
           if (index == 0 && (isMethod || isProp) ||
-              (isProp2 || isCljs) && (type == "." || type == ".." && index >= 1)) {
+              (isProp2 || isCljs) && (innerType == "." || innerType == ".." && index >= 1)) {
             return processor.skipResolve()
           }
           if (javaClass != null && (isProp || isMethod) && refText == null) {
