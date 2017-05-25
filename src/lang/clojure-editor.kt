@@ -154,17 +154,16 @@ class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
   }
 
   override fun getElementInfo(o: PsiElement): String = when (o) {
-    is CList -> o.fastDef?.run { "($type $name)"} ?: o.firstForm?.let {
+    is CList -> o.fastDef?.run { "$type $name"} ?: o.firstForm?.let {
       val first = (it as? CSymbol)?.name
       val next = it.nextForm
       when {
         o.textRange.length <= SHORT_TEXT_MAX -> getFormPlaceholderText(o)
-        first == null -> "(${getFormPlaceholderText(it)})"
+        first == null -> "(${getFormPlaceholderText(it)}${if (next != null) " …" else ""})"
         next is CVec -> if (first.isIn(LET_ALIKE_SYMBOLS) || first.isIn(FN_ALIKE_SYMBOLS))
-          "($first ${getFormPlaceholderText(next)})" else "($first …)"
-        next is CList -> "($first ${getFormPlaceholderText(next)})"
-        next != null -> "($first …)"
-        else -> "($first)"
+          "$first ${getFormPlaceholderText(next)}" else first
+        next is CList -> "$first ${getFormPlaceholderText(next)}"
+        else -> first
       }
     } ?: "(…)"
     is CForm -> getFormPlaceholderText(o)
@@ -251,8 +250,7 @@ private fun getFormPlaceholderText(o: CForm, max: Int = SHORT_TEXT_MAX) = when (
   is CList -> o.fastDef?.run {
     "($type $qualifiedName)"
   } ?: dumpElementText(o, max)
-  is CForm -> dumpElementText(o, max)
-  else -> o.javaClass.simpleName ?: "???"
+  else -> dumpElementText(o, max)
 }
 
 private fun dumpElementText(o: PsiElement, max: Int) = StringBuilder().run {
@@ -263,7 +261,10 @@ private fun dumpElementText(o: PsiElement, max: Int) = StringBuilder().run {
   var wsOrComment = false
   var prevType: IElementType? = null
   loop@ for (part in iterator) {
-    wsOrComment = if (part is PsiWhiteSpace || part is PsiComment) true
+    if (part is PsiWhiteSpace || part is PsiComment) {
+      wsOrComment = true
+      continue@loop
+    }
     else {
       val curType = part.elementType
       if (wsOrComment && prevType != ClojureTypes.C_COMMA &&
@@ -272,10 +273,9 @@ private fun dumpElementText(o: PsiElement, max: Int) = StringBuilder().run {
         append(" ")
       }
       prevType = curType
-      false
+      wsOrComment = false
     }
     when {
-      part is PsiWhiteSpace || part is PsiComment -> Unit
       part is CMetadata -> append("^")
       length < max -> {
         part.text.let { text ->
@@ -286,7 +286,6 @@ private fun dumpElementText(o: PsiElement, max: Int) = StringBuilder().run {
       else -> {
         var first = true
         iterator.backtrace()
-            .skip(1)
             .transform { PsiTreeUtil.getDeepestLast(it) }
             .filter { ClojureTokens.PAREN2_ALIKE.contains(it.elementType) }
             .unique().forEach {
