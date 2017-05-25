@@ -159,14 +159,15 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
       val lightVirtualFile = LightVirtualFile(path.toString(), ClojureLanguage, text)
       myFixture.configureFromExistingVirtualFile(lightVirtualFile)
       val infos = myFixture.doHighlighting().jbIt()
-      val errors = infos.filter { it.severity == HighlightSeverity.ERROR }
-      val warnings = infos.filter { it.severity == HighlightSeverity.WARNING }
-      stat.warnings += warnings.size()
-      "${path.toString().run { this + StringUtil.repeat(" ", Math.max(0, 40 - length)) }} ${errors.size()} errors, ${warnings.size()} warnings".run {
+      val errors = infos.filter { it.severity == HighlightSeverity.ERROR }.size()
+      val warnings = infos.filter { it.severity == HighlightSeverity.WARNING }.size()
+      val dynamic = infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }.size()
+      stat.warnings += warnings
+      "${path.toString().run { this + StringUtil.repeat(" ", Math.max(0, 40 - length)) }} $errors errors, $warnings warnings, $dynamic dynamic".run {
         report.append(this).append("\n")
         println(this)
       }
-      for (info in warnings) {
+      for (info in infos.filter { it.severity == HighlightSeverity.ERROR || it.severity == HighlightSeverity.WARNING }) {
         report.append("      ${info.startOffset}: ${info.description}").append("\n")
       }
     }

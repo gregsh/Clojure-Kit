@@ -20,12 +20,17 @@ package org.intellij.clojure.inspections
 import com.intellij.codeInspection.*
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiPolyVariantReference
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.tools.Tool
-import org.intellij.clojure.util.findChild
+import org.intellij.clojure.util.elementType
+import org.intellij.clojure.util.iterate
+import org.intellij.clojure.util.jbIt
 import org.intellij.clojure.util.parents
+import kotlin.collections.component1
+import kotlin.collections.component2
 
 /**
  * @author gregsh
@@ -54,21 +59,22 @@ class ClojureResolveInspection : LocalInspectionTool() {
     return object : ClojureVisitor() {
       override fun visitSymbol(o: CSymbol) {
         val reference = o.reference
-        val resolve = reference.resolve()
+        val multiResolve = (reference as PsiPolyVariantReference).multiResolve(false)
+        val (valid, invalid) = multiResolve.jbIt().reduce(arrayOf(0, 0)) { arr, it -> arr[if (it.isValidResult) 0 else 1] ++; arr }
         if (o.getUserData(RESOLVE_SKIPPED) != null) return
 
         val qualifier = reference.qualifier?.apply {
           if (this.reference?.resolve() == null) return }
 
         val langKind = (holder.file as CFileImpl).placeLanguage(o)
-        val isCljS = langKind == LangKind.CLJS
+        val isCljS = langKind == Dialect.CLJS
 
-        if (resolve != null) return
+        if (valid != 0) return
         if (qualifier == null && !isCljS && ClojureConstants.TYPE_META_ALIASES.contains(o.name)) return
         if (qualifier == null && isCljS && ClojureConstants.CLJS_TYPES.contains(o.name)) return
         if (o.parent is CSymbol && o.parent.parent is CKeyword) return
         val quotesAndComments = o.parents().filter { it is CMetadata
-            || it is CForm && it.role != Role.RCOND && it.findChild(CReaderMacro::class) != null
+            || it is CForm && it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null
             || it is CList && it.first.resolveInfo().matches(ClojureDefinitionService.COMMENT_SYM)
         }.first()
         if (quotesAndComments != null) return
@@ -76,5 +82,12 @@ class ClojureResolveInspection : LocalInspectionTool() {
       }
     }
   }
+}
+
+private fun suppressResolve(o: CReaderMacro, invalidResolve: Boolean) = when (o.firstChild.elementType) {
+  ClojureTypes.C_SHARP_COMMENT -> true
+  ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> true
+  ClojureTypes.C_SHARP_QUOTE -> invalidResolve
+  else -> false
 }
 

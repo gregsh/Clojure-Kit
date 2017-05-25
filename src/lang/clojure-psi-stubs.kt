@@ -25,20 +25,18 @@ import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.indexing.FileContent
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureFileType
-import org.intellij.clojure.psi.CFile
-import org.intellij.clojure.psi.Defn
-import org.intellij.clojure.psi.IDef
-import org.intellij.clojure.psi.SymKey
-import org.intellij.clojure.psi.impl.CFileImpl
-import org.intellij.clojure.util.asDef
+import org.intellij.clojure.psi.*
+import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.util.cljTraverser
 import org.intellij.clojure.util.filter
+import org.intellij.clojure.util.jbIt
+import org.intellij.clojure.util.role
 import kotlin.reflect.jvm.internal.impl.utils.SmartList
 
 /**
  * @author gregsh
  */
-private val VERSION: Int = 1
+private val VERSION: Int = 4
 
 class ClojureStubBuilder : BinaryFileStubBuilder {
   override fun getStubVersion() = VERSION
@@ -53,6 +51,8 @@ class ClojureStubBuilder : BinaryFileStubBuilder {
         registerSerializer(CFileStub.SERIALIZER)
         registerSerializer(CListStub.SERIALIZER)
         registerSerializer(CPrototypeStub.SERIALIZER)
+        registerSerializer(CMetaStub.SERIALIZER)
+        registerSerializer(CImportStub.SERIALIZER)
       }
     }
   }
@@ -97,6 +97,7 @@ class CFileStub(val namespace: String) : CStub(null) {
 class CListStub(val key: SymKey,
                 parent: CStub?) :
     CStub(parent), IDef by key {
+  val meta: Map<String, String> get() = (childrenStubs.firstOrNull() as? CMetaStub)?.map ?: emptyMap()
 
   init {
     JBIterable.generate(parent, { it -> it.parentStub })
@@ -124,7 +125,7 @@ class CListStub(val key: SymKey,
   }
 }
 
-class CPrototypeStub(val args: List<String>, parent: CStub?) : CStub(parent) {
+class CPrototypeStub(val args: List<String>, val typeHint: String?, parent: CStub?) : CStub(parent) {
 
   override fun getStubType() = SERIALIZER
   override fun toString() = args.toString()
@@ -136,10 +137,67 @@ class CPrototypeStub(val args: List<String>, parent: CStub?) : CStub(parent) {
 
       override fun serialize(stub: CPrototypeStub, dataStream: StubOutputStream) {
         dataStream.writeName(stub.args.joinToString(","))
+        dataStream.writeName(stub.typeHint)
       }
 
       override fun deserialize(dataStream: StubInputStream, parentStub: CStub?): CPrototypeStub {
-        return CPrototypeStub(dataStream.readName()?.string?.split(",") ?: emptyList(), parentStub)
+        return CPrototypeStub(
+            dataStream.readName()?.string?.split(",") ?: emptyList(),
+            dataStream.readName()?.string,
+            parentStub)
+      }
+    }
+  }
+}
+
+class CMetaStub(val map: Map<String, String>, parent: CStub?) : CStub(parent) {
+
+  override fun getStubType() = SERIALIZER
+  override fun toString() = map.toString()
+
+  companion object {
+    val SERIALIZER = object : ObjectStubSerializer<CMetaStub, CStub> {
+      override fun getExternalId() = "clojure.META"
+      override fun indexStub(stub: CMetaStub, sink: IndexSink) = Unit
+
+      override fun serialize(stub: CMetaStub, dataStream: StubOutputStream) = dataStream.writeMap(stub.map)
+      override fun deserialize(dataStream: StubInputStream, parentStub: CStub?) = CMetaStub(dataStream.readMap(), parentStub)
+    }
+  }
+}
+
+internal class CImportStub(val import: Import, val dialect: Dialect, parent: CStub?) : CStub(parent) {
+  override fun getStubType() = SERIALIZER
+  override fun toString() = super.toString()
+
+  companion object {
+    val SERIALIZER = object : ObjectStubSerializer<CImportStub, CStub> {
+      override fun getExternalId() = "clojure.IMPORT"
+      override fun indexStub(stub: CImportStub, sink: IndexSink) = Unit
+
+      override fun serialize(stub: CImportStub, dataStream: StubOutputStream) {
+        val import = stub.import
+        dataStream.writeName(stub.dialect.name)
+        dataStream.writeName(import.nsType)
+        dataStream.writeName(import.namespace)
+        dataStream.writeName(import.alias)
+        dataStream.writeSet(import.refer)
+        dataStream.writeSet(import.only)
+        dataStream.writeSet(import.exclude)
+        dataStream.writeMap(import.rename as Map<String, String>)
+      }
+
+      override fun deserialize(dataStream: StubInputStream, parentStub: CStub?): CImportStub {
+        val langKind = Dialect.valueOf(dataStream.readName()!!.string)
+        return CImportStub(Import(
+            dataStream.readName()!!.string,
+            dataStream.readName()!!.string,
+            dataStream.readName()!!.string,
+            null,
+            dataStream.readSet(),
+            dataStream.readSet(),
+            dataStream.readSet(),
+            dataStream.readMap()), langKind, parentStub)
       }
     }
   }
@@ -172,25 +230,76 @@ internal fun buildStubTree(file: CFile): CFileStub {
 private fun buildStubTreeImpl(file: CFile): CFileStub {
   val fileStub = CFileStub(file.namespace)
   val map = mutableMapOf<PsiElement, CStub>(file to fileStub)
-  val visited = mutableMapOf<SymKey, CStub>()
-  val s = file.cljTraverser().regard { it is CFile || it.asDef != null }.traverse().skip(1)
+  val s = file.cljTraverser().regard {
+    it is CFile || it is CList && (it.role == Role.DEF || it.role == Role.NS) }.traverse().skip(1)
   val traceIt: TreeTraversal.TracingIt<PsiElement> = s.typedIterator()
-  for (e in traceIt) {
-    val def = e.asDef!!.def!!
-    val key = SymKey(def)
-    val parentStub = map[traceIt.parent()]!!
-    map[e] = visited.getOrPut(key, {
-      val stub = CListStub(key, parentStub)
-      if (def is Defn) {
-        def.protos.forEach {
-          CPrototypeStub(it.args, stub)
-        }
-      }
-      stub
-    })
+  for (e in traceIt) when (e.role) {
+    Role.DEF -> {
+      map[e] = buildDefStub(e as CComposite, map[traceIt.parent()]!!)
+    }
+    Role.NS -> {
+      buildNSStub(e as CComposite, map[traceIt.parent()]!!)
+    }
+    else -> Unit
   }
   (file as? CFileImpl)?.fileStub = fileStub
   return fileStub
 }
 
+private fun buildDefStub(e: CComposite, parentStub: CStub): CListStub {
+  val def = e.def!!
+  val key = SymKey(def)
+  val stub = CListStub(key, parentStub)
+  if (def is Def) {
+    if (def.meta.isNotEmpty()) {
+      CMetaStub(def.meta, stub)
+    }
+    def.protos.forEach {
+      CPrototypeStub(it.args, it.typeHint, stub)
+    }
+  }
+  return stub
+}
+
+private fun buildNSStub(e: CComposite, parentStub: CStub) {
+  val def = e.def
+  if (def != null) {
+    buildDefStub(e, parentStub)
+  }
+  val imports = (def as? NSDef)?.imports ?: JBIterable.of(e.data as? Imports)
+  imports.forEach { o -> o.imports.forEach { o1 -> CImportStub(Import(
+      o1.nsType, o1.namespace, o1.alias, null, o1.refer, o1.only, o1.exclude,
+      o1.rename.entries.jbIt().reduce(HashMap(), { map, e ->
+        map.put((e.value as CSymbol).name, e.key); map})), o.dialect, parentStub) } }
+}
+
+fun StubOutputStream.writeMap(o: Map<String, String>) {
+  writeInt(o.size)
+  o.keys.stream().sorted().forEach { writeName(it); writeName(o[it]) }
+}
+
+fun StubInputStream.readMap(): Map<String, String> {
+  val size = readInt()
+  if (size == 0) return emptyMap()
+  val o = HashMap<String, String>()
+  for (i in 1..size) {
+    o.put(readName()?.string ?: "", readName()?.string ?: "")
+  }
+  return o
+}
+
+fun StubOutputStream.writeSet(o: Set<String>) {
+  writeInt(o.size)
+  o.stream().sorted().forEach { writeName(it) }
+}
+
+fun StubInputStream.readSet(): Set<String> {
+  val size = readInt()
+  if (size == 0) return emptySet()
+  val map = HashSet<String>()
+  for (i in 1..size) {
+    map.add(readName()?.string ?: "")
+  }
+  return map
+}
 

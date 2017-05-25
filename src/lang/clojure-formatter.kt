@@ -213,7 +213,7 @@ class ClojureFormattingBlock(node: ASTNode,
     val hasBody = (psi as? CList)?.let {
       val target = it.first.resolveXTarget() ?: return@let false
       val name = target.key.name
-      if (target.key.namespace == LangKind.CLJ.ns || target.key.namespace == LangKind.CLJS.ns) {
+      if (target.key.namespace == Dialect.CLJ.coreNs || target.key.namespace == Dialect.CLJS.coreNs) {
         ClojureConstants.SPECIAL_FORMS.contains(name) ||
             ClojureConstants.CLJS_SPECIAL_FORMS.contains(name) ||
             ClojureConstants.LET_ALIKE_SYMBOLS.contains(name) ||

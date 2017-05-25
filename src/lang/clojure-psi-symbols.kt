@@ -206,6 +206,8 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
     if (psiFile != null) return psiFile
     return super.getContainingFile()
   }
+
+  override fun toString() = target.key.toString()
 }
 
 abstract internal class CTarget(val project: Project,

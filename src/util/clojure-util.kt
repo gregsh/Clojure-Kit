@@ -33,7 +33,6 @@ import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CComposite
-import java.util.*
 import kotlin.reflect.KClass
 
 /**
@@ -45,8 +44,10 @@ inline fun <reified T : Any> Any?.forceCast(): T? = this as? T
 
 fun <E> E.isIn(c: Collection<E>) = c.contains(this)
 fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
-fun <E> Array<E>?.iterate() = if (this == null) JBIterable.empty<E>() else JBIterable.of(*this)
-fun <E: Any> E?.asListOrEmpty() = if (this == null) emptyList<E>() else listOf(this)
+fun <E> Array<E>?.iterate() = this.jbIt()
+fun <E: Any> E?.asListOrEmpty() = listOfNotNull(this)
+fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
+fun <T> Array<T>?.jbIt() = if (this == null) JBIterable.empty() else JBIterable.of(*this)
 
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
 fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getParentOfType(this, c.java)
@@ -150,9 +151,6 @@ fun PsiElement?.formPrefix(): JBIterable<CElement> = iterate()
 val PsiElement.valueRange: TextRange get() = firstChild.siblings()
       .skipWhile { it is CReaderMacro || it is CMetadata || (it !is CToken && it !is CForm) }
       .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset) } ?: textRange
-
-fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
-fun <T> JBIterable<T>.sort(comparator: Comparator<T>) = addAllTo(ArrayList()).apply { Collections.sort(this, comparator) }.jbIt()
 
 class EachNth(val each: Int) : JBIterable.StatefulFilter<Any?>() {
   var idx = -1

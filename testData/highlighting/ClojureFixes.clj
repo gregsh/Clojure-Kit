@@ -66,3 +66,8 @@
   (alias 'clojure.set-alias clojure.set)
   (defn no-resolve-to-alias [] [<warning>clojure.set-alias</warning> clojure.set-alias/union])
   )
+
+@<warning>not-to-resolve</warning>
+#:some-ns {:some-key <warning>not-to-resolve</warning>}
+(#'clojure.uuid/default-uuid-reader)
+(clojure.uuid/<warning>default-uuid-reader</warning>)

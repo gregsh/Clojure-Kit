@@ -10,9 +10,6 @@ public interface CList extends CLVForm {
   int getTextOffset();
 
   @Nullable
-  IDef getDef();
-
-  @Nullable
   CSymbol getFirst();
 
 }

@@ -26,7 +26,7 @@ import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureLanguage
 
-enum class LangKind(val ns: String) {
+enum class Dialect(val coreNs: String) {
   CLJ(ClojureConstants.CLOJURE_CORE),
   CLJS(ClojureConstants.CLJS_CORE),
   CLJR(ClojureConstants.CLOJURE_CORE)
@@ -41,6 +41,8 @@ enum class Role {
 
 interface CElement : NavigatablePsiElement {
   val role: Role
+  val def: IDef?
+  val resolvedNs: String?
 }
 
 interface ClojureElementType
@@ -53,7 +55,7 @@ class CToken(tokenType: ClojureTokenType, text: CharSequence) : LeafPsiElement(t
 interface CFile : PsiFile {
   val namespace: String
 
-  fun defs(dialect: LangKind = LangKind.CLJ): JBIterable<CList>
+  fun defs(dialect: Dialect = Dialect.CLJ): JBIterable<CList>
 }
 
 interface IDef {
@@ -70,10 +72,11 @@ data class SymKey(
   constructor(def : IDef): this(def.name, def.namespace, def.type)
 }
 
-class Defn(
+class Def(
     val key: SymKey,
-    val protos: List<Prototype>
+    val protos: List<Prototype>,
+    val meta: Map<String, String>
 ) : IDef by key
 
-class Prototype(val args : List<String>, argVec: CVec?)
+class Prototype(val args: List<String>, val typeHint: String?)
 

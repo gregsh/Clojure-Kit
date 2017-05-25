@@ -310,7 +310,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         if (key != null && key.type == "keyword" &&
             key.namespace == "" && ClojureConstants.NS_ALIKE_SYMBOLS.contains(key.name)) {
           // adjust resolved element for (ns ...) macro keywords
-          ClojureDefinitionService.getInstance(element!!.project).getDefinition(key.name, LangKind.CLJ.ns, "def").navigationElement
+          ClojureDefinitionService.getInstance(element!!.project).getDefinition(key.name, Dialect.CLJ.coreNs, "def").navigationElement
         }
         else {
           (element as? PomTargetPsiElement)?.navigationElement

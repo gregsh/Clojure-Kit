@@ -31,11 +31,6 @@ public class CListImpl extends CListBase implements CList {
   }
 
   @Nullable
-  public IDef getDef() {
-    return ClojurePsiImplUtil.getDef(this);
-  }
-
-  @Nullable
   public CSymbol getFirst() {
     return ClojurePsiImplUtil.getFirst(this);
   }

@@ -47,7 +47,10 @@ import com.intellij.util.containers.ContainerUtilRt
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
-import org.intellij.clojure.util.*
+import org.intellij.clojure.util.EachNth
+import org.intellij.clojure.util.jbIt
+import org.intellij.clojure.util.notNulls
+import org.intellij.clojure.util.withPackage
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.signature.SignatureReader
 import org.jetbrains.org.objectweb.asm.signature.SignatureVisitor
@@ -121,8 +124,9 @@ abstract class JavaHelper {
                                   paramCount: Int,
                                   vararg paramTypes: String): List<NavigatablePsiElement> {
       val aClass = findClass(className) as? PsiClass ?: return asm.findClassMethods(className, scope, name, paramCount, *paramTypes)
-      val methods = if (scope == Scope.INIT) aClass.constructors else aClass.methods
-      return methods.iterate().transform { o ->
+      val methods = if (scope == Scope.INIT) aClass.constructors.jbIt()
+      else JBIterable.generate(aClass) { it.superClass }.flatMap { it!!.methods.jbIt() }
+      return methods.map { o ->
         if (acceptsName(name, o.name) &&
             acceptsMethod(o, scope == Scope.STATIC) &&
             acceptsMethod(myElementFactory, o, paramCount, *paramTypes)) o else null
@@ -131,7 +135,8 @@ abstract class JavaHelper {
 
     override fun findClassFields(className: String?, scope: Scope, name: String?): List<NavigatablePsiElement> {
       val aClass = findClass(className) as? PsiClass ?: return asm.findClassFields(className, scope, name)
-      return aClass.fields.iterate().transform { o ->
+      val fields = JBIterable.generate(aClass) { it.superClass }.flatMap { it!!.fields.jbIt() }
+      return fields.map { o ->
         if (acceptsName(name, o.name) &&
             acceptsMethod(o, scope == Scope.STATIC)) o
         else null

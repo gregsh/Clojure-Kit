@@ -73,7 +73,7 @@ object ClojureConstants {
   @JvmStatic val LET_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
     let loop when-let when-some
     if-let if-some with-open when-first with-redefs
-    for doseq dotimes binding
+    for doseq dotimes
     with-local-vars
     """.trim()).toSet()
 

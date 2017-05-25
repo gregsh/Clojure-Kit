@@ -24,7 +24,6 @@ import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.pom.Navigatable
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.impl.AnyPsiChangeListener
@@ -48,10 +47,13 @@ import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
+import org.intellij.clojure.psi.stubs.CListStub
 import org.intellij.clojure.util.*
 
 val RENAMED_KEY: Key<String> = Key.create("RENAMED_KEY")
 val ALIAS_KEY: Key<String> = Key.create("ALIAS_KEY")
+val PRIVATE_KEY: Key<Boolean> = Key.create("PRIVATE_KEY")
+val DIALECT_KEY: Key<Dialect> = Key.create("DIALECT_KEY")
 
 class ClojureTypeCache(val service: ClojureDefinitionService) {
   companion object {
@@ -87,8 +89,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
   companion object {
     private object RESOLVER : ResolveCache.PolyVariantResolver<CSymbolReference> {
-      override fun resolve(t: CSymbolReference, incompleteCode: Boolean): Array<out ResolveResult> =
-          PsiElementResolveResult.createResults(t.multiResolveInner())
+      override fun resolve(t: CSymbolReference, incompleteCode: Boolean) = t.multiResolveInner()
     }
 
     val NULL_TYPE = "*unknown*"
@@ -108,9 +109,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
   }
 
   private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
-    fun CForm.javaTypeMeta() = findChild(CMetadata::class)?.let {
-      ((it.form as? CSymbol)?.reference?.resolve() as? PsiQualifiedNamedElement)?.qualifiedName }
-    return form.javaTypeMeta()  ?: when (form) {
+    val formMeta = form.typeHintMeta()?.resolveQualifiedName()
+    if (formMeta != null) return formMeta
+    return when (form) {
       is CSymbol -> {
         when (form.name) {
           "*out*", "*err*" -> return ClojureConstants.J_WRITER
@@ -129,6 +130,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               }
             }
           navElement is CForm -> javaType(navElement)
+          navElement.asXTarget != null -> (navElement.asXTarget?.resolveStub() as? CListStub)?.run {
+            resolveName(this@javaTypeImpl, meta[TYPE_META])
+          }
           target is NavigatablePsiElement && target.asNonCPom() != null ->
             if (form.parent.let { it is CSymbol || it is CList && it.first?.name == "catch" }) (target as? PsiQualifiedNamedElement)?.qualifiedName
             else java.getMemberTypes(target).firstOrNull()?.let {
@@ -138,26 +142,20 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
       }
       is CList -> {
-        val nameSym = form.asDef?.findChild(Role.NAME) as? CSymbol
-        if (nameSym != null) {
-          nameSym.javaTypeMeta() ?:
-              nameSym.findNext(CVec::class)?.javaTypeMeta() ?:
-              prototypes(form).map { it.findChild(Role.ARG_VEC)?.javaTypeMeta() }.notNulls().first() ?:
-              nameSym.siblings().find { it is CMap }?.let {
-                val tagValue = it.iterate().find { it is CKeyword && it.name == "tag" }?.nextForm
-                (tagValue as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
-              }
+        val def = form.asDef?.def
+        if (def != null) {
+          form.resolveName(this, (def as? Def)?.meta?.get(TYPE_META))
         }
         else {
           val first = form.firstForm
           when (first) {
             is CAccess -> when (first.lastChild.elementType) {
-              ClojureTypes.C_DOT -> first.symbol.reference.resolve().asNonCPom()?.qualifiedName
+              ClojureTypes.C_DOT -> first.symbol.resolveQualifiedName()
               else -> javaType(first.symbol)
             }
             is CSymbol -> when (first.name) {
-              "new" -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
-              "." -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName ?:
+              "new" -> (first.nextForm as? CSymbol)?.resolveQualifiedName()
+              "." -> (first.nextForm as? CSymbol)?.resolveQualifiedName() ?:
                   javaType(first.nextForm?.nextForm) // method call
               ".." -> javaType(first.siblings().filter(CForm::class).last())
               "var" -> ClojureConstants.C_VAR
@@ -176,10 +174,12 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       myElement.putUserData(RESOLVE_SKIPPED, true)
       return emptyArray()
     }
-    return resolveNameOrKeyword()?.let { PsiElementResolveResult.createResults(it) } ?: run {
-      ResolveCache.getInstance(element.project).resolveWithCaching(this, RESOLVER, true, incompleteCode)
-//      RESOLVER.resolve(this, incompleteCode)
+    val fast = resolveNameOrKeyword()
+    if (fast != null) {
+      return PsiElementResolveResult.createResults(fast)
     }
+    return ResolveCache.getInstance(element.project).resolveWithCaching(this, RESOLVER, true, incompleteCode)
+//    return RESOLVER.resolve(this, incompleteCode)
   }
 
   private fun resolveNameOrKeyword(): PsiElement? {
@@ -190,12 +190,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         return service.getKeyword(parent)
       }
     }
-    else if (parent is CList && myElement.role == Role.NAME &&
-        (parent.role == Role.DEF || parent.role == Role.NS) && parent.def != null) {
+    else if (parent is CList && myElement.role == Role.NAME && parent.def != null) {
       return service.getDefinition(parent)
     }
     val refText = rangeInElement.substring(myElement.text)
-    if ((refText == "&form" || refText == "&env" || refText.endsWith("#"))
+    if ((refText == "&form" || refText == "&env")
         && myElement.parentForms.find { it.asDef?.def?.type == "defmacro" } != null) {
       return service.getSymbol(myElement)
     }
@@ -208,11 +207,12 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     return null
   }
 
-  fun multiResolveInner(): List<PsiElement> {
+  fun multiResolveInner(): Array<ResolveResult> {
     val service = ClojureDefinitionService.getInstance(myElement.project)
     val refText = rangeInElement.substring(myElement.text)
-    val result = arrayListOf<PsiElement>()
+    val result = arrayListOf<PsiElementResolveResult>()
     val nsQualifier = myElement.nextSibling.elementType == ClojureTypes.C_SLASH
+    val namespace = (element.containingFile.originalFile as CFileImpl).namespace
     processDeclarations(service, refText, ResolveState.initial(), object : BaseScopeProcessor(), NameHint {
       override fun handleEvent(event: PsiScopeProcessor.Event, associated: Any?) {
         if (event == SKIP_RESOLVE) {
@@ -228,38 +228,36 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
       override fun getName(state: ResolveState) = refText
 
-      override fun execute(it: PsiElement, state: ResolveState): Boolean {
+      override fun execute(o: PsiElement, state: ResolveState): Boolean {
+        var validResult = true
         val target = when {
-          it is CList && it.role == Role.DEF ->
-            if (nsQualifier) null else
-            if (refText == state.get(RENAMED_KEY) || refText == it.def!!.name) service.getDefinition(it)
-            else null
-          it is CKeyword ->
-            if (nsQualifier) null else
-            if (refText == it.symbol.name) service.getKeyword(it)
-            else null
-          it is CSymbol ->
-            if (nsQualifier) null else
-            if (refText == it.name) service.getSymbol(it)
-            else null
-          it is PsiNamedElement -> {
-            if (refText == state.get(RENAMED_KEY) || refText == it.name ||
-                it is PsiQualifiedNamedElement && refText == it.qualifiedName ||
-                it.asCTarget?.key?.run {
-                  type == JS_OBJ && refText == "$namespace.$name" } ?: false) it
+          o is CList && o.role == Role.DEF ->
+            if (!nsQualifier && refText == o.def!!.name) service.getDefinition(o) else null
+          o is CKeyword ->
+            if (!nsQualifier && refText == o.symbol.name) service.getKeyword(o) else null
+          o is CSymbol ->
+            if (!nsQualifier && refText == o.name) service.getSymbol(o) else null
+          o is PsiNamedElement -> {
+            if (state.get(PRIVATE_KEY) == true) {
+              validResult = o.asCTarget?.key?.namespace == namespace
+            }
+            if (refText == state.get(RENAMED_KEY) || refText == o.name ||
+                o is PsiQualifiedNamedElement && refText == o.qualifiedName ||
+                o.asCTarget?.key?.run {
+                  type == JS_OBJ && refText == "$namespace.$name" } ?: false) o
             else null
           }
           else -> null
         }
         if (target != null) {
           myElement.putUserData(RESOLVE_SKIPPED, null)
-          result.add(target)
-          return false // todo
+          result.add(PsiElementResolveResult(target, validResult))
+          return false
         }
         return true
       }
     })
-    return result
+    return if (result.isEmpty()) PsiElementResolveResult.EMPTY_ARRAY else result.toTypedArray()
   }
 
   override fun isReferenceTo(element: PsiElement?): Boolean {
@@ -280,7 +278,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val qualifier = qualifier
     val containingFile = element.containingFile.originalFile as CFileImpl
     val langKind = containingFile.placeLanguage(element)
-    val isCljs = langKind == LangKind.CLJS
+    val isCljs = langKind == Dialect.CLJS
     val parent = element.parent
 
     if (parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_DOT) {
@@ -296,14 +294,16 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
       }
       if (!containingFile.processDeclarations(processor, state, element, element)) return false
+      if (!FileBasedIndex.getInstance().getFilesWithKey(NS_INDEX, setOf(refText), { false },
+          ClojureDefinitionService.getClojureSearchScope(service.project))) {
+        if (!processor.execute(service.getNamespace(element.name), state)) return false
+      }
+
       if (!isCljs) {
         findClass(refText, service)?.let { return processor.execute(it, state) }
       }
       if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.isIn(it) || refText.prefixedBy(it) }) {
         return processor.skipResolve()
-      }
-      if ((service.getNamespace(element).navigationElement as? Navigatable)?.canNavigate() ?: false) {
-        if (!processor.execute(service.getNamespace(element), state)) return false
       }
       return true
     }
@@ -335,7 +335,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           if (targetNS == containingFile.namespace) {
             if (!containingFile.processDeclarations(processor, state, element, element)) return false
           }
-          if (!processNamespace(targetNS, state, processor, containingFile)) return false
+          if (!processNamespace(targetNS, langKind, state, processor, containingFile)) return false
         }
       }
       else if (resolve is PsiQualifiedNamedElement && !service.java.getMemberTypes(target).isEmpty()) {
@@ -362,7 +362,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     if (!processParentForms(langKind, refText, element, service, state, processor, lastParentRef)) return false
 
     if (!containingFile.processDeclarations(processor, state, lastParentRef.get(), element)) return false
-    if (!processNamespace(containingFile.namespace, state, processor, containingFile)) return false
+    if (!processNamespace(containingFile.namespace, langKind, state, processor, containingFile)) return false
     if (!processSpecialForms(langKind, refText, element, service, state, processor)) return false
     if (!isCljs) findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
     else if (refText == "js" && myElement.parent is CConstructor || refText == "Object") {
@@ -371,11 +371,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     return true
   }
 
-  private fun processParentForms(langKind: LangKind, refText: String?, place: CForm,
+  private fun processParentForms(dialect: Dialect, refText: String?, place: CForm,
                                  service: ClojureDefinitionService,
                                  state: ResolveState, processor: PsiScopeProcessor,
                                  lastParentRef: Ref<PsiElement>): Boolean {
-    val isCljs = langKind == LangKind.CLJS
+    val isCljs = dialect == Dialect.CLJS
     val element = place.thisForm!!
     var prevO: CForm = element
     for (o in prevO.parents().takeWhile { it is CForm }) {
@@ -482,10 +482,10 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else siblings.first()?.let { form ->
             if (form == element) return@let null
             if ((innerType == "." || innerType == "..") && form is CSymbol && form.qualifier == null) {
-              val resolved = form.reference.resolve().asNonCPom()
-              if (resolved != null) {
+              val resolvedName = form.resolveQualifiedName()
+              if (resolvedName != null) {
                 scope = JavaHelper.Scope.STATIC
-                return@let resolved.qualifiedName
+                return@let resolvedName
               }
             }
             scope = JavaHelper.Scope.INSTANCE
@@ -572,25 +572,25 @@ fun findBindingsVec(o: CList, mode: String): CVec? {
 
 fun destruct(o: CForm?) = DESTRUCTURING.withRoot(o).traverse()
 
-fun processNamespace(namespace: String, state: ResolveState, processor: PsiScopeProcessor, lastParent: CFile): Boolean {
+fun processNamespace(namespace: String, dialect: Dialect, state: ResolveState, processor: PsiScopeProcessor, lastParent: CFile): Boolean {
   if (state.get(ALIAS_KEY) != null) return true
   val lastFile = PsiUtilCore.getVirtualFile(lastParent)
   val scope = ClojureDefinitionService.getClojureSearchScope(lastParent.project)
   FileBasedIndex.getInstance().getContainingFiles(NS_INDEX, namespace, scope).forEach { file ->
     if (lastFile == file) return@forEach
     val it = lastParent.manager.findFile(file) as? CFile ?: return@forEach
-    if (!it.processDeclarations(processor, state, lastParent, lastParent)) return false
+    if (!it.processDeclarations(processor, state.put(DIALECT_KEY, dialect), lastParent, lastParent)) return false
   }
   return true
 }
 
-fun processSpecialForms(langKind: LangKind, refText: String?, place: PsiElement, service: ClojureDefinitionService, state: ResolveState, processor: PsiScopeProcessor): Boolean {
-  val isCljs = langKind == LangKind.CLJS
+fun processSpecialForms(dialect: Dialect, refText: String?, place: PsiElement, service: ClojureDefinitionService, state: ResolveState, processor: PsiScopeProcessor): Boolean {
+  val isCljs = dialect == Dialect.CLJS
   val forms = if (isCljs) ClojureConstants.CLJS_SPECIAL_FORMS else ClojureConstants.SPECIAL_FORMS
   // special unqualified forms
   if (refText != null) {
     if (forms.contains(refText)) {
-      return processor.execute(service.getDefinition(refText, langKind.ns, "def"), state)
+      return processor.execute(service.getDefinition(refText, dialect.coreNs, "def"), state)
     }
     // reserved bindings '*ns*' and etc.
     if (refText.startsWith("*") && refText.endsWith("*")) {
@@ -598,7 +598,7 @@ fun processSpecialForms(langKind: LangKind, refText: String?, place: PsiElement,
     }
   }
   else {
-    forms.forEach { if (!processor.execute(service.getDefinition(it, langKind.ns, "def"), state)) return false }
+    forms.forEach { if (!processor.execute(service.getDefinition(it, dialect.coreNs, "def"), state)) return false }
   }
   return true
 }
@@ -625,23 +625,31 @@ fun processBindings(element: CList, mode: String, state: ResolveState, processor
   return true
 }
 
-fun CFile.placeLanguage(place: PsiElement): LangKind =
-    if (language == ClojureScriptLanguage) LangKind.CLJS
+fun CFile.placeLanguage(place: PsiElement): Dialect =
+    if (language == ClojureScriptLanguage) Dialect.CLJS
     else {
-      place.parents().filter {
-        it.parent.run { role == Role.RCOND || role == Role.RCOND_S } && it.prevForm is CKeyword
+      place.parents().filter { it is CForm && it.prevForm is CKeyword &&
+          it.parent.run { role == Role.RCOND || role == Role.RCOND_S }
       }.first()?.let { e ->
-        if ((e.prevForm as? CKeyword)?.name == "cljs") LangKind.CLJS
-        else LangKind.CLJ // ":clj", ":default"
-      } ?: LangKind.CLJ
+        if ((e.prevForm as? CKeyword)?.name == "cljs") Dialect.CLJS
+        else Dialect.CLJ // ":clj", ":default"
+      } ?: Dialect.CLJ
     }
 
 fun PsiScopeProcessor.skipResolve() =
     handleEvent(SKIP_RESOLVE, null).run { false }
 
-fun PsiElement?.asNonCPom() =
-    if (this !is PomTargetPsiElement || target !is CTarget) this as? PsiQualifiedNamedElement
+private fun PsiElement?.asNonCPom() =
+    if (this !is PomTargetPsiElement || target !is CTarget) this as? PsiNamedElement
     else null
+
+fun CSymbol.resolveQualifiedName() = (reference.resolve().asNonCPom() as? PsiQualifiedNamedElement)?.qualifiedName
+fun CForm.typeHintMeta(): CSymbol? = formPrefix().filter(CMetadata::class)
+      .map { it.form as? CSymbol }
+      .notNulls().first()
+fun CForm.keyMetas(): JBIterable<CKeyword> = formPrefix().filter(CMetadata::class)
+      .map { it.form as? CKeyword }
+      .notNulls()
 
 private val SKIP_RESOLVE = object : PsiScopeProcessor.Event {}
 private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {

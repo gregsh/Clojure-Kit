@@ -52,13 +52,10 @@ class ClojurePsiImplUtil {
     }
 
     @JvmStatic fun getName(o: CKeywordBase): String = o.symbol.name
-    @JvmStatic fun getNamespace(o: CKeywordBase): String =
-        o.resolvedNs ?: o.role.let { o.resolvedNs!! }
+    @JvmStatic fun getNamespace(o: CKeywordBase): String = o.resolvedNs!!
 
     @JvmStatic fun getTextOffset(o: CKeywordBase): Int = o.symbol.textOffset
 
-    @JvmStatic fun getDef(o: CListBase): IDef? =
-        if (o.role == Role.DEF || o.role == Role.NS) o.defImpl else null
     @JvmStatic fun getTextOffset(o: CListBase): Int =
         (if (o.role != Role.NONE) o.findChild(Role.NAME) else o.firstForm)?.textOffset
             ?: o.textRange.startOffset
@@ -70,11 +67,16 @@ class ClojurePsiImplUtil {
 }
 
 open class CComposite(tokenType: IElementType) : CompositePsiElement(tokenType), CElement {
-  override val role: Role
-    get() = roleImpl ?: (containingFile as CFileImpl).role(this)
+  override val role: Role get() = role(data)
+  override val def: IDef? get() = data as? IDef
+  override val resolvedNs: String? get() = data as? String
 
+  internal val roleImpl: Role get() = role(dataImpl)
   @JvmField
-  internal var roleImpl: Role? = null
+  internal var dataImpl: Any? = null
+  internal val data: Any get() = dataImpl ?: (containingFile as CFileImpl).checkState().let {
+    dataImpl ?: Role.NONE.also { dataImpl = it }
+  }
 }
 
 abstract class CListBase(nodeType: IElementType) : CLVFormImpl(nodeType), CList, ItemPresentation {
@@ -92,9 +94,6 @@ abstract class CListBase(nodeType: IElementType) : CLVFormImpl(nodeType), CList,
     val first = this.first ?: return prefix
     return "$prefix(${first.name} …)"
   }
-
-  @JvmField
-  internal var defImpl: IDef? = null
 }
 
 abstract class CKeywordBase(nodeType: IElementType) : CFormImpl(nodeType), CKeyword,
@@ -113,18 +112,24 @@ abstract class CKeywordBase(nodeType: IElementType) : CFormImpl(nodeType), CKeyw
 
   override fun getPresentableText() = ":$qualifiedName"
   override fun getQualifiedName() = name.withNamespace(namespace)
-
-  @JvmField
-  internal var resolvedNs: String? = null
 }
 
 fun newLeafPsiElement(project: Project, s: String): PsiElement =
     PsiFileFactory.getInstance(project).createFileFromText(ClojureLanguage, s).firstChild.lastChild
 
+private fun role(data: Any?): Role {
+  return when (data) {
+    is Role -> data
+    is Imports, is NSDef -> Role.NS
+    is IDef -> Role.DEF
+    else -> Role.NONE
+  }
+}
+
 val PsiElement?.fastRole: Role get() = (this as? CComposite)?.roleImpl ?: Role.NONE
 val CList?.fastDef: IDef?
   get() = (this as? CListBase)?.run {
-    defImpl?.run {
+    ((this as CComposite).dataImpl as? IDef)?.run {
       if (name == "" && type == "") null else this
     } ?: first?.let { type ->
       (type.nextForm as? CSymbol)?.let { name ->

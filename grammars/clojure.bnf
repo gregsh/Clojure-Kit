@@ -95,7 +95,7 @@ fake p_form ::= form * {methods=[forms="form"]}
 fake l_v_form ::=
 fake s_form ::=
 list ::= '(' list_body ')'
-  {methods=[getTextOffset getDef getFirst]}
+  {methods=[getTextOffset getFirst]}
 set ::= '#' <<nospace>> '{' set_body '}'
 vec ::= '[' vec_body ']'
 map ::= '{' map_body '}'
