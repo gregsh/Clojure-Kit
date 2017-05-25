@@ -47,10 +47,7 @@ import com.intellij.util.containers.ContainerUtilRt
 import com.intellij.util.containers.JBIterable
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
-import org.intellij.clojure.util.EachNth
-import org.intellij.clojure.util.iterate
-import org.intellij.clojure.util.jbIt
-import org.intellij.clojure.util.notNulls
+import org.intellij.clojure.util.*
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.signature.SignatureReader
 import org.jetbrains.org.objectweb.asm.signature.SignatureVisitor
@@ -216,12 +213,16 @@ abstract class JavaHelper {
       val wrapper = ((element as? PomTargetPsiElement)?.navigationElement ?: element)
           as? MyElement<*> ?: return null
       val info = wrapper.delegate
+      val pack = (info as? MemberInfo)?.declaringClass?.let { "".withPackage(StringUtil.getPackageName(it.name)) } ?: ""
       return when (info) {
-        is ClassInfo -> "${info.name}<br><br><i>${info.url}</i>"
-        is MethodInfo -> "${info.types[0]} ${info.name}(${info.types.jbIt().skip(1).filter(EachNth(2)).joinToString()})" +
+        is ClassInfo -> "class ${info.name}<br><br><i>${info.url}</i>"
+        is MethodInfo -> ("method ${info.types[0]} ${info.name}" +
+            "(${info.types.jbIt().skip(1).filter(EachNth(2))
+                .map { StringUtil.escapeXml(it) }
+                .joinToString(",<br>&nbsp;&nbsp;&nbsp;&nbsp;")})").replace(pack, "") +
             "<br>in class ${info.declaringClass.name}" +
             "<br><br><i>${info.declaringClass.url}</i>"
-        is FieldInfo -> "${info.type} ${info.name}<br>" +
+        is FieldInfo -> "field ${info.type} ${info.name}<br>".replace(pack, "") +
             "in class ${info.declaringClass.name}" +
             "<br><br><i>${info.declaringClass.url}</i>"
         else -> null
