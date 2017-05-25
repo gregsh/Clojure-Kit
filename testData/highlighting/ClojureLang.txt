@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 9 warnings
+/clojure/core.clj                        0 errors, 8 warnings
       121020: unable to resolve 'setInt'
       121159: unable to resolve 'setLong'
       121306: unable to resolve 'setBoolean'
@@ -7,7 +7,6 @@
       121749: unable to resolve 'setShort'
       121892: unable to resolve 'setByte'
       122033: unable to resolve 'setChar'
-      153164: unable to resolve 'matches'
 /clojure/core/protocols.clj              0 errors, 0 warnings
 /clojure/core/reducers.clj               0 errors, 3 warnings
       2051: unable to resolve 'jsr166y.ForkJoinPool'
@@ -155,4 +154,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings
 /clojure/xml.clj                         0 errors, 0 warnings
 /clojure/zip.clj                         0 errors, 0 warnings
-Total: 115 warnings in 42 files (715.68K chars)
+Total: 114 warnings in 42 files (715.68K chars)

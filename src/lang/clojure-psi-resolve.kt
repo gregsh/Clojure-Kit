@@ -108,7 +108,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
   }
 
   private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
-    fun CForm.javaTypeMeta() = metas.firstOrNull()?.let {
+    fun CForm.javaTypeMeta() = findChild(CMetadata::class)?.let {
       ((it.form as? CSymbol)?.reference?.resolve() as? PsiQualifiedNamedElement)?.qualifiedName }
     return form.javaTypeMeta()  ?: when (form) {
       is CSymbol -> {
@@ -140,12 +140,21 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       is CList -> {
         val nameSym = form.asDef?.findChild(Role.NAME) as? CSymbol
         if (nameSym != null) {
-          nameSym.javaTypeMeta() ?: nameSym.findNext(CVec::class)?.javaTypeMeta()
+          nameSym.javaTypeMeta() ?:
+              nameSym.findNext(CVec::class)?.javaTypeMeta() ?:
+              prototypes(form).map { it.findChild(Role.ARG_VEC)?.javaTypeMeta() }.notNulls().first() ?:
+              nameSym.siblings().find { it is CMap }?.let {
+                val tagValue = it.iterate().find { it is CKeyword && it.name == "tag" }?.nextForm
+                (tagValue as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
+              }
         }
         else {
           val first = form.firstForm
           when (first) {
-            is CAccess -> first.symbol.reference.resolve().asNonCPom()?.qualifiedName
+            is CAccess -> when (first.lastChild.elementType) {
+              ClojureTypes.C_DOT -> first.symbol.reference.resolve().asNonCPom()?.qualifiedName
+              else -> javaType(first.symbol)
+            }
             is CSymbol -> when (first.name) {
               "new" -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName
               "." -> (first.nextForm as? CSymbol)?.reference?.resolve().asNonCPom()?.qualifiedName ?:
@@ -274,8 +283,6 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val isCljs = langKind == LangKind.CLJS
     val parent = element.parent
 
-    // constructor reference 'java.lang.String.'
-    if (/*qualifier != null &&*/ refText == ".") return processor.skipResolve()
     if (parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_DOT) {
       if (isCljs) return processor.skipResolve()
     }
@@ -351,7 +358,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     }
     if (!containingFile.processPrecomputedDeclarations(refText, element, langKind, service, state, processor)) return false
 
-    val lastParentRef = Ref.create<CForm>(element)
+    val lastParentRef = Ref.create<PsiElement>(element)
     if (!processParentForms(langKind, refText, element, service, state, processor, lastParentRef)) return false
 
     if (!containingFile.processDeclarations(processor, state, lastParentRef.get(), element)) return false
@@ -367,12 +374,12 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
   private fun processParentForms(langKind: LangKind, refText: String?, place: CForm,
                                  service: ClojureDefinitionService,
                                  state: ResolveState, processor: PsiScopeProcessor,
-                                 lastParentRef: Ref<CForm>): Boolean {
+                                 lastParentRef: Ref<PsiElement>): Boolean {
     val isCljs = langKind == LangKind.CLJS
     val element = place.thisForm!!
     var prevO: CForm = element
-    for (o in prevO.parentForms) {
-      val type = formType(o)
+    for (o in prevO.parents().takeWhile { it is CForm }) {
+      val type = formType(o as CForm)
       if (o !is CList || type == null) {
         lastParentRef.set(o)
         if (refText == "&") {

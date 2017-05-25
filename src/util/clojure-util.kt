@@ -69,7 +69,7 @@ val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.
 val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)
 fun IElementType?.wsOrComment() = this != null && (ClojureTokens.WHITESPACES.contains(this) || ClojureTokens.COMMENTS.contains(this))
 
-fun PsiElement?.findChild(role: Role) = iterate().find { (it as? CElement)?.role == role }
+fun PsiElement?.findChild(role: Role) = iterate().find { (it as? CElement)?.role == role } as CForm?
 fun PsiElement?.findChild(c: IElementType) = this?.node?.findChildByType(c)?.psi
 fun PsiElement?.findNext(c: IElementType) = TreeUtil.findSibling(this?.node, c)?.psi
 fun PsiElement?.findPrev(c: IElementType) = TreeUtil.findSiblingBackward(this?.node, c)?.psi
