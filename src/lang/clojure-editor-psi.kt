@@ -20,28 +20,32 @@ package org.intellij.clojure.editor
 import com.intellij.codeHighlighting.Pass
 import com.intellij.codeInsight.CodeInsightBundle
 import com.intellij.codeInsight.TargetElementEvaluatorEx2
+import com.intellij.codeInsight.TargetElementUtil
 import com.intellij.codeInsight.completion.*
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
+import com.intellij.codeInsight.daemon.impl.PsiElementListNavigator
 import com.intellij.codeInsight.documentation.QuickDocUtil
+import com.intellij.codeInsight.generation.actions.PresentableCodeInsightActionHandler
 import com.intellij.codeInsight.hints.HintInfo
 import com.intellij.codeInsight.hints.InlayInfo
 import com.intellij.codeInsight.hints.InlayParameterHintsProvider
 import com.intellij.codeInsight.hints.Option
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
-import com.intellij.codeInsight.navigation.NavigationUtil
+import com.intellij.codeInsight.navigation.ListBackgroundUpdaterTask
 import com.intellij.icons.AllIcons
-import com.intellij.ide.util.DefaultPsiElementCellRenderer
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.documentation.DocumentationProviderEx
 import com.intellij.lang.parameterInfo.*
 import com.intellij.navigation.NavigationItem
+import com.intellij.openapi.actionSystem.Presentation
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -56,11 +60,12 @@ import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.BaseScopeProcessor
+import com.intellij.psi.search.PsiElementProcessor
+import com.intellij.psi.search.searches.DefinitionsScopedSearch
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
-import com.intellij.ui.awt.RelativePoint
 import com.intellij.util.ProcessingContext
 import com.intellij.util.TimeoutUtil
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -72,12 +77,12 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.lang.ClojureColors
+import org.intellij.clojure.lang.usages.ClojureGotoRenderer
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.util.*
 import java.awt.event.MouseEvent
-import javax.swing.Icon
 
 /**
  * @author gregsh
@@ -450,17 +455,21 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
     val grandName = element.parentForm.parentForm.firstForm?.name
     return when {
       def?.type == "method" ->
-        LineMarkerInfo(element, element.textRange, P1.icon!!, Pass.UPDATE_ALL, { P1.name },
+        if (!P1.isEnabled) null else
+        LineMarkerInfo(element, element.textRange, P1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
           { event, sym -> showNavPopup(sym, event) }, GutterIconRenderer.Alignment.LEFT)
       def?.type == "defmulti" ->
-        LineMarkerInfo(element, element.textRange, MM1.icon!!, Pass.UPDATE_ALL, { MM1.name },
+        if (!MM1.isEnabled) null else
+        LineMarkerInfo(element, element.textRange, MM1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
             { event, sym -> showNavPopup(sym, event) }, GutterIconRenderer.Alignment.RIGHT)
       def == null && parentName == "defmethod" ->
-        LineMarkerInfo(element, element.textRange, MM2.icon!!, Pass.UPDATE_ALL, { MM2.name },
+        if (!MM2.isEnabled) null else
+        LineMarkerInfo(element, element.textRange, MM2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
             { _, sym -> navigate(sym.reference.resolve()) },
             GutterIconRenderer.Alignment.LEFT)
       def == null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
-        LineMarkerInfo(element, element.textRange, P2.icon!!, Pass.UPDATE_ALL, { P2.name },
+        if (!P2.isEnabled) null else
+        LineMarkerInfo(element, element.textRange, P2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
             { _, sym -> navigate(sym.reference.resolve()) },
             GutterIconRenderer.Alignment.LEFT)
       else -> null
@@ -472,42 +481,53 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
   }
 
   private fun showNavPopup(sym: CSymbol, event: MouseEvent) {
-    val origParent = sym.parentForm
     val target = sym.reference.resolve() ?: return
-    val result = mutableListOf<PsiElement>()
-    ReferencesSearch.search(target).forEach { ref ->
-      val e = ref.element as? CSymbol ?: return@forEach
-      val parent = e.parentForm
-      if (parent == origParent) return@forEach
-      if (parent?.firstForm?.name == "defmethod") result.add(parent)
-      else {
-        val grandName = parent?.parentForm?.firstForm?.name
-        if (grandName != null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName)) {
-          result.add(parent)
+    val renderer = ClojureGotoRenderer()
+    val name = sym.name
+    val searchScope = TargetElementUtil.getInstance().getSearchScope(null, target)
+    val collectProcessor = PsiElementProcessor.CollectElementsWithLimit(2, mutableSetOf<NavigatablePsiElement>())
+    DefinitionsScopedSearch.search(target, searchScope).forEach {
+      collectProcessor.execute(it as NavigatablePsiElement)
+    }
+
+    val updater = object: ListBackgroundUpdaterTask(sym.project, "Searching for Implementing Methods") {
+      override fun getCaption(size: Int): String {
+        val suffix = if (isFinished) "" else " so far"
+        return "<html><body>Choose Implementation of <b>$name</b> ($size found$suffix)</body></html>"
+      }
+
+      override fun onSuccess() {
+        super.onSuccess()
+        val oneElement = theOnlyOneElement
+        if (oneElement is NavigatablePsiElement) {
+          oneElement.navigate(true)
+          myPopup.cancel()
+        }
+      }
+
+      override fun run(indicator: ProgressIndicator) {
+        super.run(indicator)
+        DefinitionsScopedSearch.search(target, searchScope).forEach {
+          if (!updateComponent(it, renderer.comparator)) {
+            indicator.cancel()
+          }
+          indicator.checkCanceled()
         }
       }
     }
-    if (result.isEmpty()) return
-    NavigationUtil.getPsiElementPopup(result.toTypedArray(), object : DefaultPsiElementCellRenderer() {
-      override fun getElementText(element: PsiElement): String {
-        val form = element as? CListBase ?: return super.getElementText(element)
-        val formName = form.first?.name
-        if (formName == "defmethod") {
-          return "(${(form.forms[1] as? CSymbol)?.name} ${form.forms[2]?.text ?: ""})"
-        }
-        val parentForm = form.parentForm as CListBase
-        val grandName = parentForm.firstForm?.name
-        val selector =
-            if (grandName == "extend-protocol") form.prevSiblings().filter(CSymbol::class).first()?.qualifiedName
-            else (parentForm.forms[1] as? CSymbol)?.name
-        return "(${formName ?: ""} ${selector ?: ""})"
-      }
+    val firstFound = collectProcessor.collection.toTypedArray()
+    PsiElementListNavigator.openTargets(event, firstFound,
+        updater.getCaption(firstFound.size), "Implementing methods of " + name, renderer, updater)
+  }
+}
 
-      override fun getIcon(element: PsiElement?): Icon {
-        return ClojureIcons.METHOD
-      }
-    }, "Choose Implementation")
-        .show(RelativePoint(event))
+class ClojureGotoSuperHandler : PresentableCodeInsightActionHandler {
+  override fun update(editor: Editor, file: PsiFile, presentation: Presentation?) {
+  }
+
+  override fun invoke(project: Project, editor: Editor, file: PsiFile) {
+    val sym = file.findElementAt(editor.caretModel.offset).thisForm as? CSymbol ?: return
+    (sym.reference.resolve() as? Navigatable)?.navigate(true)
   }
 }
 

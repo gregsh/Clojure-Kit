@@ -17,13 +17,17 @@
 
 package org.intellij.clojure.lang.usages
 
+import com.intellij.codeInsight.navigation.GotoTargetHandler
+import com.intellij.codeInsight.navigation.GotoTargetRendererProvider
 import com.intellij.find.findUsages.PsiElement2UsageTargetAdapter
+import com.intellij.ide.util.DefaultPsiElementCellRenderer
 import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.navigation.ChooseByNameContributor
 import com.intellij.navigation.GotoClassContributor
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.QueryExecutorBase
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
@@ -33,20 +37,24 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.searches.DefinitionsScopedSearch
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.usageView.UsageViewTypeLocation
 import com.intellij.usages.UsageTarget
 import com.intellij.usages.UsageTargetProvider
 import com.intellij.util.Processor
+import com.intellij.util.QueryExecutor
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CLJS_CORE_PATH
 import org.intellij.clojure.ClojureConstants.CLJ_CORE_PATH
+import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.util.*
 import java.util.*
+import javax.swing.Icon
 
 /**
  * @author gregsh
@@ -158,5 +166,59 @@ class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, Reference
         }
       }
     }
+  }
+}
+
+class ClojureImplementationSearch : QueryExecutor<PsiElement, DefinitionsScopedSearch.SearchParameters> {
+  override fun execute(queryParameters: DefinitionsScopedSearch.SearchParameters, consumer: Processor<PsiElement>): Boolean {
+    val target = queryParameters.element
+    val type = target.asCTarget?.key?.type ?: return true
+    if (type != "defmulti" && type != "method") return true
+    return ReadAction.compute<Boolean, RuntimeException> {
+      ReferencesSearch.search(queryParameters.element, queryParameters.scope).forEach { ref ->
+        val e = ref.element as? CSymbol ?: return@forEach
+        val parent = e.parentForm
+        if (parent?.def != null) return@forEach
+        if (parent?.firstForm?.name == "defmethod") {
+          if (parent.firstForm == e) return@forEach
+          if (!consumer.process(parent)) return@compute false
+        }
+        else {
+          val grandName = parent?.parentForm?.firstForm?.name
+          if (grandName != null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName)) {
+            if (!consumer.process(parent)) return@compute false
+          }
+        }
+      }
+      return@compute true
+    }
+  }
+}
+
+class ClojureGotoRendererProvider : GotoTargetRendererProvider {
+  override fun getRenderer(element: PsiElement, gotoData: GotoTargetHandler.GotoData) =
+      if (element is CListBase) ClojureGotoRenderer() else null
+}
+
+class ClojureGotoRenderer : DefaultPsiElementCellRenderer() {
+  override fun getElementText(o: PsiElement?) = calcName(o as CListBase)
+  override fun getIcon(o: PsiElement?): Icon = ClojureIcons.METHOD
+
+  private fun calcName(form: CListBase): String {
+    val def = form.def
+    if (def != null) {
+      return "(${def.name}) declaration"
+    }
+    val formName = form.first?.name
+    if (formName == "defmethod") {
+      return "(${(form.forms[1] as? CSymbol)?.name} ${form.forms[2]?.text ?: ""})"
+    }
+    val parentForm = form.parentForm as CListBase
+    val grandName = parentForm.firstForm?.name
+    if (grandName == "reify") return "(${formName ?: ""}) in (reify …)"
+    val selector =
+        if (grandName == "extend-protocol") form.prevSiblings().filter(CSymbol::class).first()?.qualifiedName
+        else (parentForm.forms[1] as? CSymbol)?.name
+    return "(${formName ?: ""} ${selector ?: ""})"
   }
 }

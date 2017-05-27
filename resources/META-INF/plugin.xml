@@ -59,6 +59,10 @@
     <completion.contributor language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCompletionContributor"/>
     <annotator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureAnnotator"/>
     <codeInsight.lineMarkerProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureLineMarkerProvider"/>
+    <codeInsight.gotoSuper language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureGotoSuperHandler"/>
+    <definitionsScopedSearch implementation="org.intellij.clojure.lang.usages.ClojureImplementationSearch"/>
+    <gotoTargetRendererProvider implementation="org.intellij.clojure.lang.usages.ClojureGotoRendererProvider"/>
+
     <targetElementEvaluator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureTargetElementEvaluator"/>
     <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureDocumentationProvider"/>
     <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.java.JavaHelper$AsmDocumentationProvider"/>

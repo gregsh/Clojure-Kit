@@ -57,7 +57,7 @@ class ClojurePsiImplUtil {
     @JvmStatic fun getTextOffset(o: CKeywordBase): Int = o.symbol.textOffset
 
     @JvmStatic fun getTextOffset(o: CListBase): Int =
-        (if (o.role != Role.NONE) o.findChild(Role.NAME) else o.firstForm)?.textOffset
+        (o.findChild(Role.NAME) ?: o.firstForm)?.textOffset
             ?: o.textRange.startOffset
 
     @JvmStatic fun getFirst(o: CList): CSymbol? = o.findChild(CForm::class) as? CSymbol
