@@ -211,14 +211,14 @@ class ClojureGotoRenderer : DefaultPsiElementCellRenderer() {
     }
     val formName = form.first?.name
     if (formName == "defmethod") {
-      return "(${(form.forms[1] as? CSymbol)?.name} ${form.forms[2]?.text ?: ""})"
+      return "(${(form.childForms[1] as? CSymbol)?.name} ${form.childForms[2]?.text ?: ""})"
     }
     val parentForm = form.parentForm as CListBase
     val grandName = parentForm.firstForm?.name
     if (grandName == "reify") return "(${formName ?: ""}) in (reify …)"
     val selector =
         if (grandName == "extend-protocol") form.prevSiblings().filter(CSymbol::class).first()?.qualifiedName
-        else (parentForm.forms[1] as? CSymbol)?.name
+        else (parentForm.childForms[1] as? CSymbol)?.name
     return "(${formName ?: ""} ${selector ?: ""})"
   }
 }

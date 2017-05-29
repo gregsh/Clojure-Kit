@@ -403,7 +403,7 @@ private class RoleHelper {
         }
         else if (firstName == "defmethod" && ns == langKind.coreNs) {
           setData(first.nextForm, Role.NAME)
-          setData((e.forms[3] as? CVec), Role.ARG_VEC)
+          setData((e.childForms[3] as? CVec), Role.ARG_VEC)
         }
         else if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(firstName)) {
           e.iterate(CList::class).forEach {

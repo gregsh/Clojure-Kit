@@ -324,7 +324,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
 
     fun String.sanitize() = StringUtil.escapeXml(StringUtil.unquoteString(this))
     fun StringBuilder.appendMap(m: CForm?) {
-      val forms = (m as? CMap)?.forms ?: return
+      val forms = (m as? CMap)?.childForms ?: return
       for ((i, form) in forms.withIndex()) {
         if (i % 2 == 0) append("<br>").append("<b>").append(form.text.sanitize()).append("</b>   ")
         else append(form.text.sanitize())

@@ -404,7 +404,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else {
             val methodName = prevO.first?.name
             if (methodName != null) {
-              val protocolSym = if (type == "extend-protocol") o.forms[1] as? CSymbol
+              val protocolSym = if (type == "extend-protocol") o.childForms[1] as? CSymbol
               else prevO.prevSiblings().skip(1).find { it is CSymbol && it.role != Role.NAME }
               val protocol = protocolSym?.reference?.resolve()
               val protocolKey = protocol.asCTarget?.key
@@ -456,14 +456,12 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
       }
       else if (type == "as->") {
-        val nameSymbol = o.forms[2] as? CSymbol
+        val nameSymbol = o.childForms[2] as? CSymbol
         if (nameSymbol != null && !processor.execute(nameSymbol, state)) return false
       }
       else if (type == "catch") {
-        val forms = o.forms
-        if (forms.size > 2) {
-          if (!processor.execute(forms[2], state)) return false
-        }
+        val exception = o.childForms[2] as? CSymbol
+        if (exception!= null &&  !processor.execute(exception, state)) return false
       }
       else if (innerType == "." || innerType == ".." || innerType == ".-" || innerType == ". id") {
         if (prevO == element && prevO.parent == o || prevO is CList && prevO.firstForm == element) {
@@ -473,7 +471,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           var scope = if (isProp) JavaHelper.Scope.INSTANCE else JavaHelper.Scope.STATIC
           val isInFirst = o.firstForm.isAncestorOf(element)
 
-          val siblings = if (type.endsWith("->")) JBIterable.of(o.forms[1])
+          val siblings = if (type.endsWith("->")) JBIterable.of(o.childForms[1])
           else if (type.endsWith("->>")) JBIterable.of(prevO.prevForm)
           else o.firstForm.siblings().filter(CForm::class).skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
 
