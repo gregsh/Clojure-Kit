@@ -55,7 +55,7 @@ val ALIAS_KEY: Key<String> = Key.create("ALIAS_KEY")
 val PRIVATE_KEY: Key<Boolean> = Key.create("PRIVATE_KEY")
 val DIALECT_KEY: Key<Dialect> = Key.create("DIALECT_KEY")
 
-class ClojureTypeCache(val service: ClojureDefinitionService) {
+class ClojureTypeCache(service: ClojureDefinitionService) {
   companion object {
     val INSTANCE_KEY = ServiceManager.createLazyKey(ClojureTypeCache::class.java)!!
   }
@@ -67,6 +67,79 @@ class ClojureTypeCache(val service: ClojureDefinitionService) {
         map.clear()
       }
     })
+  }
+}
+
+fun ClojureDefinitionService.javaType(form: CForm?): String? {
+  if (form == null) return null
+  val ourTypeCache = ClojureTypeCache.INSTANCE_KEY.getValue(project).map
+  val cached = ourTypeCache[form] ?: CSymbolReference.ourTypeGuard.doPreventingRecursion(form, false) {
+    val stamp = CSymbolReference.ourTypeGuard.markStack()
+    val type = javaTypeImpl(form) ?: CSymbolReference.NULL_TYPE
+    if (!stamp.mayCacheNow()) type
+    else ConcurrencyUtil.cacheOrGet(ourTypeCache, form, type)
+  }
+  return if (cached === CSymbolReference.NULL_TYPE) null else cached
+}
+
+private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
+  val formMeta = form.typeHintMeta()?.resolveQualifiedName()
+  if (formMeta != null) return formMeta
+  return when (form) {
+    is CSymbol -> {
+      when (form.name) {
+        "*out*", "*err*" -> return ClojureConstants.J_WRITER
+        "*in*" -> return ClojureConstants.J_READER
+        "*ns*" -> return ClojureConstants.C_NAMESPACE
+      }
+      val target = form.reference.resolve() ?: return null
+      val navElement = target.navigationElement
+      when {
+        navElement === form ->
+          form.parent.let {
+            when {
+              it is CVec && navElement.parent?.parent is CList -> javaType(navElement.nextForm)
+              it is CList && it.first?.name == "catch" -> javaType(navElement.prevForm)
+              else -> null
+            }
+          }
+        navElement is CForm -> javaType(navElement)
+        navElement.asXTarget != null -> (navElement.asXTarget?.resolveStub() as? CListStub)?.run {
+          resolveName(this@javaTypeImpl, meta[TYPE_META])
+        }
+        target is NavigatablePsiElement && target.asNonCPom() != null ->
+          if (form.parent.let { it is CSymbol || it is CList && it.first?.name == "catch" }) (target as? PsiQualifiedNamedElement)?.qualifiedName
+          else java.getMemberTypes(target).firstOrNull()?.let {
+            val index = it.indexOf('<'); if (index > 0) return it.substring(0, index) else it
+          }
+        else -> null
+      }
+    }
+    is CList -> {
+      val def = form.asDef?.def
+      if (def != null) {
+        form.resolveName(this, (def as? Def)?.meta?.get(TYPE_META))
+      }
+      else {
+        val first = form.firstForm
+        when (first) {
+          is CAccess -> when (first.lastChild.elementType) {
+            ClojureTypes.C_DOT -> first.symbol.resolveQualifiedName()
+            else -> javaType(first.symbol)
+          }
+          is CSymbol -> when (first.name) {
+            "new" -> (first.nextForm as? CSymbol)?.resolveQualifiedName()
+            "." -> (first.nextForm as? CSymbol)?.resolveQualifiedName() ?:
+                javaType(first.nextForm?.nextForm) // method call
+            ".." -> javaType(first.siblings().filter(CForm::class).last())
+            "var" -> ClojureConstants.C_VAR
+            else -> javaType(first)
+          }
+          else -> javaType(first)
+        }
+      }
+    }
+    else -> null
   }
 }
 
@@ -94,79 +167,6 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
     val NULL_TYPE = "*unknown*"
     val ourTypeGuard = RecursionManager.createGuard("javaType")!!
-  }
-
-  private fun ClojureDefinitionService.javaType(form: CForm?): String? {
-    if (form == null) return null
-    val ourTypeCache = ClojureTypeCache.INSTANCE_KEY.getValue(project).map
-    val cached = ourTypeCache[form] ?: ourTypeGuard.doPreventingRecursion(form, false) {
-      val stamp = ourTypeGuard.markStack()
-      val type = javaTypeImpl(form) ?: NULL_TYPE
-      if (!stamp.mayCacheNow()) type
-      else ConcurrencyUtil.cacheOrGet(ourTypeCache, form, type)
-    }
-    return if (cached === NULL_TYPE) null else cached
-  }
-
-  private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
-    val formMeta = form.typeHintMeta()?.resolveQualifiedName()
-    if (formMeta != null) return formMeta
-    return when (form) {
-      is CSymbol -> {
-        when (form.name) {
-          "*out*", "*err*" -> return ClojureConstants.J_WRITER
-          "*in*" -> return ClojureConstants.J_READER
-          "*ns*" -> return ClojureConstants.C_NAMESPACE
-        }
-        val target = form.reference.resolve() ?: return null
-        val navElement = target.navigationElement
-        when {
-          navElement === form ->
-            form.parent.let {
-              when {
-                it is CVec && navElement.parent?.parent is CList -> javaType(navElement.nextForm)
-                it is CList && it.first?.name == "catch" -> javaType(navElement.prevForm)
-                else -> null
-              }
-            }
-          navElement is CForm -> javaType(navElement)
-          navElement.asXTarget != null -> (navElement.asXTarget?.resolveStub() as? CListStub)?.run {
-            resolveName(this@javaTypeImpl, meta[TYPE_META])
-          }
-          target is NavigatablePsiElement && target.asNonCPom() != null ->
-            if (form.parent.let { it is CSymbol || it is CList && it.first?.name == "catch" }) (target as? PsiQualifiedNamedElement)?.qualifiedName
-            else java.getMemberTypes(target).firstOrNull()?.let {
-              val index = it.indexOf('<'); if (index > 0) return it.substring(0, index) else it
-            }
-          else -> null
-        }
-      }
-      is CList -> {
-        val def = form.asDef?.def
-        if (def != null) {
-          form.resolveName(this, (def as? Def)?.meta?.get(TYPE_META))
-        }
-        else {
-          val first = form.firstForm
-          when (first) {
-            is CAccess -> when (first.lastChild.elementType) {
-              ClojureTypes.C_DOT -> first.symbol.resolveQualifiedName()
-              else -> javaType(first.symbol)
-            }
-            is CSymbol -> when (first.name) {
-              "new" -> (first.nextForm as? CSymbol)?.resolveQualifiedName()
-              "." -> (first.nextForm as? CSymbol)?.resolveQualifiedName() ?:
-                  javaType(first.nextForm?.nextForm) // method call
-              ".." -> javaType(first.siblings().filter(CForm::class).last())
-              "var" -> ClojureConstants.C_VAR
-              else -> javaType(first)
-            }
-            else -> javaType(first)
-          }
-        }
-      }
-      else -> null
-    }
   }
 
   override fun multiResolve(incompleteCode: Boolean): Array<out ResolveResult> {

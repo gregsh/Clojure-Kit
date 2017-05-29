@@ -35,6 +35,7 @@ import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.codeInsight.navigation.ListBackgroundUpdaterTask
 import com.intellij.icons.AllIcons
+import com.intellij.lang.ExpressionTypeProvider
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.documentation.DocumentationProviderEx
@@ -667,4 +668,16 @@ fun arguments(proto: Any): JBIterable<String> {
   }
   if (proto is CPrototypeStub) return proto.args.jbIt()
   return JBIterable.empty()
+}
+
+class ClojureTypeInfoProvider : ExpressionTypeProvider<CForm>() {
+  override fun getErrorHint() = "No form found"
+
+  override fun getInformationHint(element: CForm): String {
+    val type = ClojureDefinitionService.getInstance(element.project).javaType(element)
+    return StringUtil.escapeXml(type ?: "unknown")
+  }
+
+  override fun getExpressionsAt(elementAt: PsiElement): List<CForm> =
+      JBIterable.generate(elementAt.thisForm, { it.parentForm }).notNulls().toList()
 }

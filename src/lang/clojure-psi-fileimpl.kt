@@ -420,17 +420,25 @@ private class RoleHelper {
     val prototypes = processPrototypes(e)
         .map { Prototype(arguments(it).toList(), it.typeHintMeta()?.qualifiedName) }
         .toList()
-    var typeHint = nameSym.typeHintMeta()?.qualifiedName
-    var private = nameSym.keyMetas().find { it.name == "private" } != null
-    nameSym.siblings().find { it is CMap }?.let {
-      it.iterate().forEach {
-        when ((it as? CKeyword)?.name) {
-          "tag" -> if (typeHint == null) typeHint = (it.nextForm as? CSymbol)?.qualifiedName  // todo JVM type strings
-          "private" -> if (!private) private = (it.nextForm as? CSymbol)?.text == "true"
-          else -> Unit
-        }
+    var typeHint: String? = null
+    var private = false
+    val metaProcessor = { it: CKeyword ->
+      when (it.name) {
+        "tag" -> typeHint = (it.nextForm as? CSymbol)?.qualifiedName  // todo JVM type strings
+        "private" -> private = (it.nextForm as? CLiteral)?.text == "true"
+        else -> Unit
       }
     }
+    // the order of processing from less important to more : ^{..}, ^:, {..}
+    nameSym.formPrefix().filter(CMetadata::class)
+        .flatMap { (it.form as? CMap).iterate(CKeyword::class) }
+        .unique { it.name }
+        .forEach(metaProcessor)
+    nameSym.typeHintMeta()?.let { typeHint = it.qualifiedName }
+    nameSym.keyMetas().find { it.name == "private" }?.let { private = true }
+    nameSym.siblings().find { it is CMap }
+        ?.iterate(CKeyword::class)
+        ?.forEach(metaProcessor)
     if (typeHint == null && prototypes.isNotEmpty()) {
       typeHint = prototypes.jbIt().reduce(prototypes[0].typeHint) { r, p -> if (r == p.typeHint) r else null }
     }

@@ -62,6 +62,7 @@
     <codeInsight.gotoSuper language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureGotoSuperHandler"/>
     <definitionsScopedSearch implementation="org.intellij.clojure.lang.usages.ClojureImplementationSearch"/>
     <gotoTargetRendererProvider implementation="org.intellij.clojure.lang.usages.ClojureGotoRendererProvider"/>
+    <codeInsight.typeInfo language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureTypeInfoProvider"/>
 
     <targetElementEvaluator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureTargetElementEvaluator"/>
     <lang.documentationProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureDocumentationProvider"/>
