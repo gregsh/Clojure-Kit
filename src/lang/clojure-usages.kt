@@ -154,8 +154,7 @@ class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, Reference
     if (targetKey.type == "keyword" && (targetKey.name == "keys" || targetKey.name == "syms")) return
     val keyName = if (targetKey.type == "keyword") "keys" else "syms"
     val project = queryParameters.elementToSearch.project
-    val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(
-        keyName, targetKey.namespace.let { if (it == ClojureConstants.NS_USER) "" else it }, "keyword")
+    val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(keyName, "", "keyword")
 
     for (usage in ReferencesSearch.search(mapKeyElement, queryParameters.effectiveSearchScope)) {
       val form = usage.element.thisForm as? CKeyword ?: continue
