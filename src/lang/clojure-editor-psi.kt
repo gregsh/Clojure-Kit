@@ -203,21 +203,19 @@ class ClojureCompletionContributor : CompletionContributor() {
           originalFile.cljTraverser().traverse().filter(CKeyword::class).filter { it != thisForm }.forEach { o ->
             consumer(o.name, o.namespace, originalFile.virtualFile)
           }
-          if (showAll) {
-            FileBasedIndex.getInstance().run {
-              val scope = ClojureDefinitionService.getClojureSearchScope(project)
-              processAllKeys(KEYWORD_FQN_INDEX, { fqn ->
-                val idx = fqn.indexOf('/')
-                val name = fqn.substring(idx + 1)
-                val ns = if (idx > 0) fqn.substring(0, idx) else ""
-                getFilesWithKey(KEYWORD_FQN_INDEX, mutableSetOf(fqn), { file ->
-                  if (acceptFile(file)) {
-                    consumer(name, ns, file)
-                  }
-                  true
-                }, scope)
-              }, project)
-            }
+          FileBasedIndex.getInstance().run {
+            val scope = ClojureDefinitionService.getClojureSearchScope(project)
+            processAllKeys(KEYWORD_FQN_INDEX, { fqn ->
+              val idx = fqn.indexOf('/')
+              val name = fqn.substring(idx + 1)
+              val ns = if (idx > 0) fqn.substring(0, idx) else ""
+              getFilesWithKey(KEYWORD_FQN_INDEX, mutableSetOf(fqn), { file ->
+                if (acceptFile(file)) {
+                  consumer(name, ns, file)
+                }
+                true
+              }, scope)
+            }, project)
           }
         }
         if (thisForm !is CKeyword && ref != null && bindingsVec == null) {
