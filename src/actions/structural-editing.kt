@@ -281,7 +281,7 @@ private fun kill(file: CFile, editor: EditorEx, caret: Caret, forward: Boolean):
   val tokenType = iterator.tokenType
   val paren1 = ClojureTokens.PAREN1_ALIKE.contains(tokenType)
   val paren2 = ClojureTokens.PAREN2_ALIKE.contains(tokenType)
-  val macros = ClojureTokens.MACROS.contains(tokenType)
+  val macros = ClojureTokens.MACROS.contains(tokenType) || ClojureTokens.SHARPS.contains(tokenType)
   if (!paren1 && !paren2 && (!forward || !macros)) return false
 
   val (base, elementAt) = leafElementAtNoCommit(file.project, editor, offset, file.language) ?: return false

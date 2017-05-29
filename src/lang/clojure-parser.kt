@@ -22,11 +22,11 @@ import com.intellij.lang.parser.GeneratedParserUtilBase
 import com.intellij.lexer.FlexAdapter
 import com.intellij.openapi.project.Project
 import com.intellij.psi.FileViewProvider
-import com.intellij.psi.TokenType
 import com.intellij.psi.impl.source.tree.CompositeElement
 import com.intellij.psi.tree.IElementType
+import com.intellij.psi.tree.TokenSet
 import org.intellij.clojure.lang.ClojureTokens
-import org.intellij.clojure.psi.ClojureTypes
+import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.psi.impl.CFileImpl
 import org.intellij.clojure.util.wsOrComment
 import java.lang.reflect.Constructor
@@ -45,8 +45,8 @@ class ClojureScriptParserDefinition : ClojureParserDefinitionBase() {
 }
 
 class ClojureASTFactory : ASTFactory() {
-  val ourMap = mapOf<IElementType, Constructor<*>?>(*ClojureTypes.Classes.elementTypes()
-      .map { Pair(it, ClojureTypes.Classes.findClass(it).getConstructor(IElementType::class.java)) }
+  private val ourMap = mapOf<IElementType, Constructor<*>?>(*Classes.elementTypes()
+      .map { Pair(it, Classes.findClass(it).getConstructor(IElementType::class.java)) }
       .toTypedArray())
 
   override fun createComposite(type: IElementType?): CompositeElement? =
@@ -70,12 +70,12 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
   override fun spaceExistanceTypeBetweenTokens(left: ASTNode, right: ASTNode): ParserDefinition.SpaceRequirements {
     val lt = left.elementType
     val rt = right.elementType
-    if (rt == ClojureTypes.C_COMMA || ClojureTokens.MACROS.contains(lt)) {
+    if (rt == C_COMMA || ClojureTokens.MACROS.contains(lt) || ClojureTokens.SHARPS.contains(lt)) {
       return ParserDefinition.SpaceRequirements.MUST_NOT
     }
-    if (lt == ClojureTypes.C_DOT || lt == ClojureTypes.C_DOTDASH ||
-        lt == ClojureTypes.C_SLASH && rt == ClojureTypes.C_SYM ||
-        lt == ClojureTypes.C_SYM && rt == ClojureTypes.C_SLASH) {
+    if (lt == C_DOT || lt == C_DOTDASH ||
+        lt == C_SLASH && rt == C_SYM ||
+        lt == C_SYM && rt == C_SLASH) {
       return ParserDefinition.SpaceRequirements.MUST_NOT
     }
     for (p in ClojureTokens.BRACE_PAIRS) {
@@ -91,7 +91,8 @@ class ClojureParserUtil {
   @Suppress("UNUSED_PARAMETER")
   companion object {
     @JvmStatic fun parseTree(b: PsiBuilder, l: Int, p: GeneratedParserUtilBase.Parser) =
-        GeneratedParserUtilBase.parseAsTree(GeneratedParserUtilBase.ErrorState.get(b), b, l, GeneratedParserUtilBase.DUMMY_BLOCK, false, p, GeneratedParserUtilBase.TRUE_CONDITION)
+        GeneratedParserUtilBase.parseAsTree(GeneratedParserUtilBase.ErrorState.get(b), b, l,
+            GeneratedParserUtilBase.DUMMY_BLOCK, false, p, GeneratedParserUtilBase.TRUE_CONDITION)
 
     @JvmStatic fun nospace(b: PsiBuilder, l: Int): Boolean {
       if (space(b, l)) {
@@ -105,7 +106,17 @@ class ClojureParserUtil {
       return b.rawLookup(0).wsOrComment() || b.rawLookup(-1).wsOrComment()
     }
 
-    @JvmStatic fun formRecover(b: PsiBuilder, l: Int) =
-        b.tokenType == TokenType.BAD_CHARACTER || b.tokenType == ClojureTypes.C_STRING_UNCLOSED
+    private val RECOVER_SET = TokenSet.orSet(
+        ClojureTokens.SHARPS, ClojureTokens.MACROS, ClojureTokens.PAREN_ALIKE, ClojureTokens.LITERALS,
+        TokenSet.create(C_DOT, C_DOTDASH))
+
+    @JvmStatic fun formRecover(b: PsiBuilder, l: Int): Boolean {
+      return !RECOVER_SET.contains(b.tokenType)
+    }
+
+    @JvmStatic fun rootFormRecover(b: PsiBuilder, l: Int): Boolean {
+      val type = b.tokenType
+      return ClojureTokens.PAREN2_ALIKE.contains(type) || !RECOVER_SET.contains(type)
+    }
   }
 }

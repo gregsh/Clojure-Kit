@@ -41,12 +41,12 @@ CFileImpl:a.clj
       PsiElement(ratio)('2/3')
     PsiElement())(')')
   PsiWhiteSpace(' ')
-  PsiElement())(')')
-  PsiErrorElement:'1' unexpected
+  PsiErrorElement:')' unexpected
+    PsiElement())(')')
+  CLiteralImpl(C_LITERAL)
     PsiElement(number)('1')
   PsiWhiteSpace(' ')
   CSymbolImpl(C_SYMBOL)
     PsiElement(sym)('sym')
-  PsiElement())(')')
-  PsiErrorElement:unexpected end of file
-    <empty list>
+  PsiErrorElement:'.' or '/' expected, got ')'
+    PsiElement())(')')

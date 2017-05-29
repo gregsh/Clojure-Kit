@@ -78,7 +78,7 @@
 root ::= <<parseTree (root_entry)>>
 //root ::= entry * // for LivePreview
 private root_entry ::= not_eof form {pin=1 recoverWhile=root_entry_recover}
-private root_entry_recover ::= form_recover | ')' | '}' | ']'
+private external root_entry_recover ::= rootFormRecover
 private not_eof ::= !<<eof>>
 
 form ::= form_prefix form_prefix * form_upper | form_inner

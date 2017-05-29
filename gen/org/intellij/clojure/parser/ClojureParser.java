@@ -641,20 +641,6 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // form_recover | ')' | '}' | ']'
-  static boolean root_entry_recover(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "root_entry_recover")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = formRecover(b, l + 1);
-    if (!r) r = consumeToken(b, C_PAREN2);
-    if (!r) r = consumeToken(b, C_BRACE2);
-    if (!r) r = consumeToken(b, C_BRACKET2);
-    exit_section_(b, m, null, r);
-    return r;
-  }
-
-  /* ********************************************************** */
   // symbol access_left? | keyword | literal | regexp | access
   static boolean s_forms(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "s_forms")) return false;
@@ -839,7 +825,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   };
   final static Parser root_entry_recover_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
-      return root_entry_recover(b, l + 1);
+      return rootFormRecover(b, l + 1);
     }
   };
   final static Parser set_body_0_0_parser_ = new Parser() {

@@ -93,9 +93,10 @@ object ClojureTokens {
   @JvmField val WHITESPACES = TokenSet.create(C_COMMA, TokenType.WHITE_SPACE)
   @JvmField val COMMENTS = TokenSet.create(LINE_COMMENT)
   @JvmField val STRINGS = TokenSet.create(C_STRING, C_STRING_UNCLOSED)
+  @JvmField val LITERALS = TokenSet.create(C_BOOL, C_CHAR, C_HEXNUM, C_NIL, C_NUMBER, C_RATIO, C_RDXNUM, C_STRING, C_SYM)
 
-  @JvmField val SHARPS = TokenSet.create(C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_QUOTE)
-  @JvmField val MACROS = TokenSet.orSet(SHARPS, TokenSet.create(C_AT, C_COLON, C_COLONCOLON, C_HAT, C_SYNTAX_QUOTE, C_TILDE))
+  @JvmField val SHARPS = TokenSet.create(C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT, C_SHARP_QUOTE, C_SHARP_NS)
+  @JvmField val MACROS = TokenSet.create(C_AT, C_COLON, C_COLONCOLON, C_HAT, C_QUOTE, C_SYNTAX_QUOTE, C_TILDE, C_TILDE_AT)
 
   @JvmField val PAREN1_ALIKE = TokenSet.create(C_PAREN1, C_BRACE1, C_BRACKET1)
   @JvmField val PAREN2_ALIKE = TokenSet.create(C_PAREN2, C_BRACE2, C_BRACKET2)
