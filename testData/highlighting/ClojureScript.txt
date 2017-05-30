@@ -33,7 +33,8 @@
       43293: unable to resolve '*alias-map*'
 /cljs/compiler/api.clj                   0 errors, 0 warnings, 0 dynamic
 /cljs/compiler/macros.clj                0 errors, 0 warnings, 0 dynamic
-/cljs/core.cljc                          0 errors, 4 warnings, 68 dynamic
+/cljs/core.cljc                          0 errors, 5 warnings, 68 dynamic
+      555: unable to resolve 'assert-args'
       1982: unable to resolve 'unchecked-divide'
       2695: unable to resolve 'alias'
       5112: unable to resolve 'clojure.core'
@@ -194,4 +195,4 @@
 /clojure/string.cljs                     0 errors, 0 warnings, 48 dynamic
 /clojure/walk.cljs                       0 errors, 0 warnings, 0 dynamic
 /clojure/zip.cljs                        0 errors, 0 warnings, 0 dynamic
-Total: 143 warnings in 53 files (1.19M chars)
+Total: 144 warnings in 53 files (1.19M chars)

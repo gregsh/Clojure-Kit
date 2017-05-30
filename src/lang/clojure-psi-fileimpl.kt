@@ -204,7 +204,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
           if (!processor.execute(defService.getAlias(import.alias, import.namespace, import.aliasSym), state)) return false
         }
       }
-      if (forceAlias != null) continue
+      if (import.nsType == "alias" || forceAlias != null) continue
       if (import.isPlatform) {
         import.refer.forEach { className ->
           val target =
