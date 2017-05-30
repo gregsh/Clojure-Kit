@@ -156,14 +156,13 @@ class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, Reference
     val project = queryParameters.elementToSearch.project
     val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(keyName, "", "keyword")
 
-    for (usage in ReferencesSearch.search(mapKeyElement, queryParameters.effectiveSearchScope)) {
-      val form = usage.element.thisForm as? CKeyword ?: continue
-      val vec = (if (form.parentForm is CMap) form.nextForm as? CVec else null) ?: continue
-      for (symbol in vec.childForms.filter(CSymbol::class)) {
-        if (symbol.name == targetKey.name)  {
-          consumer.process(symbol.reference)
-        }
-      }
+    ReferencesSearch.searchOptimized(mapKeyElement, queryParameters.effectiveSearchScope, false, queryParameters.optimizer) {
+      val form = it.element.thisForm as? CKeyword ?: return@searchOptimized true
+      val vec = (if (form.parentForm is CMap) form.nextForm as? CVec else null) ?: return@searchOptimized true
+      vec.childForms.filter(CSymbol::class)
+          .filter { it.name == targetKey.name }
+          .forEach { consumer.process(it.reference) }
+      return@searchOptimized true
     }
   }
 }
