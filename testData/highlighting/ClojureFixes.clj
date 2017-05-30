@@ -35,6 +35,11 @@
   (union)
   (intersection #{1} #{1 2})
   )
+(do
+  (require [clojure.string :refer [blank?]])
+  (blank?)
+  (<warning>trim-newline</warning>)
+  )
 
 (do
   (use '[clojure.set :as s1])

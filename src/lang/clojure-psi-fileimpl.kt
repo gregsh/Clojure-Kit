@@ -220,6 +220,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
         if (import.nsType == "require" &&
             import.refer.isEmpty() && import.only.isEmpty() && import.rename.isEmpty()) continue
         langKindNSVisited = langKindNSVisited || dialect.coreNs == import.namespace
+        val refersByDefault = import.nsType == "refer" || import.nsType == "refer-clojure" || import.nsType == "use"
         if (!processNamespace(import.namespace, dialect, state,
             if (insideImport) processor
             else object : PsiScopeProcessor by processor {
@@ -231,7 +232,8 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
                   return processor.execute(defService.getAlias(renamed.name, namespace, renamed), state)
                 }
                 if (import.refer == ALL || import.refer.contains(name) ||
-                    import.only.contains(name) || import.only.isEmpty()) {
+                    import.only.contains(name) ||
+                    refersByDefault && import.only.isEmpty()) {
                   return processor.execute(element, state)
                 }
                 return true
