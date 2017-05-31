@@ -24,7 +24,6 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFileWithId
 import com.intellij.psi.*
 import com.intellij.psi.scope.BaseScopeProcessor
-import com.intellij.psi.scope.NameHint
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.stubs.StubTreeLoader
 import com.intellij.util.SmartList
@@ -143,7 +142,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val namespace = namespace
     val publicOnly = language == ClojureLanguage && namespace != placeNs
     val defService = ClojureDefinitionService.getInstance(project)
-    val refText = processor.getHint(NameHint.KEY)?.getName(state)
+    val refText = processor.getHint(NAME_HINT)?.getName(state)
     val langKind = state.get(DIALECT_KEY) ?: placeFile.placeLanguage(place)
     val checkPrivate = langKind != Dialect.CLJS
 

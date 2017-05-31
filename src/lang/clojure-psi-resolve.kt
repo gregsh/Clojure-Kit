@@ -30,7 +30,6 @@ import com.intellij.psi.impl.AnyPsiChangeListener
 import com.intellij.psi.impl.PsiManagerImpl
 import com.intellij.psi.impl.source.resolve.ResolveCache
 import com.intellij.psi.scope.BaseScopeProcessor
-import com.intellij.psi.scope.NameHint
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.ArrayUtil
@@ -54,6 +53,11 @@ val RENAMED_KEY: Key<String> = Key.create("RENAMED_KEY")
 val ALIAS_KEY: Key<String> = Key.create("ALIAS_KEY")
 val PRIVATE_KEY: Key<Boolean> = Key.create("PRIVATE_KEY")
 val DIALECT_KEY: Key<Dialect> = Key.create("DIALECT_KEY")
+
+val NAME_HINT = Key.create<NameHint>("NameHint")
+interface NameHint {
+  fun getName(state: ResolveState): String?
+}
 
 class ClojureTypeCache(service: ClojureDefinitionService) {
   companion object {
@@ -222,7 +226,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
       @Suppress("UNCHECKED_CAST")
       override fun <T : Any?> getHint(hintKey: Key<T>) = when (hintKey) {
-        NameHint.KEY -> this
+        NAME_HINT -> this
         else -> null
       } as T?
 
