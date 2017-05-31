@@ -50,6 +50,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.remote.BaseRemoteProcessHandler
@@ -70,6 +71,8 @@ import org.intellij.clojure.psi.CFile
 import org.intellij.clojure.psi.CForm
 import org.intellij.clojure.psi.ClojureElementType
 import org.intellij.clojure.util.*
+import org.jetbrains.concurrency.AsyncPromise
+import org.jetbrains.concurrency.Promise
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -206,7 +209,7 @@ class ReplExclusiveModeAction : ToggleAction() {
           JBPopupFactory.getInstance().createListPopupBuilder(list)
               .setTitle(e.presentation.text!!)
               .setFilteringEnabled { (it as? ReplConnection)?.consoleView?.title ?: "" }
-              .setItemChoosenCallback { consumer(list.selectedValue as? ReplConnection, true) }
+              .setItemChoosenCallback { consumer(list.selectedValue, true) }
               .createPopup()
               .showCenteredInCurrentWindow(e.project!!)
           return null
@@ -235,7 +238,21 @@ class ReplActionPromoter : ActionPromoter {
 }
 
 fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String) {
-  val projectDir = JBIterable.generate(PsiUtilCore.getVirtualFile(file)) { it.parent }.find {
+  executeInRepl(project, PsiUtilCore.getVirtualFile(file) ?: return) { repl ->
+    val replEditor = repl.consoleView.consoleEditor
+    if (editor == replEditor || !replEditor.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer) {
+      val command = WriteAction.compute<String, Exception> { replEditor.document.run { val s = getText(); setText(""); s } }
+      repl.sendCommand(command)
+      ConsoleHistoryController.addToHistory(repl.consoleView, command)
+    }
+    else {
+      repl.sendCommand(text)
+    }
+  }
+}
+
+fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConnection) -> Unit) {
+  val projectDir = JBIterable.generate(virtualFile) { it.parent }.find {
     it.isDirectory && Tool.find(it.toIoFile()) != null }
   val title = if (projectDir == null) "REPL (default)"
   else ProjectFileIndex.SERVICE.getInstance(project).getContentRootForFile(projectDir).let {
@@ -244,7 +261,7 @@ fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String) {
 
   val allDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
   val ownContent = allDescriptors.find {
-    Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, PsiUtilCore.getVirtualFile(file))
+    Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, virtualFile)
   }
   val exclusiveContent = allDescriptors.find {
     (it.executionConsole as? LanguageConsoleView)?.let { isExclusive(it) } ?: false
@@ -266,28 +283,20 @@ fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String) {
       newProcess.startNotify()
     }
     contentToReuse.processHandler = repl.processHandler
-    repl.consoleView.consoleEditor.let {
-      if (editor == it || !it.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer) {
-        val command = WriteAction.compute<String, Exception> { it.document.run { val s = getText(); setText(""); s } }
-        repl.sendCommand(command)
-        ConsoleHistoryController.addToHistory(repl.consoleView, command)
-      }
-      else {
-        repl.sendCommand(text)
-      }
-    }
+    command(repl)
   }
   else {
-    var initialText: String? = text
     createNewRunContent(project, title, LOCAL_ICON) {
-      newProcessHandler(project, projectDir?.toIoFile()).apply {
-        initialText?.let { text -> NREPL_CLIENT_KEY.get(this).sendCommand(text); initialText = null }
-      }
+      newProcessHandler(project, projectDir?.toIoFile())
+    }.done {
+      command(it)
     }
   }
 }
 
-private fun createNewRunContent(project: Project, title: String, icon: Icon, processFactory: () -> ProcessHandler) {
+private fun createNewRunContent(project: Project, title: String, icon: Icon,
+                                processFactory: () -> ProcessHandler): Promise<ReplConnection> {
+  val promise = AsyncPromise<ReplConnection>()
   val existingDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
   val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")",
       existingDescriptors.map { it.displayName }.toSet().let { { s: String -> !it.contains(s) }})
@@ -308,6 +317,7 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon, pro
           NREPL_CLIENT_KEY.get(processHandler).run {
             this.processFactory = processFactory
             consoleView = console as LanguageConsoleView
+            promise.setResult(this)
           }
           return ArrayUtil.mergeArrays(super.createActions(console, processHandler, executor), arrayOf<AnAction>(
               ConsoleHistoryController.getController(console as LanguageConsoleView).browseHistory,
@@ -324,8 +334,9 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon, pro
     }
   }
   val environment = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), profile).build()
-//  ExecutionManager#restartRunProfile is not dumb-aware, run manually..
+  // ExecutionManager#restartRunProfile is not dumb-aware, run manually..
   ProgramRunnerUtil.executeConfiguration(environment, false, true)
+  return promise
 }
 
 class ReplConnection(val repl: NReplClient,

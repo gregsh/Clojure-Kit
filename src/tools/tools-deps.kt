@@ -256,13 +256,15 @@ class SyncAllDepsAction : AnAction() {
   }
 }
 
-private fun updateSyncActionImpl(e: AnActionEvent, syncAll: Boolean) {
-  e.project?.let { project ->
+internal fun updateSyncActionImpl(e: AnActionEvent, syncAll: Boolean) {
+  val project = e.project
+  if (project != null) {
     val busy = ClojureProjectDeps.getInstance(project).resolveInProgress.get()
     val files = contextProjectFiles(e)
     e.presentation.isVisible = !files.isEmpty() || ActionPlaces.isMainMenuOrActionSearch(e.place)
     e.presentation.isEnabled = (!files.isEmpty() || syncAll) && !busy
-  } ?: run {
+  }
+  else {
     e.presentation.isEnabledAndVisible = false
   }
 }
