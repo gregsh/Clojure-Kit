@@ -221,7 +221,7 @@ class ClojureCompletionContributor : CompletionContributor() {
         }
         if (thisForm !is CKeyword && ref != null && bindingsVec == null) {
           val service = ClojureDefinitionService.getInstance(project)
-          ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
+          val stop = !ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
             override fun execute(it: PsiElement, state: ResolveState): Boolean {
               val name = state.get(RENAMED_KEY) ?:
                   when (it) {
@@ -256,6 +256,7 @@ class ClojureCompletionContributor : CompletionContributor() {
               return true
             }
           })
+          if (stop && !showAll) return
           if (showAll) {
             FileBasedIndex.getInstance().run {
               val scope = ClojureDefinitionService.getClojureSearchScope(project)

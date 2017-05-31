@@ -1,4 +1,5 @@
-/cljs/analyzer.cljc                      0 errors, 16 warnings, 23 dynamic
+/cljs/analyzer.cljc                      0 errors, 17 warnings, 23 dynamic
+      604: unable to resolve 'ensure'
       1981: unable to resolve 'cljs.tagged_literals'
       2002: unable to resolve 'JSValue'
       98158: unable to resolve 'JSValue'
@@ -26,7 +27,8 @@
       58620: unable to resolve 'read-str'
       70115: unable to resolve 'getResources'
       86775: unable to resolve 'poll'
-/cljs/compiler.cljc                      0 errors, 4 warnings, 24 dynamic
+/cljs/compiler.cljc                      0 errors, 5 warnings, 24 dynamic
+      604: unable to resolve 'ensure'
       42107: unable to resolve 'write-str'
       42154: unable to resolve 'read-str'
       43267: unable to resolve '*alias-map*'
@@ -195,4 +197,4 @@
 /clojure/string.cljs                     0 errors, 0 warnings, 48 dynamic
 /clojure/walk.cljs                       0 errors, 0 warnings, 0 dynamic
 /clojure/zip.cljs                        0 errors, 0 warnings, 0 dynamic
-Total: 144 warnings in 53 files (1.19M chars)
+Total: 146 warnings in 53 files (1.19M chars)

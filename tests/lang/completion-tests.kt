@@ -60,6 +60,11 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testFqn2a() = "str/blank?".let { doTest("$STR_ALIAS (bla<caret>)", it, "$STR_ALIAS ($it)", 2) }
   fun testFqn3a() = "str/blank?".let { doTest("$STR_ALIAS (clostribla<caret>)", it, "$STR_ALIAS ($it)", 2) }
 
+  fun testInsideImport1() = doTest("(require [<caret> :refer [blank?]])", "clojure.string")
+  fun testInsideImport2() = doNegTest("(require [<caret> :refer [blank?]])", "def")
+  fun testInsideImport3() = doTest("(require [clojure.string :refer [<caret>]])", "blank?")
+  fun testInsideImport4() = doNegTest("(require [clojure.string :refer [<caret>]])", "def")
+
 
   private fun doTest(text: String, select: String,
                      expected: String = text.replace("<caret>", select),

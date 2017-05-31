@@ -235,7 +235,7 @@ internal class YTarget(project: Project,
     get() {
       val userData = map[key]?.getUserData(SOURCE_KEY)
       val retrieved = (userData as? PsiAnchor)?.retrieve()
-      if (retrieved is PsiElement) return retrieved
+      if (retrieved is PsiElement && retrieved.isValid) return retrieved
       val modificationCount = PsiModificationTracker.SERVICE.getInstance(project).modificationCount
       if (userData is Long && userData == modificationCount) return null
       if (DumbService.getInstance(project).isDumb) return null

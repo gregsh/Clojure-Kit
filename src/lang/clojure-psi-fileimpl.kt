@@ -19,7 +19,6 @@ package org.intellij.clojure.psi.impl
 
 import com.intellij.extapi.psi.PsiFileBase
 import com.intellij.lang.Language
-import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFileWithId
@@ -32,6 +31,7 @@ import com.intellij.util.SmartList
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.JBTreeTraverser
 import com.intellij.util.containers.TreeTraversal
+import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.editor.arguments
 import org.intellij.clojure.lang.ClojureFileType
@@ -44,7 +44,7 @@ import org.intellij.clojure.util.*
 import java.lang.ref.SoftReference
 import java.util.*
 
-private val EXPLICIT_RESOLVE_KEY: Key<SymKey> = Key.create("EXPLICIT_RESOLVE_KEY")
+private data class ResolveTo(val key: SymKey)
 private val ALL: Set<String> = setOf("* all *")
 val PRIVATE_META = "#private"
 val TYPE_META = "#typeHint"
@@ -196,8 +196,8 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val namespace = namespace
     val forceAlias = state.get(ALIAS_KEY)
     var langKindNSVisited = false
+    val thisImport = this.state.imports.find { it.range.contains(placeOffset) }
     val imports = importsAtOffset(placeOffset, dialect)
-    val insideImport = imports.find { it.range.contains(placeOffset) } != null
     for (import in imports.flatMap { it.imports }) {
       if (refText == null || isQualifier) {
         if (!import.isPlatform && import.aliasSym != null) {
@@ -222,7 +222,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
         langKindNSVisited = langKindNSVisited || dialect.coreNs == import.namespace
         val refersByDefault = import.nsType == "refer" || import.nsType == "refer-clojure" || import.nsType == "use"
         if (!processNamespace(import.namespace, dialect, state,
-            if (insideImport) processor
+            if (thisImport != null && thisImport.imports.contains(import)) processor
             else object : PsiScopeProcessor by processor {
               override fun execute(element: PsiElement, state: ResolveState): Boolean {
                 val name = element.asCTarget?.key?.name ?: element.asDef?.def?.name ?: return true
@@ -269,11 +269,10 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
         .associateBy({ it.namespace }, { it.alias })
   }
 
-
   internal fun processPrecomputedDeclarations(refText: String?, place: CSymbol, dialect: Dialect,
                                               service: ClojureDefinitionService, state: ResolveState,
                                               processor: PsiScopeProcessor): Boolean {
-    val key = EXPLICIT_RESOLVE_KEY.get(place) ?: return true
+    val key = ((place as? CComposite)?.data as? ResolveTo)?.key ?: return true
     val target = when (key.type) {
       "java package" ->
         if (dialect == Dialect.CLJS) return processor.skipResolve()
@@ -289,12 +288,20 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     if (target != null) {
       if (key.type == "def") {
         if (!processNamespace(key.namespace, dialect, state, processor, this)) return false
-        return processSpecialForms(dialect, refText, place, service, state, processor)
+        if (key.namespace == dialect.coreNs) {
+          if (!processSpecialForms(dialect, refText, place, service, state, processor)) return false
+        }
       }
-      if (refText != null) return processor.execute(target, state)
-      return true
+      else if (refText != null) {
+        if (!processor.execute(target, state)) return false
+      }
+      else if (key.type == "ns") {
+        FileBasedIndex.getInstance().processAllKeys(NS_INDEX, { ns ->
+          processor.execute(service.getNamespace(ns), state)
+        }, project)
+      }
     }
-    return true
+    return false
   }
 }
 
@@ -504,7 +511,7 @@ private class RoleHelper {
     setData(e, ns ?: "")
   }
 
-  fun processNSElement(e: CListBase) {
+  private fun processNSElement(e: CListBase) {
     e.cljTraverser().filter(CKeywordBase::class.java).onEach { processKeyword(it) }
     nsReader.processElement(e)
   }
@@ -585,7 +592,7 @@ private class NSReader(val helper: RoleHelper) {
       val name = o.name
       val qualifiedName = name.withPackage(prefix)
       classes.add(qualifiedName)
-      o.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(name, prefix, "java class"))
+      setResolveTo(o, SymKey(name, prefix, "java class"))
     }
     for (item in iterator) {
       when (item) {
@@ -599,7 +606,7 @@ private class NSReader(val helper: RoleHelper) {
               addClass(it as? CSymbol ?: return@forEach, packageName)
               if (anyClass == "") anyClass = it.name
             }
-            packageSym.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(anyClass, packageName, "java package"))
+            setResolveTo(packageSym, SymKey(anyClass, packageName, "java package"))
           }
         }
       }
@@ -613,7 +620,7 @@ private class NSReader(val helper: RoleHelper) {
     val nsSym = iterator.safeNext() as? CSymbol
     val namespace = nsSym?.name ?: ""
     setData(aliasSym, Role.NAME)
-    nsSym?.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(namespace, "", "ns"))
+    setResolveTo(nsSym, SymKey(namespace, "", "ns"))
     return listOf(Import("alias", namespace, aliasSym.name, aliasSym))
   }
 
@@ -639,17 +646,17 @@ private class NSReader(val helper: RoleHelper) {
     }
     val namespace = if (forcedNamespace) nsPrefix else (nsSym?.name?.withPackage(nsPrefix) ?: "")
     val alias = aliasSym?.name ?: ""
-    nsSym?.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(namespace, "", "ns"))
-    aliasSym?.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(alias, namespace, "alias"))
+    setResolveTo(nsSym, SymKey(namespace, "", "ns"))
+    setResolveTo(aliasSym, SymKey(alias, namespace, "alias"))
     fun CPForm?.toNames() = traverser.withRoot(this).filter(CSymbol::class.java)
-        .transform { sym -> sym.name.also { sym.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(it, namespace, "def")) } }.toSet()
+        .transform { sym -> sym.name.also { setResolveTo(sym, SymKey(it, namespace, "def")) } }.toSet()
 
     val import = Import(nsType, namespace, alias, aliasSym,
         (refer as? CPForm)?.toNames() ?: (refer as? CKeyword)?.let { if (it.name == "all") ALL else null } ?: emptySet(),
         only.toNames(), exclude.toNames(),
         rename?.split(2, true)?.reduce(HashMap()) { map, o ->
           if (o.size == 2) map.put(o[0].name,
-              o[1].also { it.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(it.name, namespace, "alias")) }); map
+              o[1].also { setResolveTo(it, SymKey(it.name, namespace, "alias")) }); map
         } ?: emptyMap())
     return import
   }
@@ -662,7 +669,7 @@ private class NSReader(val helper: RoleHelper) {
       when (item) {
         is CSymbol -> item.name.withPackage(nsPrefix).let { ns ->
           result.add(Import(nsType, ns, "", null))
-          item.putUserData(EXPLICIT_RESOLVE_KEY, SymKey(ns, "", "ns"))
+          setResolveTo(item, SymKey(ns, "", "ns"))
         }
         is CVec -> result.addAll(readNSElement_refer(nsPrefix, traverser.iterate(item), traverser, nsType).asListOrEmpty())
       }
@@ -710,6 +717,10 @@ internal data class Import(
 
 private fun setData(o: PsiElement?, data: Any?) {
   if (o is CComposite) o.dataImpl = data
+}
+
+private fun setResolveTo(o: CSymbol?, key: SymKey) {
+  setData(o, ResolveTo(key))
 }
 
 fun PsiElement?.rcTraverser(rcKey: String) = cljTraverser()
