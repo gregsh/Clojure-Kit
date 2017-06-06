@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.7.0-snapshot</version>
+  <version>0.7.0</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="171.3780" until-build="173.*"/>
 
@@ -15,9 +15,12 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>REPL: the first repl gets exclusive mode by default</li>
+      <li>Editor: multi-method & protocol method navigation (ctrl-U, ctrl-alt-B)</li>
+      <li>Editor: parameter info inlays; expression type hint</li>
+      <li>Formatter: follow bbatsov style guide</li>
       <li>Code style: ;; (double-semicolon) commenting toggle</li>
-      <li>Quickdoc: search and display related specs</li>
+      <li>QuickDoc: search and display related specs</li>
+      <li>REPL: the first repl gets exclusive mode by default</li>
       <li>Internals: redesigned AST/PSI, name resolution, indices and etc.</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>

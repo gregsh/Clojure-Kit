@@ -36,11 +36,14 @@ to redirect all commands to one specific REPL.
 
 Change log
 ==========
-0.7.0-snapshot
+0.7.0
 
-* REPL: the first repl gets exclusive mode by default
+* Editor: multi-method & protocol method navigation (`ctrl-U`, `ctrl-alt-B`)
+* Editor: parameter info inlays; expression type hint
+* Formatter: follow bbatsov style guide
 * Code style: ;; (double-semicolon) commenting toggle
-* Quickdoc: search and display related specs
+* QuickDoc: search and display related specs
+* REPL: the first repl gets exclusive mode by default
 * Internals: redesigned AST/PSI, name resolution, indices and etc.
 
 0.5.0
