@@ -31,6 +31,7 @@ import com.intellij.execution.impl.ConsoleViewUtil
 import com.intellij.execution.process.*
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
+import com.intellij.execution.runners.ExecutionUtil
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.icons.AllIcons
@@ -51,6 +52,7 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.wm.ToolWindowId
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.remote.BaseRemoteProcessHandler
@@ -275,7 +277,13 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConn
     if (repl.processHandler.isProcessTerminating || repl.processHandler.isProcessTerminated) {
       val oldRepl = repl
       oldRepl.consoleView.println()
-      val newProcess = oldRepl.processFactory()
+      val newProcess = try {
+        oldRepl.processFactory()
+      }
+      catch(e: ExecutionException) {
+        ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, e)
+        return
+      }
       repl.consoleView.attachToProcess(newProcess)
       repl = NREPL_CLIENT_KEY.get(newProcess)
       repl.processFactory = oldRepl.processFactory
@@ -532,6 +540,11 @@ private fun NReplClient.connect(portHost: String) {
   "port (\\S+).* host (\\S+)".toRegex().find(portHost)?.run {
     val host = groupValues[2]
     val port = StringUtil.parseInt(groupValues[1], -1)
-    connect(host, port)
+    try {
+      connect(host, port)
+    }
+    catch(e: IOException) {
+      throw ExecutionException(e)
+    }
   }
 }
