@@ -17,6 +17,9 @@ Compatible with versions 2016.2 and up, and:
 FAQ
 ==========
 
+Q. How to install the plugin?<br/>
+A. Go to `Settings | Plugins`, press `Browse Repositories` button, search for `Clojure-Kit`, install, relaunch.
+
 Q. How to open my project?<br/>
 A. Use whichever way IDE provides to add a project directory to **Project View**.
 
