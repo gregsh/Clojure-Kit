@@ -64,7 +64,7 @@ abstract class EditActionBase(private val handler: (CFile, Document, Caret) -> (
     return PsiUtilBase.getPsiFileInEditor(editor, project) is CFile
   }
 
-  override fun doExecute(editor: Editor?, caret: Caret?, dataContext: DataContext?) {
+  override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext) {
     if (editor == null || dataContext == null) return
     val project = dataContext.getData(CommonDataKeys.PROJECT) ?: return
     val currentCaret = editor.caretModel.currentCaret
