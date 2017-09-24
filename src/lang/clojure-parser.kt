@@ -26,10 +26,10 @@ import com.intellij.psi.impl.source.tree.CompositeElement
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
 import org.intellij.clojure.lang.ClojureTokens
+import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.psi.impl.CFileImpl
 import org.intellij.clojure.util.wsOrComment
-import java.lang.reflect.Constructor
 
 /**
  * @author gregsh
@@ -45,12 +45,7 @@ class ClojureScriptParserDefinition : ClojureParserDefinitionBase() {
 }
 
 class ClojureASTFactory : ASTFactory() {
-  private val ourMap = mapOf<IElementType, Constructor<*>?>(*Classes.elementTypes()
-      .map { Pair(it, Classes.findClass(it).getConstructor(IElementType::class.java)) }
-      .toTypedArray())
-
-  override fun createComposite(type: IElementType?): CompositeElement? =
-      ourMap[type]?.newInstance(type) as? CompositeElement
+  override fun createComposite(type: IElementType?): CompositeElement? = ClojureTypes.Factory.createElement(type)
 }
 
 abstract class ClojureParserDefinitionBase : ParserDefinition {

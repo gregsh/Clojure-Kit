@@ -1,5 +1,5 @@
 {
-  generate=[tokenAccessors="no" psi-factory="no" psi-classes-map="yes"]
+  generate=[tokenAccessors="no"]
   parserClass='org.intellij.clojure.parser.ClojureParser'
   parserImports=[
     'static org.intellij.clojure.parser.ClojureParserUtil.*'
