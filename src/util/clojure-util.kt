@@ -19,6 +19,7 @@ package org.intellij.clojure.util
 
 import com.intellij.lang.*
 import com.intellij.lang.parser.GeneratedParserUtilBase
+import com.intellij.openapi.util.Condition
 import com.intellij.openapi.util.Conditions
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtil
@@ -60,6 +61,7 @@ val PsiElement?.asDef : CList? get() = if (role == Role.DEF) this as? CList else
 
 val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
 val PsiElement?.deepFirst: PsiElement? get() = if (this == null) null else PsiTreeUtil.getDeepestFirst(this)
+val PsiElement?.deepLast: PsiElement? get() = if (this == null) null else PsiTreeUtil.getDeepestLast(this)
 val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
 val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
 val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
@@ -152,7 +154,7 @@ val PsiElement.valueRange: TextRange get() = firstChild.siblings()
       .skipWhile { it is CReaderMacro || it is CMetadata || (it !is CToken && it !is CForm) }
       .first()?.textRange?.let { TextRange(it.startOffset, textRange.endOffset) } ?: textRange
 
-class EachNth(val each: Int) : JBIterable.StatefulFilter<Any?>() {
-  var idx = -1
+class EachNth(private val each: Int) : JBIterable.Stateful<EachNth>(), Condition<Any?> {
+  private var idx = -1
   override fun value(t: Any?) = run { idx = ++ idx % each; idx == 0 }
 }

@@ -464,7 +464,7 @@ fun newLocalProcess(workingDir: File): ProcessHandler {
       }
     })
     addProcessListener (object : ProcessAdapter() {
-      override fun processWillTerminate(event: ProcessEvent?, willBeDestroyed: Boolean) {
+      override fun processWillTerminate(event: ProcessEvent, willBeDestroyed: Boolean) {
         repl.disconnect()
       }
     })

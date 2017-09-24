@@ -453,34 +453,37 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
     val def = element.parentForm.asDef?.def
     val parentName = element.parentForm.firstForm?.name
     val grandName = element.parentForm.parentForm.firstForm?.name
+    val leaf = element.deepLast!!
     return when {
       def?.type == "method" ->
         if (!P1.isEnabled) null else
-        LineMarkerInfo(element, element.textRange, P1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
-          { event, sym -> showNavPopup(sym, event) }, GutterIconRenderer.Alignment.LEFT)
+        LineMarkerInfo(leaf, leaf.textRange, P1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
+          { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.LEFT)
       def?.type == "defmulti" ->
         if (!MM1.isEnabled) null else
-        LineMarkerInfo(element, element.textRange, MM1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
-            { event, sym -> showNavPopup(sym, event) }, GutterIconRenderer.Alignment.RIGHT)
+        LineMarkerInfo(leaf, leaf.textRange, MM1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
+            { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.RIGHT)
       def == null && parentName == "defmethod" ->
         if (!MM2.isEnabled) null else
-        LineMarkerInfo(element, element.textRange, MM2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
-            { _, sym -> navigate(sym.reference.resolve()) },
+        LineMarkerInfo(leaf, leaf.textRange, MM2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
+            { _, o -> navigate(o) },
             GutterIconRenderer.Alignment.LEFT)
       def == null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
         if (!P2.isEnabled) null else
-        LineMarkerInfo(element, element.textRange, P2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
-            { _, sym -> navigate(sym.reference.resolve()) },
+        LineMarkerInfo(leaf, leaf.textRange, P2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
+            { _, o -> navigate(o) },
             GutterIconRenderer.Alignment.LEFT)
       else -> null
     }
   }
 
   private fun navigate(e: PsiElement?) {
-    (e as? Navigatable)?.navigate(true)
+    val target = e.findParent(CSymbol::class)?.reference?.resolve() as? Navigatable
+    target?.navigate(true)
   }
 
-  private fun showNavPopup(sym: CSymbol, event: MouseEvent) {
+  private fun showNavPopup(leaf: PsiElement, event: MouseEvent) {
+    val sym = leaf.findParent(CSymbol::class) ?: return
     val target = sym.reference.resolve() ?: return
     val renderer = ClojureGotoRenderer()
     val name = sym.name

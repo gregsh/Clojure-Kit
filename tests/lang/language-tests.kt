@@ -82,13 +82,13 @@ class ClojureScriptParsingTest : ClojureParsingTestCase(ClojureScriptParserDefin
   fun testParseClojureScript() = walkAndParse(::walkClojureScriptLang)
 }
 
-abstract class ClojureParsingTestCase(o : ClojureParserDefinitionBase) : ParsingTestCase(
+abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingTestCase(
     "parser", if (o.fileNodeType == ClojureTokens.CLJ_FILE_TYPE) "clj" else "cljs", o) {
   override fun getTestDataPath() = TEST_DATA_PATH
   override fun setUp() {
     super.setUp()
-    addExplicitExtension(LanguageASTFactory.INSTANCE, myLanguage, ClojureASTFactory())
-    addExplicitExtension(LanguageBraceMatching.INSTANCE, myLanguage, ClojureBraceMatcher())
+    addExplicitExtension(LanguageASTFactory.INSTANCE, ClojureLanguage, ClojureASTFactory())
+    addExplicitExtension(LanguageBraceMatching.INSTANCE, ClojureLanguage, ClojureBraceMatcher())
   }
 
   fun walkAndParse(walker: ((Path, String) -> Unit) -> Unit): Unit {

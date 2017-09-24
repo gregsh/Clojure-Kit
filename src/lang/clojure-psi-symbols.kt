@@ -37,8 +37,8 @@ import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiUtilCore
+import com.intellij.util.containers.ConcurrentFactoryMap
 import com.intellij.util.containers.ContainerUtil
-import com.intellij.util.containers.FactoryMap
 import com.intellij.util.indexing.FileBasedIndex
 import com.intellij.util.indexing.ID
 import com.intellij.util.ui.EmptyIcon
@@ -49,6 +49,7 @@ import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.CStub
 import org.intellij.clojure.util.*
+import java.util.concurrent.ConcurrentMap
 import javax.swing.Icon
 import kotlin.reflect.KClass
 
@@ -157,8 +158,8 @@ class ClojureDefinitionService(val project: Project) {
   }
 
   private fun createPomMap(owner : PsiElement? = null): Map<SymKey, PsiElement> {
-    return object : FactoryMap<SymKey, PsiElement>() {
-      override fun createMap(): MutableMap<SymKey, PsiElement> {
+    return object: ConcurrentFactoryMap<SymKey, PsiElement>() {
+      override fun createMap(): ConcurrentMap<SymKey, PsiElement> {
         return ContainerUtil.createConcurrentWeakValueMap<SymKey, PsiElement>()
       }
 
