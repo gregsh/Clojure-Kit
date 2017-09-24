@@ -153,7 +153,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   // '#' symbol form
   public static boolean constructor(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "constructor")) return false;
-    if (!nextTokenIs(b, C_SHARP)) return false;
+    if (!nextTokenIs(b, "<form>", C_SHARP)) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_, C_CONSTRUCTOR, "<form>");
     r = consumeToken(b, C_SHARP);

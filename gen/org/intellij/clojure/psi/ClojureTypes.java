@@ -5,9 +5,7 @@ import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.PsiElement;
 import com.intellij.lang.ASTNode;
 import org.intellij.clojure.psi.impl.*;
-import java.util.Collections;
-import java.util.Set;
-import java.util.LinkedHashMap;
+import com.intellij.psi.impl.source.tree.CompositePsiElement;
 
 public interface ClojureTypes {
 
@@ -63,32 +61,52 @@ public interface ClojureTypes {
   IElementType C_TILDE = new ClojureTokenType("~");
   IElementType C_TILDE_AT = new ClojureTokenType("~@");
 
-  class Classes {
-    public static Class<?> findClass(IElementType elementType) {
-      return ourMap.get(elementType);
-    }
+  class Factory {
 
-    public static Set<IElementType> elementTypes() {
-      return Collections.unmodifiableSet(ourMap.keySet());
-    }
-
-    private static final LinkedHashMap<IElementType, Class<?>> ourMap = new LinkedHashMap<IElementType, Class<?>>();
-
-    static {
-      ourMap.put(C_ACCESS, CAccessImpl.class);
-      ourMap.put(C_CONSTRUCTOR, CConstructorImpl.class);
-      ourMap.put(C_FORM, CFormImpl.class);
-      ourMap.put(C_FUN, CFunImpl.class);
-      ourMap.put(C_KEYWORD, CKeywordImpl.class);
-      ourMap.put(C_LIST, CListImpl.class);
-      ourMap.put(C_LITERAL, CLiteralImpl.class);
-      ourMap.put(C_MAP, CMapImpl.class);
-      ourMap.put(C_METADATA, CMetadataImpl.class);
-      ourMap.put(C_READER_MACRO, CReaderMacroImpl.class);
-      ourMap.put(C_REGEXP, CRegexpImpl.class);
-      ourMap.put(C_SET, CSetImpl.class);
-      ourMap.put(C_SYMBOL, CSymbolImpl.class);
-      ourMap.put(C_VEC, CVecImpl.class);
+    public static CompositePsiElement createElement(IElementType type) {
+       if (type == C_ACCESS) {
+        return new CAccessImpl(type);
+      }
+      else if (type == C_CONSTRUCTOR) {
+        return new CConstructorImpl(type);
+      }
+      else if (type == C_FORM) {
+        return new CFormImpl(type);
+      }
+      else if (type == C_FUN) {
+        return new CFunImpl(type);
+      }
+      else if (type == C_KEYWORD) {
+        return new CKeywordImpl(type);
+      }
+      else if (type == C_LIST) {
+        return new CListImpl(type);
+      }
+      else if (type == C_LITERAL) {
+        return new CLiteralImpl(type);
+      }
+      else if (type == C_MAP) {
+        return new CMapImpl(type);
+      }
+      else if (type == C_METADATA) {
+        return new CMetadataImpl(type);
+      }
+      else if (type == C_READER_MACRO) {
+        return new CReaderMacroImpl(type);
+      }
+      else if (type == C_REGEXP) {
+        return new CRegexpImpl(type);
+      }
+      else if (type == C_SET) {
+        return new CSetImpl(type);
+      }
+      else if (type == C_SYMBOL) {
+        return new CSymbolImpl(type);
+      }
+      else if (type == C_VEC) {
+        return new CVecImpl(type);
+      }
+      throw new AssertionError("Unknown element type: " + type);
     }
   }
 }
