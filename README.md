@@ -39,6 +39,11 @@ to redirect all commands to one specific REPL.
 
 Change log
 ==========
+0.7.1
+
+* IntelliJ Platform 2017.2.5 and 2017.3 API compatibility
+* Misc: use the latest versions of Kotlin & Gradle
+  
 0.7.0
 
 * Editor: multi-method & protocol method navigation (`ctrl-U`, `ctrl-alt-B`)
