@@ -23,12 +23,21 @@
   </change-notes>
 
   <actions>
+    <action id="Clojure.NewClojureFile"
+            class="org.intellij.clojure.actions.file.ClojureCreateFileFromTemplateAction"
+            text="Clojure File"
+            description="Create new Clojure file">
+      <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
+    </action>
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
     <errorHandler implementation="com.intellij.diagnostic.ITNReporter"/>
 
     <fileTypeFactory implementation="org.intellij.clojure.lang.ClojureFileTypeFactory"/>
+    <internalFileTemplate name="new-clojure-file"/>
+
+
     <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.parser.ClojureParserDefinition"/>
     <lang.parserDefinition language="ClojureScript" implementationClass="org.intellij.clojure.parser.ClojureScriptParserDefinition"/>
     <lang.substitutor language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureLanguageSubstitutor"/>
