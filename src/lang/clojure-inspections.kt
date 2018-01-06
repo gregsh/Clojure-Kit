@@ -22,6 +22,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiPolyVariantReference
 import org.intellij.clojure.ClojureConstants
+import org.intellij.clojure.ClojureConstants.SYMBOLIC_VALUES
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.tools.Tool
@@ -88,6 +89,7 @@ private fun suppressResolve(o: CReaderMacro, invalidResolve: Boolean) = when (o.
   ClojureTypes.C_SHARP_COMMENT -> true
   ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> true
   ClojureTypes.C_SHARP_QUOTE -> invalidResolve
+  ClojureTypes.C_SHARP_SYM -> SYMBOLIC_VALUES.contains((o.parent as? CSymbol)?.name)
   else -> false
 }
 

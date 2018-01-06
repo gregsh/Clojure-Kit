@@ -578,7 +578,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
+  // "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | symbolic_value | reader_cond | map_ns_prefix
   public static boolean reader_macro(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "reader_macro")) return false;
     boolean r;
@@ -591,6 +591,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!r) r = consumeToken(b, C_SHARP_COMMENT);
     if (!r) r = consumeToken(b, C_SHARP_QUOTE);
     if (!r) r = consumeToken(b, C_SHARP_EQ);
+    if (!r) r = symbolic_value(b, l + 1);
     if (!r) r = reader_cond(b, l + 1);
     if (!r) r = map_ns_prefix(b, l + 1);
     exit_section_(b, l, m, r, false, null);
@@ -760,6 +761,30 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!recursion_guard_(b, l, "symbol_qualified_1")) return false;
     symbol_nsq(b, l + 1);
     return true;
+  }
+
+  /* ********************************************************** */
+  // '##' &sym
+  static boolean symbolic_value(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbolic_value")) return false;
+    if (!nextTokenIs(b, C_SHARP_SYM)) return false;
+    boolean r, p;
+    Marker m = enter_section_(b, l, _NONE_);
+    r = consumeToken(b, C_SHARP_SYM);
+    p = r; // pin = 1
+    r = r && symbolic_value_1(b, l + 1);
+    exit_section_(b, l, m, r, p, null);
+    return r || p;
+  }
+
+  // &sym
+  private static boolean symbolic_value_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "symbolic_value_1")) return false;
+    boolean r;
+    Marker m = enter_section_(b, l, _AND_);
+    r = consumeToken(b, C_SYM);
+    exit_section_(b, l, m, r, false, null);
+    return r;
   }
 
   /* ********************************************************** */

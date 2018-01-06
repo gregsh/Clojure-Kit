@@ -40,6 +40,8 @@ object ClojureConstants {
   @JvmStatic val CLJS_CORE = "cljs.core"
   @JvmStatic val CORE_NAMESPACES = hashSetOf(CLOJURE_CORE, CLJS_CORE)
 
+  @JvmStatic val SYMBOLIC_VALUES = hashSetOf("Inf", "-Inf", "NaN")
+
   @JvmStatic val SPECIAL_FORMS = "\\s+".toRegex().split("""
     def if do quote var
     recur throw

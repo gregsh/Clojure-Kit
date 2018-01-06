@@ -123,6 +123,7 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   "_"                    { yybegin(YYINITIAL); return C_SHARP_COMMENT; }  // Discard
   "?@"                   { yybegin(YYINITIAL); return C_SHARP_QMARK_AT; }  // Conditional w/ Splicing
   "?"                    { yybegin(YYINITIAL); return C_SHARP_QMARK; }  // Conditional
+  "#"                    { yybegin(YYINITIAL); return C_SHARP_SYM; }  // Conditional
   ":"                    { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP_NS; }  // Map ns prefix
   [\s\w]                 { yybegin(YYINITIAL); yypushback(yylength()); return C_SHARP; }
   [^]                    { yybegin(YYINITIAL); yypushback(yylength()); return BAD_CHARACTER; }

@@ -37,6 +37,7 @@
     sharp_qmark_at="#?@"
     sharp_eq="#="
     sharp_ns="#:"
+    sharp_sym="##"
 
     paren1='('
     paren2=')'
@@ -114,7 +115,8 @@ access ::= ('.' | '.-') symbol
 left access_left ::= !<<space>> '.'
 constructor ::= '#' symbol form
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
-reader_macro ::= "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | reader_cond | map_ns_prefix
+reader_macro ::= "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | symbolic_value | reader_cond | map_ns_prefix
+private symbolic_value ::= '##' &sym {pin=1}
 private reader_cond ::= ('#?' | '#?@') &'(' {pin(".*")=1}
 private map_ns_prefix ::= "#:" (':' <<nospace>> symbol_plain
   | alias_condition '::' <<nospace>> symbol_plain

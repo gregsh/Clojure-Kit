@@ -53,6 +53,7 @@ public interface ClojureTypes {
   IElementType C_SHARP_QMARK = new ClojureTokenType("#?");
   IElementType C_SHARP_QMARK_AT = new ClojureTokenType("#?@");
   IElementType C_SHARP_QUOTE = new ClojureTokenType("#'");
+  IElementType C_SHARP_SYM = new ClojureTokenType("##");
   IElementType C_SLASH = new ClojureTokenType("/");
   IElementType C_STRING = new ClojureTokenType("string");
   IElementType C_STRING_UNCLOSED = new ClojureTokenType("string_unclosed");
