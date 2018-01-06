@@ -475,8 +475,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           var scope = if (isProp) JavaHelper.Scope.INSTANCE else JavaHelper.Scope.STATIC
           val isInFirst = o.firstForm.isAncestorOf(element)
 
-          val siblings = if (type.endsWith("->")) JBIterable.of(o.childForms[1])
-          else if (type.endsWith("->>")) JBIterable.of(prevO.prevForm)
+          val siblings = if (type.endsWith("->") || type.endsWith("->>")) JBIterable.of(prevO.prevForm)
           else o.firstForm.siblings().filter(CForm::class).skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
 
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()

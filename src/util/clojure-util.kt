@@ -138,11 +138,12 @@ private fun parseTextLight(language: Language, text: CharSequence, forcedRootTyp
 
 fun PsiElement?.cljTraverser(): SyntaxTraverser<PsiElement> = org.intellij.clojure.util._cljTraverser().withRoot(this)
 fun PsiElement?.cljTraverserRCAware(): SyntaxTraverser<PsiElement> = cljTraverser().forceDisregard { e ->
-  (e as? CElement)?.role.let { r ->
-    r == Role.RCOND || r == Role.RCOND_S || e.parent.role.let { pr ->
-      pr == Role.RCOND_S && e.prevForm is CKeyword }
-  }
-}.forceIgnore { e -> e.parentForm?.role == Role.RCOND && e.prevForm !is CKeyword }
+  (e as? CElement)?.role.let { r -> r == Role.RCOND || r == Role.RCOND_S } ||
+      e.parent.role.let { pr -> pr == Role.RCOND_S && e.prevForm is CKeyword }
+}.forceIgnore { e ->
+  e is CReaderMacro && e.firstChild.elementType.let { it == ClojureTypes.C_SHARP_QMARK_AT || it == ClojureTypes.C_SHARP_QMARK } ||
+      e.parentForm?.role.let { it == Role.RCOND || it == Role.RCOND_S } && e.prevForm !is CKeyword
+}
 
 fun ASTNode?.cljNodeTraverser(): SyntaxTraverser<ASTNode> = org.intellij.clojure.util._cljNodeTraverser().withRoot(this)
 

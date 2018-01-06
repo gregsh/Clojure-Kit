@@ -144,7 +144,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val defService = ClojureDefinitionService.getInstance(project)
     val refText = processor.getHint(NAME_HINT)?.getName(state)
     val langKind = state.get(DIALECT_KEY) ?: placeFile.placeLanguage(place)
-    val checkPrivate = langKind != Dialect.CLJS
+    val checkPrivate = publicOnly && langKind != Dialect.CLJS
 
     fun acceptDef(def: IDef, private: Boolean): Boolean {
       return def.namespace == namespace && (!publicOnly || !private || refText == def.name)

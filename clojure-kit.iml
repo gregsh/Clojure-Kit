@@ -16,6 +16,5 @@
     <orderEntry type="library" scope="TEST" name="Clojure" level="project" />
     <orderEntry type="library" scope="TEST" name="ClojureScript" level="project" />
     <orderEntry type="library" scope="TEST" name="WellKnownClojureLibs" level="project" />
-    <orderEntry type="library" scope="TEST" name="clojure-1.9.0-alpha15" level="application" />
   </component>
 </module>
