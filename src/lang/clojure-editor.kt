@@ -95,12 +95,12 @@ class ClojureQuoteHandler : SimpleTokenSetQuoteHandler(ClojureTokens.STRINGS) {
 }
 
 class ClojureWordSelectioner : AbstractWordSelectioner() {
-  override fun canSelect(e: PsiElement?): Boolean {
+  override fun canSelect(e: PsiElement): Boolean {
     return ClojureTokens.STRINGS.contains(e.elementType)
   }
 
-  override fun select(e: PsiElement, editorText: CharSequence?, cursorOffset: Int, editor: Editor?): MutableList<TextRange> {
-    val result = super.select(e, editorText, cursorOffset, editor)
+  override fun select(e: PsiElement, editorText: CharSequence, cursorOffset: Int, editor: Editor): MutableList<TextRange> {
+    val result = super.select(e, editorText, cursorOffset, editor)!!
     if (ClojureTokens.STRINGS.contains(e.elementType)) {
       val range = e.textRange
       SelectWordUtil.addWordHonoringEscapeSequences(

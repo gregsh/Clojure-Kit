@@ -257,7 +257,7 @@ abstract class JavaHelper {
     override fun findClass(className: String?) = lazyCached(className, c_nulls) { findClassSafe(className) }
 
     internal fun lazyCached(id: String?, nulls: ConcurrentMap<String, Boolean>, info: () -> Any?): MyElement<*>? {
-      return map[id ?: return null] ?: run { if (nulls.containsKey(id)) null else info().let {
+      return map[id ?: return null] ?: run { if (nulls[id] == true) null else info().let {
         if (it == null) { nulls.put(id, true); null } else
           ConcurrencyUtil.cacheOrGet(map, id, MyElement(project, it))
       } }

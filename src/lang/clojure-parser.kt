@@ -45,7 +45,7 @@ class ClojureScriptParserDefinition : ClojureParserDefinitionBase() {
 }
 
 class ClojureASTFactory : ASTFactory() {
-  override fun createComposite(type: IElementType?): CompositeElement? = ClojureTypes.Factory.createElement(type)
+  override fun createComposite(type: IElementType): CompositeElement? = ClojureTypes.Factory.createElement(type)
 }
 
 abstract class ClojureParserDefinitionBase : ParserDefinition {

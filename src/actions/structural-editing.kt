@@ -129,7 +129,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
 
 class ClojureTypedHandler : TypedHandlerDelegate() {
 
-  override fun charTyped(c: Char, project: Project?, editor: Editor, file: PsiFile): Result {
+  override fun charTyped(c: Char, project: Project, editor: Editor, file: PsiFile): Result {
     if (file !is CFile || editor !is EditorEx) return Result.CONTINUE
     val p1 = if (c == ')') '(' else if (c == ']') '[' else if (c == '}') '{' else null
     val p2 = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else null
