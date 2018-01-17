@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.7.2-SNAPSHOT</version>
+  <version>0.7.2</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="171.3780"/>
 
@@ -16,7 +16,7 @@
     <![CDATA[
     <ul>
       <li>IntelliJ Platform 2018.1 API compatibility</li>
-      <li>Clojure 1.9.0 compatibility</li>
+      <li>Clojure 1.9.0 compatibility (##Inf, ##-Inf, ##NaN)</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>

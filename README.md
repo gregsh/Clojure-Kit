@@ -39,6 +39,11 @@ to redirect all commands to one specific REPL.
 
 Change log
 ==========
+0.7.2
+
+* IntelliJ Platform 2018.1 API compatibility
+* Clojure 1.9.0 compatibility (##Inf, ##-Inf, ##NaN) 
+
 0.7.1
 
 * IntelliJ Platform 2017.2.5 and 2017.3 API compatibility
