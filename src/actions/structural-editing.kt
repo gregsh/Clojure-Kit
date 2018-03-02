@@ -65,7 +65,6 @@ abstract class EditActionBase(private val handler: (CFile, Document, Caret) -> (
   }
 
   override fun doExecute(editor: Editor, caret: Caret?, dataContext: DataContext) {
-    if (editor == null || dataContext == null) return
     val project = dataContext.getData(CommonDataKeys.PROJECT) ?: return
     val currentCaret = editor.caretModel.currentCaret
     val file = PsiUtilBase.getPsiFileInEditor(editor, project) as? CFile ?: return
@@ -164,7 +163,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
   }
 }
 
-private fun slurp(form: CPForm, document: Document, @Suppress("UNUSED_PARAMETER") caret: Caret, forward: Boolean): Unit {
+private fun slurp(form: CPForm, document: Document, @Suppress("UNUSED_PARAMETER") caret: Caret, forward: Boolean) {
   val target = (if (forward) form.nextForm else form.prevForm)?.textRange ?: return
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
   if (parens.size != 2) return
@@ -185,7 +184,7 @@ private fun slurp(form: CPForm, document: Document, @Suppress("UNUSED_PARAMETER"
   }
 }
 
-private fun barf(form: CPForm, document: Document, caret: Caret, forward: Boolean): Unit {
+private fun barf(form: CPForm, document: Document, caret: Caret, forward: Boolean) {
   val target = form.childForms.run { if (forward) last() else first() }?.textRange ?: return
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }.map { it.textRange }.toList()
   if (parens.size != 2) return
@@ -220,11 +219,11 @@ private fun barf(form: CPForm, document: Document, caret: Caret, forward: Boolea
   }
 }
 
-private fun splice(form: CPForm, document: Document, caret: Caret): Unit {
+private fun splice(form: CPForm, document: Document, caret: Caret) {
   splice(0, form, document, caret)
 }
 
-private fun splice(base: Int = 0, form: CPForm, document: Document, caret: Caret): Unit {
+private fun splice(base: Int = 0, form: CPForm, document: Document, caret: Caret) {
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }
       .map { it.textRange.shiftRight(base) }.toList()
   val range = (form.parent as? CMetadata ?: form).textRange.shiftRight(base)
@@ -238,7 +237,7 @@ private fun splice(base: Int = 0, form: CPForm, document: Document, caret: Caret
   caret.moveToOffset(offset + range.startOffset - parens[0].endOffset)
 }
 
-private fun rise(file: CFile, document: Document, caret: Caret): Unit {
+private fun rise(file: CFile, document: Document, caret: Caret) {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.textRange ?: return
   else ProperTextRange(
       file.findElementAt(caret.selectionStart).thisForm?.textRange?.startOffset ?: caret.selectionStart,
@@ -248,7 +247,7 @@ private fun rise(file: CFile, document: Document, caret: Caret): Unit {
   caret.moveToOffset(caret.offset + 1)
 }
 
-private fun kill(file: CFile, document: Document, caret: Caret): Unit {
+private fun kill(file: CFile, document: Document, caret: Caret) {
   val range = if (!caret.hasSelection()) file.formAt(caret.offset)?.
       let { it as? CPForm ?: it.findParent(CPForm::class) ?: it }?.
       let { it.parent as? CMetadata ?: it }?.textRange ?: return
@@ -258,7 +257,7 @@ private fun kill(file: CFile, document: Document, caret: Caret): Unit {
   kill(range, document)
 }
 
-private fun kill(range: TextRange, document: Document): Unit {
+private fun kill(range: TextRange, document: Document) {
   val s = document.immutableCharSequence
   var o1 = range.startOffset
   var o2 = range.endOffset
@@ -398,7 +397,7 @@ private fun isNotBalanced(editor: EditorEx, skipAtOffset: Int = -1): Boolean {
 private class ParenCounter(var parens: Int = 0, var braces: Int = 0, var brackets: Int = 0) {
   val isBalanced: Boolean get() = parens == 0 && braces == 0 && brackets == 0
 
-  fun visit(t: IElementType): Unit {
+  fun visit(t: IElementType) {
     when (t) {
       ClojureTypes.C_PAREN1 -> parens++
       ClojureTypes.C_PAREN2 -> parens--

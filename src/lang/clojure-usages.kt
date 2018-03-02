@@ -78,10 +78,10 @@ class ClojureFindUsagesProvider : FindUsagesProvider {
 }
 
 class ClojureUsageTargetProvider : UsageTargetProvider {
-  override fun getTargets(editor: Editor?, file: PsiFile?): Array<UsageTarget>? =
+  override fun getTargets(editor: Editor, file: PsiFile): Array<UsageTarget>? =
       UsageTarget.EMPTY_ARRAY
 
-  override fun getTargets(psiElement: PsiElement?): Array<UsageTarget>? {
+  override fun getTargets(psiElement: PsiElement): Array<UsageTarget>? {
     val target = psiElement.asXTarget?.resolve() ?: return UsageTarget.EMPTY_ARRAY
     return arrayOf(PsiElement2UsageTargetAdapter(target))
   }

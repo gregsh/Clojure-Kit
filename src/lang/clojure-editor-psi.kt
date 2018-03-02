@@ -535,16 +535,16 @@ class ClojureGotoSuperHandler : PresentableCodeInsightActionHandler {
 }
 
 class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
-  override fun isAvailable(element: PsiElement?, editor: Editor?, file: PsiFile?): Boolean {
-    if (editor == null || !editor.settings.isVariableInplaceRenameEnabled) return false
+  override fun isAvailable(element: PsiElement?, editor: Editor, file: PsiFile): Boolean {
+    if (!editor.settings.isVariableInplaceRenameEnabled) return false
     return element.asCTarget != null
   }
 
-  override fun createRenamer(elementToRename: PsiElement, editor: Editor?) = MyRenamer(elementToRename as PsiNamedElement, editor)
+  override fun createRenamer(elementToRename: PsiElement, editor: Editor) = MyRenamer(elementToRename as PsiNamedElement, editor)
 
-  class MyRenamer(elementToRename: PsiNamedElement, editor: Editor?, initialName: String?, oldName: String?) :
+  class MyRenamer(elementToRename: PsiNamedElement, editor: Editor, initialName: String?, oldName: String?) :
       MemberInplaceRenamer(elementToRename, null, editor, initialName, oldName) {
-    constructor(elementToRename: PsiNamedElement, editor: Editor?) :
+    constructor(elementToRename: PsiNamedElement, editor: Editor) :
     this(elementToRename, editor, elementToRename.name, elementToRename.name)
 
     override fun checkLocalScope() =
@@ -555,7 +555,7 @@ class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
 
     override fun getNameIdentifier() = myElementToRename.navigationElement as? CSymbol
 
-    override fun createInplaceRenamerToRestart(variable: PsiNamedElement, editor: Editor?, initialName: String?) =
+    override fun createInplaceRenamerToRestart(variable: PsiNamedElement, editor: Editor, initialName: String?) =
         MyRenamer(variable, editor, initialName, initialName)
   }
 }
