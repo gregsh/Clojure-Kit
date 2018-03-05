@@ -154,14 +154,24 @@ class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, Reference
     if (targetKey.type == "keyword" && (targetKey.name == "keys" || targetKey.name == "syms")) return
     val keyName = if (targetKey.type == "keyword") "keys" else "syms"
     val project = queryParameters.elementToSearch.project
-    val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(keyName, "", "keyword")
 
+    val mapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(keyName, "", "keyword")
     ReferencesSearch.searchOptimized(mapKeyElement, queryParameters.effectiveSearchScope, false, queryParameters.optimizer) {
       val form = it.element.thisForm as? CKeyword ?: return@searchOptimized true
       val vec = (if (form.parentForm is CMap) form.nextForm as? CVec else null) ?: return@searchOptimized true
       vec.childForms.filter(CSymbol::class)
-          .filter { it.name == targetKey.name }
+          .filter { it.qualifiedName == targetKey.qualifiedName }
           .forEach { consumer.process(it.reference) }
+      return@searchOptimized true
+    }
+
+    val namespacedMapKeyElement = ClojureDefinitionService.getInstance(project).getDefinition(keyName, targetKey.namespace, "keyword")
+    ReferencesSearch.searchOptimized(namespacedMapKeyElement, queryParameters.effectiveSearchScope, false, queryParameters.optimizer) {
+      val form = it.element.thisForm as? CKeyword ?: return@searchOptimized true
+      val vec = (if (form.parentForm is CMap) form.nextForm as? CVec else null) ?: return@searchOptimized true
+      vec.childForms.filter(CSymbol::class)
+              .filter { it.name == targetKey.name }
+              .forEach { consumer.process(it.reference) }
       return@searchOptimized true
     }
   }
