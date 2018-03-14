@@ -110,7 +110,7 @@ class NReplClient {
     return future
   }
 
-  private fun runCallbacks(o: Any): Unit {
+  private fun runCallbacks(o: Any) {
     val m = o.forceCast<Map<String, Any?>>() ?: clearCallbacks(o as? Throwable ?: Throwable(o.toString())).run { return }
     val id = m["id"] as? Long ?: return
     if (m["status"].let { it is List<*> && it.firstOrNull() == "done" }) {
@@ -149,7 +149,10 @@ class NReplClient {
   fun closeSessionAsync(session: String) = requestAsync("op" to "close", "session" to session)
   fun describeSession(session: String = mainSession) = request("op" to "describe", "session" to session)
 
-  fun evalAsync(code: String, session: Any = mainSession) = requestAsync("op" to "eval", "session" to session, "code" to code)
+  fun evalAsync(code: String, session: Any = mainSession) =
+      requestAsync("op" to "eval", "session" to session, "code" to code)
+  fun evalNsAsync(code: String, namespace: String, session: Any = mainSession) =
+      requestAsync("op" to "eval", "session" to session, "ns" to namespace, "code" to code)
   fun rawAsync(m: Map<String, Any>) = requestAsync(LinkedHashMap(m).apply { put("session", m["session"] ?: mainSession) })
 }
 
@@ -174,7 +177,7 @@ fun dumpObject(o: Any?) = StringBuilder().let { sb ->
 abstract class Transport : Closeable {
   open fun recv(): Any? = recv(Long.MAX_VALUE)
   abstract fun recv(timeout: Long): Any?
-  abstract fun send(message: Any): Unit
+  abstract fun send(message: Any)
   override fun close() = Unit
 }
 

@@ -36,6 +36,7 @@ import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchFileService
+import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.editor.Editor
@@ -64,6 +65,7 @@ import com.intellij.util.ArrayUtil
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.text.UniqueNameGenerator
+import com.intellij.util.text.nullize
 import com.intellij.util.ui.EmptyIcon
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
@@ -101,14 +103,18 @@ class ReplConnectAction : DumbAwareAction() {
   }
 
   override fun actionPerformed(e: AnActionEvent) {
-    val project = e.project
+    val project = e.project ?: return
     val regex = "(?:nrepl://)?+(?:(\\S+)\\s*:)?\\s*(\\S+)".toRegex()
-    val result = Messages.showInputDialog(project ?: return, "Enter nREPL server address:",
-        e.presentation.text, Messages.getQuestionIcon(), null, object : InputValidator {
+    val props = PropertiesComponent.getInstance(project)
+    val propName = "clojure.repl.connect.LAST_VALUE"
+    val prevValue = props.getValue(propName)
+    val result = Messages.showInputDialog(project, "Enter nREPL server address:",
+        e.presentation.text, Messages.getQuestionIcon(), prevValue, object : InputValidator {
       override fun checkInput(inputString: String?) = regex.find(inputString ?: "") != null
 
       override fun canClose(inputString: String?) = checkInput(inputString)
     }) ?: return
+    props.setValue(propName, result)
     val matcher = regex.find(result) ?: return
     val host = StringUtil.nullize(matcher.groupValues[1], true) ?: "localhost"
     val port = StringUtil.parseInt(matcher.groupValues[2], -1)
@@ -134,6 +140,8 @@ class ReplExecuteAction : DumbAwareAction() {
     val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
     val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile ?: return
     PsiDocumentManager.getInstance(project).commitAllDocuments()
+
+    val ns = if (console == null) file.namespace.nullize(true) else null
     val text = if (editor.selectionModel.hasSelection()) {
       editor.selectionModel.getSelectedText(true) ?: ""
     }
@@ -146,10 +154,13 @@ class ReplExecuteAction : DumbAwareAction() {
         elementAt.parents().filter(CForm::class).last()
       }
           .notNulls()
-          .reduce(StringBuilder()) { sb, o -> if (!sb.isEmpty()) sb.append("\n"); sb.append(o.text) }
+          .reduce(StringBuilder()) { sb, o ->
+            if (!sb.isEmpty()) sb.append("\n")
+            else sb.append(o.text)
+          }
           .toString()
     }
-    executeInRepl(project, file, editor, text)
+    executeInRepl(project, file, editor, text, ns)
   }
 }
 
@@ -239,16 +250,16 @@ class ReplActionPromoter : ActionPromoter {
       actions.find { it is ReplExecuteAction }?.let { listOf(it) }
 }
 
-fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String) {
+fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String, namespace: String?) {
   executeInRepl(project, PsiUtilCore.getVirtualFile(file) ?: return) { repl ->
     val replEditor = repl.consoleView.consoleEditor
     if (editor == replEditor || !replEditor.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer) {
       val command = WriteAction.compute<String, Exception> { replEditor.document.run { val s = getText(); setText(""); s } }
-      repl.sendCommand(command)
+      repl.sendCommand(command, null)
       ConsoleHistoryController.addToHistory(repl.consoleView, command)
     }
     else {
-      repl.sendCommand(text)
+      repl.sendCommand(text, namespace)
     }
   }
 }
@@ -357,7 +368,7 @@ class ReplConnection(val repl: NReplClient,
     whenConnected.doWhenDone { dumpReplInfo() }.doWhenDone { initRepl() }
   }
 
-  fun sendCommand(text: String) = whenConnected.doWhenDone {
+  fun sendCommand(text: String, namespace: String?) = whenConnected.doWhenDone {
     val trimmed = text.trim()
     consoleView.println()
     consoleView.print((consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
@@ -379,15 +390,17 @@ class ReplConnection(val repl: NReplClient,
         val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
         val map = LinkedHashMap<String, String>().apply {
           put("op", op)
-          s.traverse().skip(1).split(2, true).forEach { put(s.api.textOf(it[0]).toString(), s.api.textOf(it[1]).toString()) }
+          s.traverse().skip(1).split(2, true).forEach {
+            put(s.api.textOf(it[0]).toString().trimStart(':'), s.api.textOf(it[1]).toString()) }
         }
         repl.rawAsync(map).whenComplete { result, e ->
           onCommandCompleted(result, e)
         }
       }
     }
-    else repl.evalAsync(trimmed).whenComplete { result, e ->
-      onCommandCompleted(result, e)
+    else
+      (if (namespace != null) repl.evalNsAsync(trimmed, namespace) else repl.evalAsync(trimmed))
+          .whenComplete { result, e -> onCommandCompleted(result, e)
     }
     (consoleView as ConsoleViewImpl).requestScrollingToEnd()
   }
