@@ -38,6 +38,7 @@
     <additionalTextAttributes scheme="Default" file="colorSchemes/ClojureDefault.xml"/>
     <additionalTextAttributes scheme="Darcula" file="colorSchemes/ClojureDarcula.xml"/>
     <lang.braceMatcher language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureBraceMatcher"/>
+    <qualifiedNameProvider implementation="org.intellij.clojure.lang.ClojureQualifiedNameProvider"/>
 
     <spellchecker.support language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureSpellCheckingStrategy"/>
     <lang.commenter language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCommenter"/>

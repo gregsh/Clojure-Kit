@@ -19,6 +19,7 @@ package org.intellij.clojure.lang
 
 import com.intellij.codeInsight.template.FileTypeBasedContextType
 import com.intellij.codeInsight.template.impl.DefaultLiveTemplatesProvider
+import com.intellij.ide.actions.QualifiedNameProvider
 import com.intellij.lang.BracePair
 import com.intellij.lang.Language
 import com.intellij.lang.PairedBraceMatcher
@@ -29,6 +30,7 @@ import com.intellij.openapi.fileTypes.WildcardFileNameMatcher
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.LanguageSubstitutor
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.TokenType
 import com.intellij.psi.tree.IElementType
@@ -36,7 +38,15 @@ import com.intellij.psi.tree.IFileElementType
 import com.intellij.psi.tree.TokenSet
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
+import org.intellij.clojure.psi.CKeyword
+import org.intellij.clojure.psi.CSymbol
 import org.intellij.clojure.psi.ClojureTypes.*
+import org.intellij.clojure.psi.SymKey
+import org.intellij.clojure.psi.impl.ClojureDefinitionService
+import org.intellij.clojure.psi.impl.asCTarget
+import org.intellij.clojure.psi.impl.resolveInfo
+import org.intellij.clojure.util.qualifiedName
+import org.intellij.clojure.util.thisForm
 
 /**
  * @author gregsh
@@ -75,6 +85,33 @@ class ClojureBraceMatcher : PairedBraceMatcher {
       tokenType == null || ClojureTokens.WHITESPACES.contains(tokenType) || ClojureTokens.COMMENTS.contains(tokenType)
           || tokenType === C_COMMA || tokenType === C_PAREN2
           || tokenType === C_BRACE2 || tokenType === C_BRACKET2
+}
+
+class ClojureQualifiedNameProvider : QualifiedNameProvider {
+  override fun getQualifiedName(element: PsiElement?): String? {
+    return element.asCTarget?.key?.run { if (type == "keyword") ":$qualifiedName" else qualifiedName }
+  }
+
+  override fun qualifiedNameToElement(fqn: String, project: Project): PsiElement? {
+    val idx = fqn.indexOf('/')
+    val name = fqn.substring(idx + 1)
+    val ns = if (idx == -1) "" else fqn.substring(0, idx)
+    return ClojureDefinitionService.getInstance(project).getDefinition(SymKey(name, ns, "def"))
+  }
+
+  override fun adjustElementToCopy(element: PsiElement) = when {
+    element.asCTarget != null -> element
+    else -> element.thisForm.let {
+      when (it) {
+        is CSymbol -> {
+          val def = it.resolveInfo()
+          if (def != null) ClojureDefinitionService.getInstance(element.project).getDefinition(SymKey(def)) else null
+        }
+        is CKeyword -> ClojureDefinitionService.getInstance(element.project).getKeyword(it)
+        else -> null
+      }
+    }
+  }
 }
 
 class ClojureLiveTemplateContext : FileTypeBasedContextType("Clojure", "Clojure", ClojureFileType)
