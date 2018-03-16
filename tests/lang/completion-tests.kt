@@ -57,8 +57,10 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testFqn1() = doTest("(clojure.string/<caret>)", "blank?", "(clojure.string/blank?)")
   fun testFqn2() = "clojure.string/blank?".let { doTest("(bla<caret>)", it, "($it)", 2) }
   fun testFqn3() = "clojure.string/blank?".let { doTest("(clostribla<caret>)", it, "($it)", 2) }
+  fun testFqn4() = doTest("(clojure.str<caret>ing/blank?)", "clojure.string", "(clojure.string/blank?)")
   fun testFqn2a() = "str/blank?".let { doTest("$STR_ALIAS (bla<caret>)", it, "$STR_ALIAS ($it)", 2) }
   fun testFqn3a() = "str/blank?".let { doTest("$STR_ALIAS (clostribla<caret>)", it, "$STR_ALIAS ($it)", 2) }
+  fun testFqn4a() = doTest("$STR_ALIAS (s<caret>tr/blank?)", "str", "$STR_ALIAS (str/blank?)")
 
   fun testInsideImport1() = doTest("(require [<caret> :refer [blank?]])", "clojure.string")
   fun testInsideImport2() = doNegTest("(require [<caret> :refer [blank?]])", "def")

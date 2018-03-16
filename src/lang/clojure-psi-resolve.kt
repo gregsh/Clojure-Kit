@@ -290,26 +290,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     }
 
     if (parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_SLASH) {
-      if (parent.parent is CKeyword) {
-        return when (parent.prevSibling.elementType) {
-          ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
-          ClojureTypes.C_COLONCOLON -> containingFile.processDeclarations(processor, state.put(ALIAS_KEY, refText), element, element)
-          else -> true
-        }
-      }
-      if (!containingFile.processDeclarations(processor, state, element, element)) return false
-      if (!FileBasedIndex.getInstance().getFilesWithKey(NS_INDEX, setOf(refText), { false },
-          ClojureDefinitionService.getClojureSearchScope(service.project))) {
-        if (!processor.execute(service.getNamespace(element.name), state)) return false
-      }
-
-      if (!isCljs) {
-        findClass(refText, service)?.let { return processor.execute(it, state) }
-      }
-      if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.isIn(it) || refText.prefixedBy(it) }) {
-        return processor.skipResolve()
-      }
-      return true
+      return processNamespacePartBeforeSlash(langKind, refText, service, state, processor)
     }
     if (parent.let { it is CReaderMacro && it.firstChild.elementType == ClojureTypes.C_SHARP_NS}) {
       return when (element.prevSibling.elementType) {
@@ -371,6 +352,35 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     if (!isCljs) findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
     else if (refText == "js" && myElement.parent is CConstructor || refText == "Object") {
       return processor.execute(service.getDefinition(refText, "js", JS_OBJ), state)
+    }
+    return true
+  }
+
+  private fun processNamespacePartBeforeSlash(dialect: Dialect, refText: String?, service: ClojureDefinitionService, state: ResolveState, processor: PsiScopeProcessor): Boolean {
+    val containingFile = element.containingFile.originalFile as CFileImpl
+    val isCljs = dialect == Dialect.CLJS
+    val parent = element.parent
+
+    if (parent.parent is CKeyword) {
+      return when (parent.prevSibling.elementType) {
+        ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
+        ClojureTypes.C_COLONCOLON -> containingFile.processDeclarations(processor, state.put(ALIAS_KEY, refText), element, element)
+        else -> true
+      }
+    }
+    if (!containingFile.processDeclarations(processor, state, element, element)) return false
+    if (refText != null) {
+      if (!FileBasedIndex.getInstance().getFilesWithKey(NS_INDEX, setOf(refText), { false },
+              ClojureDefinitionService.getClojureSearchScope(service.project))) {
+        if (!processor.execute(service.getNamespace(element.name), state)) return false
+      }
+
+      if (!isCljs) {
+        findClass(refText, service)?.let { return processor.execute(it, state) }
+      }
+      if (isCljs && ClojureConstants.JS_NAMESPACES.let { refText.isIn(it) || refText.prefixedBy(it) }) {
+        return processor.skipResolve()
+      }
     }
     return true
   }
