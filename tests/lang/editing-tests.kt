@@ -19,7 +19,8 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testSlurpBwd1() = doTest("(a b (c d |e f) g h)", "(a (b c d |e f) g h)")
   fun testBarfFwd1() = doTest("(a b (c d |e f) g h)", "(a b (c d |e) f g h)")
   fun testBarfBwd1() = doTest("(a b (c d |e f) g h)", "(a b c (d |e f) g h)")
-  fun testSplice1() = doTest("(a b (c d |e f) g h)", "(a b c d |e f g h)")
+  fun testSplice1() = doTest("(a b (c d |e f) g h)", "(a b |e f g h)")
+  fun testSplice2() = doTest("(a b |(c d e f) g h)", "(c d e f) g h")
   fun testRise1() = doTest("(a b (c d |e f) g h)", "(a b (c d (|e) f) g h)")
   fun testKill1() = doTest("(a b (c d |e f) g h)", "(a b |g h)")
 
@@ -32,7 +33,7 @@ class StructuralEditingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testSlurpBwdMeta1() = doTest("(a ^{ } b (c d |e f) g h)", "(a (^{ } b c d |e f) g h)")
   fun testBarfFwdMeta1() = doTest("(a b (c d |e ^{ } f) g h)", "(a b (c d |e) ^{ } f g h)")
   fun testBarfBwdMeta1() = doTest("(a b (^{ } c d |e f) g h)", "(a b ^{ } c (d |e f) g h)")
-  fun testSpliceMeta1() = doTest("(a b ^{ } (c d |e f) ^{ } g h)", "(a b c d |e f ^{ } g h)")
+  fun testSpliceMeta1() = doTest("(a b ^{ } (c d |e f) ^{ } g h)", "(a b |e f ^{ } g h)")
   fun testRiseMeta1() = doTest("(a b (c d ^{ } |e f) g h)", "(a b (c d (^{ } |e) f) g h)")
   fun testKillMeta1() = doTest("(a b ^{ } (c d |^{ } e f) g h)", "(a b |g h)")
 

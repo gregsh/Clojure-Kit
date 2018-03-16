@@ -220,21 +220,25 @@ private fun barf(form: CPForm, document: Document, caret: Caret, forward: Boolea
 }
 
 private fun splice(form: CPForm, document: Document, caret: Caret) {
-  splice(0, form, document, caret)
+  splice(0, form, document, caret, true)
 }
 
-private fun splice(base: Int = 0, form: CPForm, document: Document, caret: Caret) {
+private fun splice(base: Int = 0, form: CPForm, document: Document, caret: Caret, fromCaret: Boolean) {
+  val offset = caret.offset
   val parens = form.iterate().filter { ClojureTokens.PAREN_ALIKE.contains(it.elementType) }
       .map { it.textRange.shiftRight(base) }.toList()
+  if (parens[0].endOffset > offset) {
+    return splice(base, form.parentForm as? CPForm ?: return, document, caret, fromCaret)
+  }
   val range = (form.parent as? CMetadata ?: form).textRange.shiftRight(base)
+  val start = if (fromCaret) offset else parens[0].endOffset
   val replacement = when (parens.size) {
-    2 -> ProperTextRange(parens[0].endOffset, parens[1].startOffset)
-    1 -> ProperTextRange(parens[0].endOffset, range.endOffset)
+    2 -> ProperTextRange(start, parens[1].startOffset)
+    1 -> ProperTextRange(start, range.endOffset)
     else -> return
   }.subSequence(document.charsSequence).trim { it != '\n' && it.isWhitespace() }
-  val offset = caret.offset
   document.replaceString(range.startOffset, range.endOffset, replacement)
-  caret.moveToOffset(offset + range.startOffset - parens[0].endOffset)
+  caret.moveToOffset(offset + range.startOffset - start)
 }
 
 private fun rise(file: CFile, document: Document, caret: Caret) {
@@ -295,7 +299,7 @@ private fun kill(file: CFile, editor: EditorEx, caret: Caret, forward: Boolean):
     kill(form.let { it.parent as? CMetadata ?: it }.textRange.shiftRight(base), editor.document)
   }
   else {
-    splice(base, form, editor.document, caret)
+    splice(base, form, editor.document, caret, false)
   }
   return true
 }
