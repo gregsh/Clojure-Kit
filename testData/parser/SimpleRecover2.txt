@@ -1,0 +1,13 @@
+CFileImpl:a.clj
+  CListImpl(C_LIST)
+    PsiElement(()('(')
+    CSymbolImpl(C_SYMBOL)
+      PsiElement(sym)('a')
+    PsiElement())(')')
+  PsiErrorElement:')' unexpected
+    PsiElement())(')')
+  CListImpl(C_LIST)
+    PsiElement(()('(')
+    CSymbolImpl(C_SYMBOL)
+      PsiElement(sym)('b')
+    PsiElement())(')')

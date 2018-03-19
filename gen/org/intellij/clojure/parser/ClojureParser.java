@@ -10,6 +10,7 @@ import com.intellij.lang.ASTNode;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.lang.PsiParser;
 import com.intellij.lang.LightPsiParser;
+import static org.intellij.clojure.parser.ClojureParserUtil.adapt_builder_;
 import static org.intellij.clojure.parser.ClojureParserUtil.*;
 
 @SuppressWarnings({"SimplifiableIfStatement", "UnusedAssignment"})
@@ -423,7 +424,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     r = consumeToken(b, C_SHARP_NS);
     p = r; // pin = 1
     r = r && report_error_(b, map_ns_prefix_1(b, l + 1));
-    r = r && map_ns_prefix_2(b, l + 1);
+    r = p && map_ns_prefix_2(b, l + 1) && r;
     exit_section_(b, l, m, r, p, null);
     return r || p;
   }

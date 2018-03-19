@@ -85,6 +85,11 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
 class ClojureParserUtil {
   @Suppress("UNUSED_PARAMETER")
   companion object {
+    @JvmStatic fun adapt_builder_(root: IElementType, builder: PsiBuilder, parser: PsiParser, extendsSets: Array<TokenSet>?): PsiBuilder =
+        GeneratedParserUtilBase.adapt_builder_(root, builder, parser, extendsSets).apply {
+          (this as? GeneratedParserUtilBase.Builder)?.state?.braces = null
+        }
+
     @JvmStatic fun parseTree(b: PsiBuilder, l: Int, p: GeneratedParserUtilBase.Parser) =
         GeneratedParserUtilBase.parseAsTree(GeneratedParserUtilBase.ErrorState.get(b), b, l,
             GeneratedParserUtilBase.DUMMY_BLOCK, false, p, GeneratedParserUtilBase.TRUE_CONDITION)

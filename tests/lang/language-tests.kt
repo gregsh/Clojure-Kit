@@ -71,6 +71,7 @@ class ClojureHighlightingLexerTest : ClojureLexerTestCase(ClojureHighlightingLex
 class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testFirstAndSimple() = doCodeTest(";line\n(+ 1 2 3)\n(clojure.core/str \"a\" '.. '.-a val 123 :key)")
   fun testSimpleRecover() = doCodeTest("//// 42 : x (abc [: x : y z] 2/3) )1 sym)")
+  fun testSimpleRecover2() = doCodeTest("(a))(b)")
   fun testSimpleFixes() = doCodeTest(".1 x .-;comment\n1;unclosed eof\n\"x")
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
 

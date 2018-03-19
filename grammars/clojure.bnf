@@ -2,6 +2,7 @@
   generate=[tokenAccessors="no"]
   parserClass='org.intellij.clojure.parser.ClojureParser'
   parserImports=[
+    'static org.intellij.clojure.parser.ClojureParserUtil.adapt_builder_'
     'static org.intellij.clojure.parser.ClojureParserUtil.*'
   ]
   psiPackage='org.intellij.clojure.psi'
