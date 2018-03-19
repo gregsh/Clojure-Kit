@@ -62,9 +62,9 @@ object Lein : Tool {
       "deps", ":tree")
 
   override fun getRepl() = GeneralCommandLine(path,
-      "update-in", ":dependencies", "conj [org.clojure/tools.nrepl]", "--",
-      "update-in", ":plugins", "conj [cider/cider-nrepl]", "--",
-      "update-in", ":middleware", "conj [cider-nrepl.plugin/middleware]", "--",
+      "update-in", ":dependencies", "conj", "[org.clojure/tools.nrepl \"RELEASE\"]", "--",
+      "update-in", ":plugins", "conj", "[cider/cider-nrepl \"RELEASE\"]", "--",
+      "update-in", ":nrepl-middleware", "conj ", "[cider-nrepl.plugin/middleware \"RELEASE\"]", "--",
       "repl", ":headless")
 
 }
