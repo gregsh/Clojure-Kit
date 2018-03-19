@@ -387,7 +387,7 @@ class ReplConnection(val repl: NReplClient,
       val idx = text.indexOfFirst { Character.isWhitespace(it) }
       val op = if (idx == -1) text.substring(1) else text.substring(1, idx)
       if (op.isIn(setOf("", "help", "?"))) {
-        consoleView.printerr("operations: " + dumpObject(repl.clientInfo["ops"]))
+        consoleView.println("operations:\n" + dumpObject(repl.clientInfo["ops"]))
       }
       else {
         val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
@@ -415,16 +415,23 @@ class ReplConnection(val repl: NReplClient,
     else if (result != null) {
       result["ns"]?.let { consoleView.prompt = "$it=> " }
       val value = result["value"]
-      val error = "${result["ex"]?.let { "$it\n" } ?: ""}${result["err"] ?: ""}${result["out"] ?: ""}".run { if (length == 0) null else this }
+      val output = result["out"] as? String
+      val error = result["err"] as? String
+      var newline = true
+      for (msg in arrayOf(output, error).filterNotNull()) {
+        if (!newline) consoleView.println()
+        val adjusted =
+            if (msg != error) msg
+            else msg.indexOf(", compiling:(").let {
+              if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) } + "\n"
+        consoleView.print(adjusted, if (msg == output) ConsoleViewContentType.NORMAL_OUTPUT else ConsoleViewContentType.ERROR_OUTPUT)
+        newline = adjusted.endsWith("\n")
+      }
       value?.let {
+        if (!newline) consoleView.println()
         consoleView.print(dumpObject(it), ConsoleViewContentType.NORMAL_OUTPUT)
       }
-      error?.let { msg ->
-        val adjusted = msg.indexOf(", compiling:(").let { if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) }
-        if (value != null) consoleView.println()
-        consoleView.print(adjusted, ConsoleViewContentType.ERROR_OUTPUT)
-      }
-      if (value == null && error == null) {
+      if (value == null && output == null && error == null) {
         consoleView.print(dumpObject(result), ConsoleViewContentType.NORMAL_OUTPUT)
       }
     }
@@ -433,10 +440,11 @@ class ReplConnection(val repl: NReplClient,
 
   private fun initRepl() {
     consoleView.prompt = ((repl.clientInfo["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
-    repl.evalAsync("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
-        " (clojure.core/map clojure.core/require clojure.main/repl-requires))").whenComplete { map, throwable ->
+    val onCompleted: (Map<String, Any?>, Throwable) -> Unit = { _, throwable ->
       onCommandCompleted(null, throwable)
     }
+    repl.evalAsync("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
+        " (clojure.core/map clojure.core/require clojure.main/repl-requires))").whenComplete(onCompleted)
   }
 
   private fun dumpReplInfo() {

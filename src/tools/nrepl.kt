@@ -141,6 +141,7 @@ class NReplClient {
         val1 is MutableMap<*, *> && val2 is Map<*, *> -> val1.forceCast<MutableMap<String, Any?>>()!!.join(val2.forceCast<Map<String, Any?>>()!!)
         key == "value" -> put(key, ArrayList(listOf(val1, val2)))
         key == "ns" -> put(key, val2)
+        val1 is String && val2 is String -> put(key, val1 + val2)
       }
     }
   }
