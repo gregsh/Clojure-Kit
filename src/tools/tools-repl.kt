@@ -49,6 +49,7 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.ActionCallback
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
@@ -71,9 +72,7 @@ import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
 import org.intellij.clojure.nrepl.dumpObject
-import org.intellij.clojure.psi.CFile
-import org.intellij.clojure.psi.CForm
-import org.intellij.clojure.psi.ClojureElementType
+import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
 import org.jetbrains.concurrency.AsyncPromise
 import org.jetbrains.concurrency.Promise
@@ -141,26 +140,30 @@ class ReplExecuteAction : DumbAwareAction() {
     val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile ?: return
     PsiDocumentManager.getInstance(project).commitAllDocuments()
 
-    val ns = if (console == null) file.namespace.nullize(true) else null
+    val hasNamespace = Ref.create(false)
     val text = if (editor.selectionModel.hasSelection()) {
-      editor.selectionModel.getSelectedText(true) ?: ""
+      val text = editor.selectionModel.getSelectedText(true) ?: ""
+      hasNamespace.set(text.contains("(ns "))
+      text
     }
     else {
       val text = editor.document.immutableCharSequence
-      editor.caretModel.allCarets.jbIt().transform {
+      editor.caretModel.allCarets.jbIt().map {
         val elementAt = file.findElementAt(
             if (it.offset > 0 && (it.offset >= text.length || Character.isWhitespace(text[it.offset]))) it.offset - 1
             else it.offset)
         elementAt.parents().filter(CForm::class).last()
       }
           .notNulls()
-          .reduce(StringBuilder()) { sb, o ->
-            if (!sb.isEmpty()) sb.append("\n")
-            else sb.append(o.text)
+          .joinToString(separator = "\n") {
+            if (it.role == Role.NS && (it as? CList)?.first?.name?.let { it == "ns" || it == "in-ns" } == true) {
+              hasNamespace.set(true)
+            }
+            it.text
           }
-          .toString()
     }
-    executeInRepl(project, file, editor, text, ns)
+    val namespace = if (console == null && !hasNamespace.get()) file.namespace.nullize(true) else null
+    executeInRepl(project, file, editor, text, namespace)
   }
 }
 
