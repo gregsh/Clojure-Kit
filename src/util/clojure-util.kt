@@ -19,6 +19,11 @@ package org.intellij.clojure.util
 
 import com.intellij.lang.*
 import com.intellij.lang.parser.GeneratedParserUtilBase
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.command.undo.DocumentReferenceManager
+import com.intellij.openapi.command.undo.UndoManager
+import com.intellij.openapi.editor.Document
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Condition
 import com.intellij.openapi.util.Conditions
 import com.intellij.openapi.util.TextRange
@@ -41,7 +46,7 @@ import kotlin.reflect.KClass
  */
 
 @Suppress("UNCHECKED_CAST")
-inline fun <reified T : Any> Any?.forceCast(): T? = this as? T
+inline fun <reified T : Any> Any?.cast(): T? = this as? T
 
 fun <E> E.isIn(c: Collection<E>) = c.contains(this)
 fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
@@ -125,6 +130,14 @@ fun cljLightTraverser(text: CharSequence,
                       forcedRootType: IElementType? = null): SyntaxTraverser<LighterASTNode> {
   val builder = parseTextLight(language, text, forcedRootType)
   return SyntaxTraverser.lightTraverser(builder).forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }
+}
+
+fun setTextWithoutUndo(project: Project, document: Document, text: String) {
+  WriteCommandAction.runWriteCommandAction(project) {
+    UndoManager.getInstance(project).nonundoableActionPerformed(
+        DocumentReferenceManager.getInstance().create(document), false)
+    document.setText(text)
+  }
 }
 
 private fun parseTextLight(language: Language, text: CharSequence, forcedRootType: IElementType?): PsiBuilder {

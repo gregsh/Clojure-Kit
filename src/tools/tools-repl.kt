@@ -26,7 +26,6 @@ import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.console.*
 import com.intellij.execution.executors.DefaultRunExecutor
-import com.intellij.execution.impl.ConsoleViewImpl
 import com.intellij.execution.impl.ConsoleViewUtil
 import com.intellij.execution.process.*
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -38,8 +37,13 @@ import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.actionSystem.*
+import com.intellij.openapi.application.TransactionGuard
 import com.intellij.openapi.application.WriteAction
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.LogicalPosition
+import com.intellij.openapi.fileTypes.PlainTextLanguage
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectFileIndex
@@ -49,14 +53,12 @@ import com.intellij.openapi.ui.popup.JBPopupFactory
 import com.intellij.openapi.util.ActionCallback
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindowId
 import com.intellij.psi.PsiDocumentManager
-import com.intellij.psi.util.PsiUtilCore
 import com.intellij.remote.BaseRemoteProcessHandler
 import com.intellij.remote.RemoteProcess
 import com.intellij.ui.ColoredListCellRenderer
@@ -68,6 +70,7 @@ import com.intellij.util.containers.JBIterable
 import com.intellij.util.text.UniqueNameGenerator
 import com.intellij.util.text.nullize
 import com.intellij.util.ui.EmptyIcon
+import com.intellij.util.ui.UIUtil
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
@@ -80,13 +83,13 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.*
 import javax.swing.Icon
 import javax.swing.JList
 
 /**
  * @author gregsh
  */
+private val LOG = Logger.getInstance(ReplConnection::class.java)
 
 object ReplConsoleRootType : ConsoleRootType("nrepl", "nREPL Consoles")
 
@@ -126,27 +129,32 @@ class ReplConnectAction : DumbAwareAction() {
 
 class ReplExecuteAction : DumbAwareAction() {
   override fun update(e: AnActionEvent) {
+    val project = e.project
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext)
-    val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
-    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile
-    e.presentation.isEnabledAndVisible = e.project != null && file != null && editor != null &&
-        ScratchFileService.getInstance().getRootType(file.virtualFile) !is IdeConsoleRootType
+    val repl = NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)
+    val file = (repl?.consoleView?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile
+    e.presentation.isEnabledAndVisible = project != null && editor != null &&
+        (file != null && ScratchFileService.getInstance().getRootType(file.virtualFile) !is IdeConsoleRootType ||
+            repl?.inputHandler != null)
   }
 
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext) ?: return
-    val console = ConsoleViewImpl.CONSOLE_VIEW_IN_EDITOR_VIEW.get(editor) as? LanguageConsoleView
-    val file = (console?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile ?: return
+    val repl = NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)
+    val file = (repl?.consoleView?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) ?: return
     PsiDocumentManager.getInstance(project).commitAllDocuments()
 
-    val hasNamespace = Ref.create(false)
-    val text = if (editor.selectionModel.hasSelection()) {
-      val text = editor.selectionModel.getSelectedText(true) ?: ""
-      hasNamespace.set(text.contains("(ns "))
+    var hasNamespace = false
+    var pos = editor.caretModel.logicalPosition
+    val text = if (editor.selectionModel.hasSelection() || file !is CFile) {
+      val text = editor.selectionModel.getSelectedText(true).nullize() ?: editor.document.text
+      hasNamespace = text.contains("(ns ")
+      pos = editor.offsetToLogicalPosition(editor.selectionModel.leadSelectionOffset)
       text
     }
     else {
+      var first = true
       val text = editor.document.immutableCharSequence
       editor.caretModel.allCarets.jbIt().map {
         val elementAt = file.findElementAt(
@@ -156,14 +164,18 @@ class ReplExecuteAction : DumbAwareAction() {
       }
           .notNulls()
           .joinToString(separator = "\n") {
-            if (it.role == Role.NS && (it as? CList)?.first?.name?.let { it == "ns" || it == "in-ns" } == true) {
-              hasNamespace.set(true)
+            if (first) {
+              pos = editor.offsetToLogicalPosition(it.textRange.startOffset)
+              if (it.role == Role.NS && (it as? CList)?.first?.name?.let { it == "ns" || it == "in-ns" } == true) {
+                hasNamespace = false
+              }
             }
+            else first = false
             it.text
           }
     }
-    val namespace = if (console == null && !hasNamespace.get()) file.namespace.nullize(true) else null
-    executeInRepl(project, file, editor, text, namespace)
+    val namespace = if (repl == null && !hasNamespace && file is CFile) file.namespace.nullize(true) else null
+    executeInRepl(project, file.virtualFile, editor, text, namespace, pos)
   }
 }
 
@@ -253,16 +265,32 @@ class ReplActionPromoter : ActionPromoter {
       actions.find { it is ReplExecuteAction }?.let { listOf(it) }
 }
 
-fun executeInRepl(project: Project, file: CFile, editor: Editor, text: String, namespace: String?) {
-  executeInRepl(project, PsiUtilCore.getVirtualFile(file) ?: return) { repl ->
+fun executeInRepl(project: Project, file: VirtualFile, editor: Editor, text: String, namespace: String?, pos: LogicalPosition) {
+  executeInRepl(project, file) { repl ->
     val replEditor = repl.consoleView.consoleEditor
-    if (editor == replEditor || !replEditor.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer) {
-      val command = WriteAction.compute<String, Exception> { replEditor.document.run { val s = getText(); setText(""); s } }
-      repl.sendCommand(command, null)
-      ConsoleHistoryController.addToHistory(repl.consoleView, command)
+    val b = editor == replEditor || !replEditor.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer
+    val code =
+        if (b) WriteAction.compute<String, Exception> { replEditor.document.run { val s = getText(); setText(""); s } }
+        else text
+    val inputHandler = repl.inputHandler
+    if (inputHandler != null) {
+      inputHandler(code)
     }
     else {
-      repl.sendCommand(text, namespace)
+      ConsoleHistoryController.addToHistory(repl.consoleView, code)
+      repl.sendCommand(code) {
+        if (b) {
+          set("line", 1)
+          set("column", 1)
+          set("file", repl.consoleView.virtualFile.path)
+        }
+        else {
+          this.namespace = namespace
+          set("line", pos.line + 1)
+          set("column", pos.column + 1)
+          set("file", file.path)
+        }
+      }
     }
   }
 }
@@ -309,7 +337,7 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConn
   }
   else {
     createNewRunContent(project, title, LOCAL_ICON) {
-      newProcessHandler(project, projectDir?.toIoFile())
+      newProcessHandler(project, title, projectDir?.toIoFile())
     }.done {
       command(it)
     }
@@ -348,6 +376,7 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon,
 
         override fun createConsole(executor: Executor) =
             LanguageConsoleImpl(project, uniqueTitle, ClojureLanguage).apply {
+              prompt = null
               consoleEditor.setFile(virtualFile)
               ConsoleHistoryController(ReplConsoleRootType, title, this).install()
               setExclusive(this, allRepls(project).find { isExclusive(it.consoleView) } == null)
@@ -363,20 +392,23 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon,
 
 class ReplConnection(val repl: NReplClient,
                      var processHandler: ProcessHandler,
-                     var whenConnected: ActionCallback) {
+                     private var whenConnected: ActionCallback) {
   lateinit var consoleView: LanguageConsoleView
   lateinit var processFactory: () -> ProcessHandler
+  var inputHandler: ((String) -> Unit)? = null
+    private set
 
   init {
     whenConnected.doWhenDone { dumpReplInfo() }.doWhenDone { initRepl() }
   }
 
-  fun sendCommand(text: String, namespace: String?) = whenConnected.doWhenDone {
+  fun sendCommand(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.doWhenDone {
     val trimmed = text.trim()
     consoleView.println()
     consoleView.print((consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
     if (!trimmed.isEmpty()) {
-      ConsoleViewUtil.printAsFileType(consoleView, trimmed + "\n", ClojureFileType)
+      ConsoleViewUtil.printAsFileType(consoleView, trimmed, ClojureFileType)
+      consoleView.println()
     }
     if (trimmed.isEmpty()) {
     }
@@ -391,60 +423,103 @@ class ReplConnection(val repl: NReplClient,
       }
       else {
         val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
-        val map = LinkedHashMap<String, String>().apply {
-          put("op", op)
+        eval {
+          this.op = op
           s.traverse().skip(1).split(2, true).forEach {
-            put(s.api.textOf(it[0]).toString().trimStart(':'), s.api.textOf(it[1]).toString()) }
-        }
-        repl.rawAsync(map).whenComplete { result, e ->
-          onCommandCompleted(result, e)
-        }
+            val arg = s.api.textOf(it[0]).toString().trimStart(':')
+            val value = s.api.textOf(it[1]).toString()
+            set(arg, value)
+          }
+          f.invoke(this)
+        }.send().whenComplete(this::onCommandCompleted)
       }
     }
     else
-      (if (namespace != null) repl.evalNsAsync(trimmed, namespace) else repl.evalAsync(trimmed))
-          .whenComplete { result, e -> onCommandCompleted(result, e)
-    }
-    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
+      eval {
+        this.namespace = namespace
+        code = trimmed
+        f.invoke(this)
+      }.send().whenComplete(this::onCommandCompleted)
   }
 
   private fun onCommandCompleted(result: Map<String, Any?>?, e: Throwable?) {
+    consoleView.prompt = result?.get("ns")?.let { "$it=> " } ?: "=> "
     if (e != null) {
-      consoleView.print(ExceptionUtil.getThrowableText(e), ConsoleViewContentType.ERROR_OUTPUT)
+      val cause = ExceptionUtil.getRootCause(e)
+      val message =
+          if (cause is ProcessCanceledException) null
+          else (if (e is ExecutionException && cause == e) e.message else null)
+              ?: ExceptionUtil.getThrowableText(cause)
+      if (message != null) consoleView.print(message, ConsoleViewContentType.ERROR_OUTPUT)
     }
-    else if (result != null) {
-      result["ns"]?.let { consoleView.prompt = "$it=> " }
-      val value = result["value"]
-      val output = result["out"] as? String
-      val error = result["err"] as? String
-      var newline = true
-      for (msg in arrayOf(output, error).filterNotNull()) {
-        if (!newline) consoleView.println()
-        val adjusted =
-            if (msg != error) msg
-            else msg.indexOf(", compiling:(").let {
-              if (it == -1) msg else msg.substring(0, it) + "\n" + msg.substring(it + 2) } + "\n"
-        consoleView.print(adjusted, if (msg == output) ConsoleViewContentType.NORMAL_OUTPUT else ConsoleViewContentType.ERROR_OUTPUT)
-        newline = adjusted.endsWith("\n")
-      }
-      value?.let {
-        if (!newline) consoleView.println()
-        consoleView.print(dumpObject(it), ConsoleViewContentType.NORMAL_OUTPUT)
-      }
-      if (value == null && output == null && error == null) {
-        consoleView.print(dumpObject(result), ConsoleViewContentType.NORMAL_OUTPUT)
+    if (result != null) {
+      val ex = result["ex"]
+      val stacktrace = result["stacktrace"] as? List<*>
+      val value = result["value"] ?: if (ex != null || stacktrace != null) null else result
+      when {
+        value != null ->
+          consoleView.print(dumpObject(value), ConsoleViewContentType.NORMAL_OUTPUT)
+        ex != null ->
+          eval {
+            op = "stacktrace"
+          }.send().whenComplete(this::onCommandCompleted)
+        stacktrace != null ->
+          for (m in stacktrace) {
+            if (m !is Map<*, *>) break
+            val frame = if (m["type"] == "java") "\tat ${m["class"]}.${m["method"]}(${m["file"]}:${m["line"]})"
+              else "\tat ${m["name"]}(${m["file"]}:${m["line"]})"
+            consoleView.printerr(frame)
+          }
       }
     }
-    (consoleView as ConsoleViewImpl).requestScrollingToEnd()
+    scrollToEnd()
   }
 
   private fun initRepl() {
     consoleView.prompt = ((repl.clientInfo["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
-    val onCompleted: (Map<String, Any?>, Throwable) -> Unit = { _, throwable ->
-      onCommandCompleted(null, throwable)
+    eval("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
+        " (clojure.core/map clojure.core/require clojure.main/repl-requires))")
+        .send()
+    scrollToEnd()
+  }
+
+  private fun scrollToEnd() {
+    UIUtil.invokeLaterIfNeeded {
+      (consoleView as? LanguageConsoleImpl)?.scrollToEnd()
     }
-    repl.evalAsync("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
-        " (clojure.core/map clojure.core/require clojure.main/repl-requires))").whenComplete(onCompleted)
+  }
+
+  fun eval(code: String? = null, f: NReplClient.Request.() -> Unit = {}) = repl.eval(code) {
+    f.invoke(this)
+    stdout = { s -> consoleView.print(s, ConsoleViewContentType.NORMAL_OUTPUT) }
+    stderr = { s ->
+      consoleView.print(s.indexOf(", compiling:(").let {
+        if (it == -1) s else s.substring(0, it) + "\n" + s.substring(it + 2)
+      }, ConsoleViewContentType.ERROR_OUTPUT)
+    }
+    stdin = { out ->
+      TransactionGuard.getInstance().submitTransaction(consoleView, null, Runnable {
+        val prevText = consoleView.editorDocument.text
+        val prevLang = consoleView.language
+        val prevPrompt = consoleView.prompt
+        val prevPromptAttrs = consoleView.promptAttributes
+        setTextWithoutUndo(consoleView.project, consoleView.editorDocument, "")
+        consoleView.prompt = "(input) "
+        consoleView.setPromptAttributes(ConsoleViewContentType.USER_INPUT)
+        consoleView.language = PlainTextLanguage.INSTANCE
+        inputHandler = { s ->
+          inputHandler = null
+          val adjusted = if (s.endsWith("\n")) s else s + "\n"
+          consoleView.print(adjusted, ConsoleViewContentType.USER_INPUT)
+          consoleView.prompt = prevPrompt
+          prevPromptAttrs?.let { consoleView.setPromptAttributes(it) }
+          setTextWithoutUndo(consoleView.project, consoleView.editorDocument, prevText)
+          consoleView.language = prevLang
+          out.invoke(adjusted)
+        }
+        scrollToEnd()
+      })
+    }
   }
 
   private fun dumpReplInfo() {
@@ -453,17 +528,17 @@ class ReplConnection(val repl: NReplClient,
 
 }
 
-fun newProcessHandler(project: Project, projectDir: File?): ProcessHandler {
+fun newProcessHandler(project: Project, title: String, projectDir: File?): ProcessHandler {
   val workingDir = projectDir ?: project.baseDir.toIoFile()
   val port = try { FileUtil.loadFile(File(workingDir, ".nrepl-port")).trim().toInt() } catch (e: Exception) { -1 }
   val addressStr = if (port > 0) "Connected to nREPL server running on port $port and host localhost" else null
 
   return try { addressStr?.let { newRemoteProcess(it, true) } } catch(e: Exception) { null }
-      ?: newLocalProcess(workingDir)
+      ?: newLocalProcess(project, title, workingDir)
 }
 
 
-fun newLocalProcess(workingDir: File): ProcessHandler {
+fun newLocalProcess(project: Project, title: String, workingDir: File): ProcessHandler {
   val callback = ActionCallback()
   val repl = NReplClient()
   val tool = Tool.find(workingDir) ?: Lein
@@ -480,8 +555,12 @@ fun newLocalProcess(workingDir: File): ProcessHandler {
             repl.connect(text)
             callback.setDone()
           }
+          catch(e: ExecutionException) {
+            ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, e)
+            callback.setRejected()
+          }
           catch(e: Exception) {
-            onTextAvailable(ProcessEvent(this@apply, ExceptionUtil.getThrowableText(e)), ProcessOutputTypes.STDERR)
+            LOG.error(e)
             callback.setRejected()
           }
         }
@@ -507,8 +586,9 @@ fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler
 
     override fun destroy() {
       if (canDestroy) {
-        repl.evalAsync("(System/exit 0)", repl.toolSession)
-            .handle { t, u -> repl.disconnect() }
+        repl.eval("(System/exit 0)") { session = repl.toolSession }
+            .send()
+            .handle { _, _ -> repl.disconnect() }
       }
       else {
         repl.disconnect()

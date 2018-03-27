@@ -18,8 +18,9 @@
 package org.intellij.clojure.nrepl
 
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.util.ConcurrencyUtil
-import org.intellij.clojure.util.forceCast
+import org.intellij.clojure.util.cast
 import java.io.*
 import java.net.Socket
 import java.net.SocketException
@@ -37,7 +38,7 @@ import kotlin.reflect.KProperty
  */
 private val LOG = Logger.getInstance(NReplClient::class.java)
 
-private object clientID {
+private object ClientID {
   private val id = AtomicLong(0)
   operator fun getValue(thisRef: Any?, property: KProperty<*>) = id.incrementAndGet()
 }
@@ -47,12 +48,12 @@ class NReplClient {
   private var transport: Transport = NOT_CONNECTED
   val isConnected: Boolean get() = transport != NOT_CONNECTED
   fun ping() = isConnected &&
-      try { evalAsync("42").get(5, TimeUnit.SECONDS)["value"] == "42" }
+      try { eval("42").send().get(5, TimeUnit.SECONDS)["value"] == "42" }
       catch (e: IOException) { transport = NOT_CONNECTED; false }
       catch (e: Exception) { false }
 
-  private val nextId: Long by clientID
-  private val callbacks = ConcurrentHashMap<Long, CompletableFuture<Map<String, Any?>>>()
+  private val nextId: Long by ClientID
+  private val callbacks = ConcurrentHashMap<Long, Request>()
   private val partialResponses = HashMap<Long, MutableMap<String, Any?>>()
 
   var mainSession = ""
@@ -68,7 +69,7 @@ class NReplClient {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
       mainSession = createSession()
       toolSession = createSession()
-      clientInfo = describeSession(mainSession)
+      clientInfo = describeSession()
     }
     catch(e: Exception) {
       if (e is SocketException) LOG.warn("nrepl://$host:$port failed: $e")
@@ -82,43 +83,83 @@ class NReplClient {
   fun disconnect() {
     transport.use {
       try {
-        listOf(mainSession, toolSession).forEach { session ->
+        listOf(mainSession, toolSession).forEach { s ->
           mainSession = ""; toolSession = ""
-          if (session != "") {
-            try { closeSessionAsync(session).get(200, TimeUnit.MILLISECONDS) } catch(e: Exception) { }
+          if (s != "") {
+            try { closeSessionAsync { session = s }.get(200, TimeUnit.MILLISECONDS) } catch(e: Exception) { }
           }
         }
       }
       finally {
         transport = NOT_CONNECTED
         try { it.close() } catch(e: Exception) { }
-        clearCallbacks((it as? AsyncTransport)?.closed?.get() ?: Throwable("disconnected"))
+        clearCallbacks((it as? AsyncTransport)?.closed?.get() ?: ProcessCanceledException())
       }
     }
   }
 
-  private fun request(vararg m: kotlin.Pair<String, Any>) = request(mutableMapOf(*m))
-  private fun request(m: MutableMap<String, Any>) = requestAsync(m).get()!!
+  inner class Request {
+    constructor(op: String) { this.op = op }
 
-  private fun requestAsync(vararg m: kotlin.Pair<String, Any>) = requestAsync(mutableMapOf(*m))
-  private fun requestAsync(m: MutableMap<String, Any>): CompletableFuture<Map<String, Any?>> {
+    internal val map = HashMap<String, Any?>()
+    internal val future = CompletableFuture<Map<String, Any?>>()
+    var stdout: ((String) -> Unit)? = null
+    var stderr: ((String) -> Unit)? = null
+    var stdin: (((String) -> Unit) -> Unit)? = null
+
+    var op: String? get() = get("op") as? String; set(op) { set("op", op) }
+    var session: Any? get() = get("session"); set(op) { set("session", op) }
+    var namespace: String? get() = get("ns") as String?; set(op) { set("ns", op) }
+    var code: String? get() = get("code") as String?; set(op) { set("code", op) }
+
+    operator fun get(prop: String) = map[prop]
+    operator fun set(prop: String, value: Any?) { if (value == null) map -= prop else map[prop] = value }
+
+    fun send() = send(this)
+    fun sendAndReceive() = send().get()!!
+  }
+
+
+  private fun send(r: Request): CompletableFuture<Map<String, Any?>> {
     val id = nextId
-    val future = CompletableFuture<Map<String, Any?>>()
-    callbacks.put(id, future)
-    m["id"] = id
-    transport.send(m)
-    return future
+    r["id"] = id
+    callbacks[id] = r
+    transport.send(r.map)
+    return r.future
   }
 
   private fun runCallbacks(o: Any) {
-    val m = o.forceCast<Map<String, Any?>>() ?: clearCallbacks(o as? Throwable ?: Throwable(o.toString())).run { return }
+    val m = o.cast<Map<String, Any?>>() ?: clearCallbacks(o as? Throwable ?: Throwable(o.toString())).run { return }
     val id = m["id"] as? Long ?: return
-    if (m["status"].let { it is List<*> && it.firstOrNull() == "done" }) {
-      val combined = (partialResponses.remove(id) ?: HashMap()).apply { join(m) }
-      callbacks.remove(id)?.complete(combined)
+    val r = callbacks[id] ?: return
+    val status = m["status"].let { (it as? List<*>)?.firstOrNull() ?: it }
+    r.stdout?.let { handler -> (m["out"] as? String)?.let { msg -> handler(msg) } }
+    r.stderr?.let { handler -> (m["err"] as? String)?.let { msg -> handler(msg) } }
+    if (status == "need-input") r.stdin?.let { handler ->
+      handler { input ->
+        request("stdin") {
+          session = r.session
+          stdin = r.stdin
+          stdout = r.stdout
+          set("stdin", input)
+        }.send()
+      }
+    }
+    val keyOp: (String) -> JoinOp = {
+      when (it) {
+        "id", "session", "root-ex" -> JoinOp.SKIP
+        "status" -> JoinOp.OVERRIDE
+        "out" -> if (r.stdout != null) JoinOp.SKIP else JoinOp.JOIN
+        "err" -> if (r.stderr != null) JoinOp.SKIP else JoinOp.JOIN
+        else -> JoinOp.JOIN
+      }
+    }
+    if (status == "done") {
+      val combined = (partialResponses.remove(id) ?: LinkedHashMap()).apply { joinMaps(m, keyOp) }
+      callbacks.remove(id)?.future?.complete(combined)
     }
     else {
-      partialResponses[id] = (partialResponses[id] ?: LinkedHashMap()).apply { join(m) }
+      partialResponses[id] = (partialResponses[id] ?: LinkedHashMap()).apply { joinMaps(m, keyOp) }
     }
   }
 
@@ -126,19 +167,21 @@ class NReplClient {
     val cb = HashMap(callbacks)
     callbacks.clear()
     for (value in cb.values) {
-      value.completeExceptionally(reason)
+      value.future.completeExceptionally(reason)
     }
   }
 
-  private fun MutableMap<String, Any?>.join(m: Map<String, Any?>) {
+  private enum class JoinOp { SKIP, OVERRIDE, JOIN }
+  private fun MutableMap<String, Any?>.joinMaps(m: Map<String, Any?>, keyOp: (String) -> JoinOp = { JoinOp.JOIN }) {
     m.keys.forEach loop@ { key ->
-      if (key == "id" || key == "session" || key == "root-ex") return@loop
       val val1 = get(key)
       val val2 = m[key]
+      val op = keyOp(key)
       when {
-        val1 == null -> put(key, val2)
-        val1 is ArrayList<*> -> val1.forceCast<ArrayList<Any?>>()!!.run { if (val2 is Collection<*>) addAll(val2) else add(val2) }
-        val1 is MutableMap<*, *> && val2 is Map<*, *> -> val1.forceCast<MutableMap<String, Any?>>()!!.join(val2.forceCast<Map<String, Any?>>()!!)
+        op == JoinOp.SKIP -> remove(key)
+        val1 == null || op == JoinOp.OVERRIDE -> put(key, val2)
+        val1 is ArrayList<*> -> val1.cast<ArrayList<Any?>>()!!.run { if (val2 is Collection<*>) addAll(val2) else add(val2) }
+        val1 is MutableMap<*, *> && val2 is Map<*, *> -> val1.cast<MutableMap<String, Any?>>()!!.joinMaps(val2.cast()!!)
         key == "value" -> put(key, ArrayList(listOf(val1, val2)))
         key == "ns" -> put(key, val2)
         val1 is String && val2 is String -> put(key, val1 + val2)
@@ -146,15 +189,15 @@ class NReplClient {
     }
   }
 
-  fun createSession() = request("op" to "clone").let { it["new-session"] as String }
-  fun closeSessionAsync(session: String) = requestAsync("op" to "close", "session" to session)
-  fun describeSession(session: String = mainSession) = request("op" to "describe", "session" to session)
+  fun createSession() = request("clone").sendAndReceive().let { it["new-session"] as String }
+  fun closeSessionAsync(f: Request.() -> Unit = {}) = request("close", f).send()
+  fun describeSession(f: Request.() -> Unit = {}) = request("describe", f).sendAndReceive()
 
-  fun evalAsync(code: String, session: Any = mainSession) =
-      requestAsync("op" to "eval", "session" to session, "code" to code)
-  fun evalNsAsync(code: String, namespace: String, session: Any = mainSession) =
-      requestAsync("op" to "eval", "session" to session, "ns" to namespace, "code" to code)
-  fun rawAsync(m: Map<String, Any>) = requestAsync(LinkedHashMap(m).apply { put("session", m["session"] ?: mainSession) })
+  fun eval(code: String? = null, f: Request.() -> Unit = {}) = request("eval", { this.code = code; f.invoke(this) })
+  fun request(op: String, f: Request.() -> Unit = {}): Request = Request(op).apply {
+    f()
+    if (session == null && mainSession != "") session = mainSession
+  }
 }
 
 fun dumpObject(o: Any?) = StringBuilder().let { sb ->
@@ -216,7 +259,7 @@ class AsyncTransport(private val delegate: Transport, private val responseHandle
 
   override fun close() {
     try {
-      closed.compareAndSet(null, Throwable("closed"))
+      closed.compareAndSet(null, ProcessCanceledException())
       delegate.close()
     }
     catch(t: Throwable) {
