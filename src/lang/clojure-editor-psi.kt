@@ -504,7 +504,7 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
         val oneElement = theOnlyOneElement
         if (oneElement is NavigatablePsiElement) {
           oneElement.navigate(true)
-          myPopup.cancel()
+          myPopup?.cancel()
         }
       }
 
