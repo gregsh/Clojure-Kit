@@ -74,6 +74,7 @@ import com.intellij.util.ui.UIUtil
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
+import org.intellij.clojure.nrepl.PING_DELAY
 import org.intellij.clojure.nrepl.dumpObject
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
@@ -606,7 +607,7 @@ fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler
       while (repl.isConnected) {
         repl.ping()
         if (!repl.isConnected) break
-        synchronized(pingLock) { pingLock.wait(1000L) }
+        synchronized(pingLock) { pingLock.wait(PING_DELAY) }
       }
       return exitValue()
     }

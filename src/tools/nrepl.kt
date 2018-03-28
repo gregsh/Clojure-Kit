@@ -37,6 +37,8 @@ import kotlin.reflect.KProperty
  * @author gregsh
  */
 private val LOG = Logger.getInstance(NReplClient::class.java)
+val PING_TIMEOUT = 5_000L
+val PING_DELAY = 30_000L
 
 private object ClientID {
   private val id = AtomicLong(0)
@@ -48,7 +50,7 @@ class NReplClient {
   private var transport: Transport = NOT_CONNECTED
   val isConnected: Boolean get() = transport != NOT_CONNECTED
   fun ping() = isConnected &&
-      try { eval("42").send().get(5, TimeUnit.SECONDS)["value"] == "42" }
+      try { eval("42").send().get(PING_TIMEOUT, TimeUnit.MILLISECONDS)["value"] == "42" }
       catch (e: IOException) { transport = NOT_CONNECTED; false }
       catch (e: Exception) { false }
 
