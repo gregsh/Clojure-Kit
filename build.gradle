@@ -1,42 +1,44 @@
 buildscript {
-  ext.kotlin_version=kotlinVersion
   repositories {
     mavenCentral()
   }
   dependencies {
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
   }
 }
 
 plugins {
-  id 'org.jetbrains.intellij' version "0.2.17"
+  id "org.jetbrains.intellij" version "0.2.17"
 }
 
 version = "${version}"
-defaultTasks 'clean', 'artifacts', 'test'
+defaultTasks "clean", "artifacts", "test"
 
 allprojects {
-  apply plugin: 'java'
+  apply plugin: "java"
   apply plugin: "kotlin"
 
   sourceCompatibility = javaVersion
   targetCompatibility = javaVersion
 
+  tasks.compileKotlin.kotlinOptions.apiVersion = kotlinApiVersion
+  tasks.compileTestKotlin.kotlinOptions.apiVersion = kotlinApiVersion
+
   sourceSets {
     main {
-      java.srcDirs 'src', 'gen'
-      kotlin.srcDirs 'src'
-      resources.srcDirs 'resources'
+      java.srcDirs "src", "gen"
+      kotlin.srcDirs "src"
+      resources.srcDirs "resources"
     }
     test {
-      kotlin.srcDirs 'tests'
+      kotlin.srcDirs "tests"
     }
   }
-  apply plugin: 'org.jetbrains.intellij'
+  apply plugin: "org.jetbrains.intellij"
   intellij {
     version ideaVersion
-    type 'IC'
-    plugins 'copyright'
+    type "IC"
+    plugins "copyright"
     updateSinceUntilBuild false
     downloadSources = false
   }
@@ -61,18 +63,18 @@ test {
   }
 }
 
-task plugin_jar(type: Jar, dependsOn: [rootProject.tasks['assemble']]) {
-  baseName = 'clojure-kit'
+task plugin_jar(type: Jar, dependsOn: [rootProject.tasks["assemble"]]) {
+  baseName = "clojure-kit"
   destinationDir = file(artifactsPath)
   manifest { from "$rootDir/resources/META-INF/MANIFEST.MF" }
   from(rootProject.sourceSets.main.output)
 }
 
 task plugin_zip(type: Zip, dependsOn: [plugin_jar]) {
-  baseName = 'ClojureKit'
+  baseName = "ClojureKit"
   destinationDir = file(artifactsPath)
-  from(tasks['plugin_jar'].outputs) {
-    into '/ClojureKit/lib'
+  from(tasks["plugin_jar"].outputs) {
+    into "/ClojureKit/lib"
   }
 }
 
