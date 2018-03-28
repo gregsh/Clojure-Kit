@@ -49,9 +49,10 @@ class NReplClient {
 
   private var transport: Transport = NOT_CONNECTED
   val isConnected: Boolean get() = transport != NOT_CONNECTED
-  fun ping() = isConnected &&
-      try { eval("42").send().get(PING_TIMEOUT, TimeUnit.MILLISECONDS)["value"] == "42" }
-      catch (e: IOException) { transport = NOT_CONNECTED; false }
+  fun ping() = isConnected && pingImpl()
+
+  private fun pingImpl(session: String = mainSession) =
+      try { eval("42") { this.session = session }.get(PING_TIMEOUT, TimeUnit.MILLISECONDS)["value"] == "42" }
       catch (e: Exception) { false }
 
   private val nextId: Long by ClientID
@@ -62,16 +63,14 @@ class NReplClient {
     private set
   var toolSession = ""
     private set
-  var clientInfo = emptyMap<String, Any?>()
-    private set
+  var defaultRequest: Request? = null
 
   fun connect(host: String, port: Int) {
     if (isConnected) throw IllegalStateException("Already connected")
     try {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
-      mainSession = createSession()
-      toolSession = createSession()
-      clientInfo = describeSession()
+      mainSession = if (mainSession != "" && pingImpl(mainSession)) mainSession else createSession()
+      toolSession = if (toolSession != "" && pingImpl(toolSession)) toolSession else createSession()
     }
     catch(e: Exception) {
       if (e is SocketException) LOG.warn("nrepl://$host:$port failed: $e")
@@ -81,21 +80,26 @@ class NReplClient {
     }
   }
 
-
   fun disconnect() {
-    transport.use {
+    try {
+      defaultRequest = null
+      try { closeSession(mainSession) } catch (e: Exception) { }
+      try { closeSession(toolSession) } catch (e: Exception) { }
+    }
+    finally {
+      val tmp = transport
+      transport = NOT_CONNECTED
+      val reason = (tmp as? AsyncTransport)?.closed?.get() ?: ProcessCanceledException()
       try {
-        listOf(mainSession, toolSession).forEach { s ->
-          mainSession = ""; toolSession = ""
-          if (s != "") {
-            try { closeSessionAsync { session = s }.get(200, TimeUnit.MILLISECONDS) } catch(e: Exception) { }
-          }
-        }
+        tmp.close()
       }
+      catch (ignore: Throwable) { }
       finally {
-        transport = NOT_CONNECTED
-        try { it.close() } catch(e: Exception) { }
-        clearCallbacks((it as? AsyncTransport)?.closed?.get() ?: ProcessCanceledException())
+        try {
+          clearCallbacks(reason)
+        }
+        catch (ignore: Throwable) {
+        }
       }
     }
   }
@@ -121,19 +125,28 @@ class NReplClient {
     fun sendAndReceive() = send().get()!!
   }
 
-
   private fun send(r: Request): CompletableFuture<Map<String, Any?>> {
     val id = nextId
     r["id"] = id
     callbacks[id] = r
-    transport.send(r.map)
+    try {
+      transport.send(r.map)
+    }
+    catch (ex: IOException) {
+      try { transport.close() } catch (ignore: Throwable) {}
+      transport = NOT_CONNECTED
+      r.future.completeExceptionally(ex)
+    }
+    catch (ex: Throwable) {
+      r.future.completeExceptionally(ex)
+    }
     return r.future
   }
 
-  private fun runCallbacks(o: Any) {
+  private fun runCallbacks(o: Any?) {
     val m = o.cast<Map<String, Any?>>() ?: clearCallbacks(o as? Throwable ?: Throwable(o.toString())).run { return }
     val id = m["id"] as? Long ?: return
-    val r = callbacks[id] ?: return
+    val r = callbacks[id] ?: defaultRequest ?: return
     val status = m["status"].let { (it as? List<*>)?.firstOrNull() ?: it }
     r.stdout?.let { handler -> (m["out"] as? String)?.let { msg -> handler(msg) } }
     r.stderr?.let { handler -> (m["err"] as? String)?.let { msg -> handler(msg) } }
@@ -192,10 +205,10 @@ class NReplClient {
   }
 
   fun createSession() = request("clone").sendAndReceive().let { it["new-session"] as String }
-  fun closeSessionAsync(f: Request.() -> Unit = {}) = request("close", f).send()
-  fun describeSession(f: Request.() -> Unit = {}) = request("describe", f).sendAndReceive()
+  fun closeSession(session: String, f: Request.() -> Unit = {}) = request("close") { this.session = session; f(this) }.send()
+  fun describeSession(f: Request.() -> Unit = {}) = request("describe", f).send()
+  fun eval(code: String? = null, f: Request.() -> Unit = {}) = request("eval") { this.code = code; f(this) }.send()
 
-  fun eval(code: String? = null, f: Request.() -> Unit = {}) = request("eval", { this.code = code; f.invoke(this) })
   fun request(op: String, f: Request.() -> Unit = {}): Request = Request(op).apply {
     f()
     if (session == null && mainSession != "") session = mainSession
@@ -232,7 +245,7 @@ val NOT_CONNECTED = object : Transport() {
   override fun send(message: Any) = throw IllegalStateException()
 }
 
-class AsyncTransport(private val delegate: Transport, private val responseHandler: (Any) -> Any) : Transport() {
+class AsyncTransport(private val delegate: Transport, private val responseHandler: (Any?) -> Any) : Transport() {
   companion object {
     private val threadPool = Executors.newCachedThreadPool(ConcurrencyUtil.newNamedThreadFactory("clojure-kit-nrepl", true, Thread.NORM_PRIORITY))!!
   }
@@ -243,14 +256,18 @@ class AsyncTransport(private val delegate: Transport, private val responseHandle
       val response = try {
         delegate.recv()
       }
-      catch (t: Throwable) {
-        closed.set(t); t
-      } ?: continue
+      catch (ex: Throwable) {
+        closed.set(ex)
+        ex
+      }
       try {
         responseHandler(response)
       }
-      catch (t: Throwable) {
-        try { LOG.error(t) } catch (s: Throwable) { }
+      catch (ex: Throwable) {
+        try {
+          LOG.error(ex)
+        }
+        catch (ignore: Throwable) {}
       }
     }
   }!!

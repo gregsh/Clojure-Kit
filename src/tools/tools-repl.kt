@@ -123,7 +123,7 @@ class ReplConnectAction : DumbAwareAction() {
     val port = StringUtil.parseInt(matcher.groupValues[2], -1)
     val addressString = "Connected to nREPL server running on port $port and host $host"
     createNewRunContent(project, "REPL [$host:$port]", REMOTE_ICON) {
-      newRemoteProcess(addressString, false)
+      newRemoteProcess(addressString)
     }
   }
 }
@@ -279,7 +279,7 @@ fun executeInRepl(project: Project, file: VirtualFile, editor: Editor, text: Str
     }
     else {
       ConsoleHistoryController.addToHistory(repl.consoleView, code)
-      repl.sendCommand(code) {
+      repl.eval(code) {
         if (b) {
           set("line", 1)
           set("column", 1)
@@ -323,8 +323,14 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConn
       val newProcess = try {
         oldRepl.processFactory()
       }
-      catch(e: ExecutionException) {
-        ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, e)
+      catch (ex: Exception) {
+        val cause = ExceptionUtil.getRootCause(ex)
+        if (cause is IOException || ex is ExecutionException) {
+          ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, cause)
+        }
+        else {
+          LOG.error(ex)
+        }
         return
       }
       repl.consoleView.attachToProcess(newProcess)
@@ -399,14 +405,10 @@ class ReplConnection(val repl: NReplClient,
   var inputHandler: ((String) -> Unit)? = null
     private set
 
-  init {
-    whenConnected.doWhenDone { dumpReplInfo() }.doWhenDone { initRepl() }
-  }
-
-  fun sendCommand(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.doWhenDone {
+  fun eval(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.doWhenDone {
     val trimmed = text.trim()
     consoleView.println()
-    consoleView.print((consoleView.prompt ?: ""), ConsoleViewContentType.NORMAL_OUTPUT)
+    consoleView.print((consoleView.prompt ?: ""), consoleView.promptAttributes ?: ConsoleViewContentType.USER_INPUT)
     if (!trimmed.isEmpty()) {
       ConsoleViewUtil.printAsFileType(consoleView, trimmed, ClojureFileType)
       consoleView.println()
@@ -420,11 +422,17 @@ class ReplConnection(val repl: NReplClient,
       val idx = text.indexOfFirst { Character.isWhitespace(it) }
       val op = if (idx == -1) text.substring(1) else text.substring(1, idx)
       if (op.isIn(setOf("", "help", "?"))) {
-        consoleView.println("operations:\n" + dumpObject(repl.clientInfo["ops"]))
+        repl.describeSession().whenComplete { result, error ->
+          if (error != null) {
+            consoleView.printerr(error.toString())
+          }
+          consoleView.println(dumpObject(result))
+          scrollToEnd()
+        }
       }
       else {
         val s = cljLightTraverser(text.substring(idx + 1)).expandTypes { it !is ClojureElementType }
-        eval {
+        evalImpl {
           this.op = op
           s.traverse().skip(1).split(2, true).forEach {
             val arg = s.api.textOf(it[0]).toString().trimStart(':')
@@ -432,25 +440,27 @@ class ReplConnection(val repl: NReplClient,
             set(arg, value)
           }
           f.invoke(this)
-        }.send().whenComplete(this::onCommandCompleted)
+        }.whenComplete(this::onCommandCompleted)
       }
     }
     else
-      eval {
+      evalImpl {
         this.namespace = namespace
         code = trimmed
         f.invoke(this)
-      }.send().whenComplete(this::onCommandCompleted)
+      }.whenComplete(this::onCommandCompleted)
   }
 
-  private fun onCommandCompleted(result: Map<String, Any?>?, e: Throwable?) {
-    consoleView.prompt = result?.get("ns")?.let { "$it=> " } ?: "=> "
-    if (e != null) {
-      val cause = ExceptionUtil.getRootCause(e)
-      val message =
-          if (cause is ProcessCanceledException) null
-          else (if (e is ExecutionException && cause == e) e.message else null)
-              ?: ExceptionUtil.getThrowableText(cause)
+  private fun onCommandCompleted(result: Map<String, Any?>?, error: Throwable?) {
+    updatePrompt(result?.get("ns") as? String)
+    if (error != null) {
+      val cause = ExceptionUtil.getRootCause(error)
+      val message: String? = when {
+        cause is ProcessCanceledException -> null
+        cause is IOException -> error.message.nullize() ?: ExceptionUtil.getThrowableText(cause)
+        error is ExecutionException && cause == error -> error.message.nullize() ?: ExceptionUtil.getThrowableText(cause)
+        else -> ExceptionUtil.getThrowableText(cause)
+      }
       if (message != null) consoleView.print(message, ConsoleViewContentType.ERROR_OUTPUT)
     }
     if (result != null) {
@@ -461,9 +471,9 @@ class ReplConnection(val repl: NReplClient,
         value != null ->
           consoleView.print(dumpObject(value), ConsoleViewContentType.NORMAL_OUTPUT)
         ex != null ->
-          eval {
+          evalImpl {
             op = "stacktrace"
-          }.send().whenComplete(this::onCommandCompleted)
+          }.whenComplete(this::onCommandCompleted)
         stacktrace != null ->
           for (m in stacktrace) {
             if (m !is Map<*, *>) break
@@ -473,15 +483,51 @@ class ReplConnection(val repl: NReplClient,
           }
       }
     }
+    if (error != null && !repl.isConnected && processHandler is BaseRemoteProcessHandler<*> &&
+        !processHandler.isProcessTerminated && !processHandler.isProcessTerminated) {
+      processHandler.detachProcess()
+    }
     scrollToEnd()
   }
 
-  private fun initRepl() {
-    consoleView.prompt = ((repl.clientInfo["aux"] as? Map<*, *>)?.get("current-ns") as? String)?.let { "$it=> " } ?: "=> "
-    eval("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
+  private fun updatePrompt(namespace: String?) {
+    consoleView.prompt = namespace?.let { "$it=> " } ?: "=> "
+  }
+
+  fun connect(hostPort: String) {
+    repl.connect(hostPort)
+    val info = repl.describeSession().get() as? Map<*, *> ?: emptyMap<Any, Any>()
+    val versions = JBIterable.from((info["versions"] as? Map<*, *>)?.entries)
+        .append((info["aux"] as? Map<*, *>)?.entries)
+        .filter { it.value is Map<*, *> }
+        .map {
+          val version = (it.value as Map<*, *>)["version-string"]
+          if (version != null) "${it.key}:$version" else null
+        }.notNulls().joinToString(", ")
+    if (versions.isNotEmpty()) {
+      consoleView.println(versions)
+    }
+    updatePrompt((info["aux"] as? Map<*, *>)?.get("current-ns") as? String)
+    if (processHandler is BaseRemoteProcessHandler<*>) {
+      evalImpl {
+        op = "out-subscribe"
+        repl.defaultRequest = this
+      }.get()
+    }
+    evalImpl("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
         " (clojure.core/map clojure.core/require clojure.main/repl-requires))")
-        .send()
+        .get()
     scrollToEnd()
+  }
+
+  fun disconnect(destroyed: Boolean) {
+    if (processHandler is BaseRemoteProcessHandler<*> && !destroyed) {
+      evalImpl {
+        op = "out-unsubscribe"
+        repl.defaultRequest = null
+      }
+    }
+    repl.disconnect()
   }
 
   private fun scrollToEnd() {
@@ -490,7 +536,7 @@ class ReplConnection(val repl: NReplClient,
     }
   }
 
-  fun eval(code: String? = null, f: NReplClient.Request.() -> Unit = {}) = repl.eval(code) {
+  private fun evalImpl(code: String? = null, f: NReplClient.Request.() -> Unit = {}) = repl.eval(code) {
     f.invoke(this)
     stdout = { s -> consoleView.print(s, ConsoleViewContentType.NORMAL_OUTPUT) }
     stderr = { s ->
@@ -522,11 +568,6 @@ class ReplConnection(val repl: NReplClient,
       })
     }
   }
-
-  private fun dumpReplInfo() {
-    consoleView.println("session description:\n${dumpObject(repl.clientInfo)}")
-  }
-
 }
 
 fun newProcessHandler(project: Project, title: String, projectDir: File?): ProcessHandler {
@@ -534,7 +575,7 @@ fun newProcessHandler(project: Project, title: String, projectDir: File?): Proce
   val port = try { FileUtil.loadFile(File(workingDir, ".nrepl-port")).trim().toInt() } catch (e: Exception) { -1 }
   val addressStr = if (port > 0) "Connected to nREPL server running on port $port and host localhost" else null
 
-  return try { addressStr?.let { newRemoteProcess(it, true) } } catch(e: Exception) { null }
+  return try { addressStr?.let { newRemoteProcess(it) } } catch(e: Exception) { null }
       ?: newLocalProcess(project, title, workingDir)
 }
 
@@ -545,7 +586,8 @@ fun newLocalProcess(project: Project, title: String, workingDir: File): ProcessH
   val tool = Tool.find(workingDir) ?: Lein
   return OSProcessHandler(tool.getRepl().withWorkDirectory(workingDir.path)).apply {
     ProcessTerminatedListener.attach(this)
-    putUserData(NREPL_CLIENT_KEY, ReplConnection(repl, this, callback))
+    val replConnection = ReplConnection(repl, this, callback)
+    putUserData(NREPL_CLIENT_KEY, replConnection)
     addProcessListener(object : ProcessAdapter() {
       override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
         val text = event.text ?: return
@@ -553,32 +595,36 @@ fun newLocalProcess(project: Project, title: String, workingDir: File): ProcessH
         (event.source as ProcessHandler).removeProcessListener(this)
         executeTask {
           try {
-            repl.connect(text)
+            replConnection.connect(text)
             callback.setDone()
           }
-          catch(e: ExecutionException) {
-            ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, e)
-            callback.setRejected()
-          }
-          catch(e: Exception) {
-            LOG.error(e)
-            callback.setRejected()
+          catch(ex: Exception) {
+            val cause = ExceptionUtil.getRootCause(ex)
+            try {
+              if (cause is IOException || ex is ExecutionException) {
+                ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, cause)
+              }
+              else {
+                LOG.error(ex)
+              }
+            }
+            finally {
+              callback.setRejected()
+            }
           }
         }
       }
-    })
-    addProcessListener (object : ProcessAdapter() {
+
       override fun processWillTerminate(event: ProcessEvent, willBeDestroyed: Boolean) {
-        repl.disconnect()
+        replConnection.disconnect(willBeDestroyed)
       }
     })
   }
 }
 
-fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler {
+fun newRemoteProcess(addressString: String): ProcessHandler {
   val callback = ActionCallback()
   val repl = NReplClient()
-  repl.connect(addressString)
 
   val emptyIn = object : InputStream() { override fun read() = -1 }
   val emptyOut = object : OutputStream() { override fun write(b: Int) = Unit }
@@ -586,14 +632,6 @@ fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler
   val process = object : RemoteProcess() {
 
     override fun destroy() {
-      if (canDestroy) {
-        repl.eval("(System/exit 0)") { session = repl.toolSession }
-            .send()
-            .handle { _, _ -> repl.disconnect() }
-      }
-      else {
-        repl.disconnect()
-      }
     }
 
     override fun exitValue(): Int {
@@ -618,27 +656,40 @@ fun newRemoteProcess(addressString: String, canDestroy: Boolean): ProcessHandler
     override fun getInputStream() = emptyIn
     override fun killProcessTree() = false
   }
-  return object : BaseRemoteProcessHandler<RemoteProcess>(process, addressString, null) {
+  val processHandler = object : BaseRemoteProcessHandler<RemoteProcess>(process, addressString, null) {
+    private val replConnection: ReplConnection get() = NREPL_CLIENT_KEY.get(this)
+
     override fun startNotify() {
       super.startNotify()
       callback.setDone()
     }
 
-    override fun isSilentlyDestroyOnClose() = !canDestroy
+    override fun isSilentlyDestroyOnClose() = false
 
     override fun detachIsDefault() = true
 
-    override fun detachProcessImpl() {
+    override fun destroyProcess() {
       executeTask {
-        repl.disconnect()
+        replConnection.repl.eval("(System/exit 0)") { session = repl.toolSession }
+            .handle { _, _ -> replConnection.disconnect(true) }
         synchronized(pingLock) { pingLock.notifyAll() }
       }
       super.detachProcessImpl()
     }
-  }.apply {
-    ProcessTerminatedListener.attach(this)
-    putUserData(NREPL_CLIENT_KEY, ReplConnection(repl, this, callback))
+
+    override fun detachProcessImpl() {
+      executeTask {
+        replConnection.disconnect(false)
+        synchronized(pingLock) { pingLock.notifyAll() }
+        replConnection.consoleView.println("\nDisconnected")
+      }
+      super.detachProcessImpl()
+    }
   }
+  val replConnection = ReplConnection(repl, processHandler, callback)
+  processHandler.putUserData(NREPL_CLIENT_KEY, replConnection)
+  replConnection.connect(addressString)
+  return processHandler
 }
 
 private fun NReplClient.connect(portHost: String) {

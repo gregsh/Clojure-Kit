@@ -91,7 +91,7 @@ fun VirtualFile.toIoFile() = VfsUtil.virtualToIoFile(this)
 
 @Suppress("UNCHECKED_CAST")
 fun <T> JBIterable<T?>.notNulls(): JBIterable<T> = filter { it != null } as JBIterable<T>
-fun <T: Any, E: Any> JBIterable<T>.filter(c : KClass<E>) = filter(c.java)
+fun <T: Any?, E: Any> JBIterable<T>.filter(c : KClass<E>) = filter(c.java)
 
 fun ASTNode?.iterate(): JBIterable<ASTNode> =
     if (this == null) JBIterable.empty() else cljNodeTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
