@@ -628,7 +628,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
 class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
 
   companion object {
-    private val OPTION = Option("clojure.parameter.hints", "Show parameter names", true)
+    private val OPTION = Option("clojure.parameter.hints", "Show parameter names", false)
   }
 
   override fun getParameterHints(element: PsiElement): List<InlayInfo> {
