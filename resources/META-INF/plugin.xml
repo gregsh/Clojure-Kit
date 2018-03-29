@@ -15,6 +15,11 @@
   <change-notes>
     <![CDATA[
     <ul>
+      <li>REPL: stdin/stdout/stderr support</li>
+      <li>REPL: use file ns when evaluating from a file</li>
+      <li>Editor: Copy Reference action</li>
+      <li>Editor: splice at caret position</li>
+      <li>Editor: error recovery in case of extra closing paren</li>
       <li>IntelliJ Platform 2018.1 API compatibility</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>

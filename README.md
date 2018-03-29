@@ -39,6 +39,15 @@ to redirect all commands to one specific REPL.
 
 Change log
 ==========
+
+0.7.3
+
+* REPL: stdin/stdout/stderr support
+* REPL: use file ns when evaluating from a file
+* Editor: Copy Reference action
+* Editor: splice at caret position
+* Editor: error recovery in case of extra closing paren
+
 0.7.2
 
 * IntelliJ Platform 2018.1 API compatibility
