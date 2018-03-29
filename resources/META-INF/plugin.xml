@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.7.3-snapshot</version>
+  <version>0.7.4-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="171.3780"/>
 
@@ -15,12 +15,7 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>REPL: stdin/stdout/stderr support</li>
-      <li>REPL: use file ns when evaluating from a file</li>
-      <li>Editor: Copy Reference action</li>
-      <li>Editor: splice at caret position</li>
-      <li>Editor: error recovery in case of extra closing paren</li>
-      <li>IntelliJ Platform 2018.1 API compatibility</li>
+      <li></li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>
