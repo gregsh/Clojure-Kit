@@ -19,6 +19,7 @@ package org.intellij.clojure.util
 
 import com.intellij.lang.*
 import com.intellij.lang.parser.GeneratedParserUtilBase
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.DocumentReferenceManager
 import com.intellij.openapi.command.undo.UndoManager
@@ -55,6 +56,8 @@ fun <E: Any> E?.asListOrEmpty() = listOfNotNull(this)
 fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
 fun <T> Array<T>?.jbIt() = if (this == null) JBIterable.empty() else JBIterable.of(*this)
 
+fun <T> readAction(block : () -> T) = ReadAction.compute<T, RuntimeException> { block.invoke() }
+
 fun PsiElement?.isAncestorOf(o: PsiElement) = PsiTreeUtil.isAncestor(this, o, false)
 fun <T : PsiElement> PsiElement?.findParent(c: KClass<T>) = PsiTreeUtil.getParentOfType(this, c.java)
 fun <T : PsiElement> PsiElement?.findChild(c: KClass<T>) = PsiTreeUtil.getChildOfType(this, c.java)
@@ -73,7 +76,7 @@ val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
 val PsiElement?.thisForm: CForm? get() = (this as? CForm ?: findParent(CForm::class)).let {
   ((it as? CSymbol)?.parent as? CSymbol ?: it).let { it?.parent as? CSForm ?: it } }
 val PsiElement?.parentForm: CForm? get() = thisForm.findParent(CForm::class)
-val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.parentForm, { it.parentForm })
+val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.thisForm) { it.parentForm }
 val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)
 fun IElementType?.wsOrComment() = this != null && (ClojureTokens.WHITESPACES.contains(this) || ClojureTokens.COMMENTS.contains(this))
 
@@ -98,10 +101,11 @@ fun ASTNode?.iterate(): JBIterable<ASTNode> =
 
 fun CComposite?.iterate(): JBIterable<PsiElement> = (this as PsiElement?).iterate()
 
-fun PsiElement?.iterate(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty()
-    else if (this is CFile) cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
-    else firstChild?.siblings() ?: JBIterable.empty()
+fun PsiElement?.iterate(): JBIterable<PsiElement> = when {
+  this == null -> JBIterable.empty()
+  this is CFile -> cljTraverser().expandAndSkip(Conditions.equalTo(this)).traverse()
+  else -> firstChild?.siblings() ?: JBIterable.empty()
+}
 fun <E> SyntaxTraverser<E>.iterate(e: E) = withRoot(e).expandAndSkip(Conditions.equalTo(e)).traverse()
 fun <T> Iterator<T>.safeNext(): T? = if (hasNext()) next() else null
 
@@ -111,13 +115,13 @@ fun PsiElement?.iterateRCAware(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverserRCAware().expandAndSkip(Conditions.equalTo(this)).traverse()
 
 fun PsiElement?.siblings(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else JBIterable.generate(this, { it.nextSibling }).notNulls()
+    if (this == null) JBIterable.empty() else JBIterable.generate(this) { it.nextSibling }.notNulls()
 
 fun PsiElement?.prevSiblings(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else JBIterable.generate(this, { it.prevSibling }).notNulls()
+    if (this == null) JBIterable.empty() else JBIterable.generate(this) { it.prevSibling }.notNulls()
 
-fun PsiElement?.parents(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else SyntaxTraverser.psiApi().parents(this)
+fun PsiElement?.parents(): JBIterable<PsiElement> = SyntaxTraverser.psiApi().parents(this)
+fun PsiElement?.contexts(): JBIterable<PsiElement> = JBIterable.generate(this) { it.context }
 
 fun _cljTraverser(): SyntaxTraverser<PsiElement> = SyntaxTraverser.psiTraverser()
     .forceDisregardTypes { it == GeneratedParserUtilBase.DUMMY_BLOCK }

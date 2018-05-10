@@ -192,7 +192,7 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
       if (o is PsiFile) return true
       if (o !is CForm) return false
       val count = o.parentForms.size()
-      return count == 0 || o.asDef != null
+      return count < 2 || o.asDef != null
     }
   }
 

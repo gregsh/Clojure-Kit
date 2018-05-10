@@ -18,6 +18,8 @@
 package org.intellij.clojure.psi
 
 import com.intellij.psi.NavigatablePsiElement
+import com.intellij.psi.PsiCodeFragment
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.impl.source.tree.LeafPsiElement
 import com.intellij.psi.tree.IElementType
@@ -56,6 +58,10 @@ interface CFile : PsiFile {
   val namespace: String
 
   fun defs(dialect: Dialect = Dialect.CLJ): JBIterable<CList>
+}
+
+interface CCodeFragment : CFile, PsiCodeFragment {
+  fun setContext(context: PsiElement?)
 }
 
 interface IDef {

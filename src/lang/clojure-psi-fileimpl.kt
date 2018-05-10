@@ -23,6 +23,7 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFileWithId
 import com.intellij.psi.*
+import com.intellij.psi.impl.source.DummyHolder
 import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.stubs.StubTreeLoader
@@ -48,7 +49,7 @@ private val ALL: Set<String> = setOf("* all *")
 val PRIVATE_META = "#private"
 val TYPE_META = "#typeHint"
 
-class CFileImpl(viewProvider: FileViewProvider, language: Language) :
+open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     PsiFileBase(viewProvider, language), CFile {
 
   override fun getFileType() = ClojureFileType
@@ -137,8 +138,11 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
   }
 
   override fun processDeclarations(processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
-    val placeFile = place.containingFile.originalFile as CFileImpl
-    val placeNs = (placeFile as? CFile)?.namespace
+    val context = context
+    val placeInFile = lastParent ?: place
+    val placeCF = placeInFile.containingFile.originalFile
+    val placeFile = ((placeCF as? DummyHolder)?.context?.containingFile ?: placeCF) as? CFileImpl ?: return true
+    val placeNs = placeFile.namespace
     val namespace = namespace
     val publicOnly = language == ClojureLanguage && namespace != placeNs
     val defService = ClojureDefinitionService.getInstance(project)
@@ -172,7 +176,7 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       return true
     }
 
-    val placeOffset = place.textRange.startOffset
+    val placeOffset = placeInFile.textRange.startOffset
     val inMacro = (place.parent as? CList)?.first?.let {
       !it.textRange.containsOffset(placeOffset) && it.resolveInfo()?.type == "defmacro"
     } ?: false
@@ -186,7 +190,8 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
 
     val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
     if (!processImports(processor, state, refText, placeOffset, langKind, isQualifier, defService)) return false
-    return true
+    val contextCFile = context?.containingFile as? CFileImpl
+    return contextCFile == null || contextCFile.processDeclarations(processor, state, context, place)
   }
 
   internal fun processImports(processor: PsiScopeProcessor, state: ResolveState,
@@ -267,41 +272,44 @@ class CFileImpl(viewProvider: FileViewProvider, language: Language) :
         .filter { it.aliasSym != null }
         .associateBy({ it.namespace }, { it.alias })
   }
+}
 
-  internal fun processPrecomputedDeclarations(refText: String?, place: CSymbol, dialect: Dialect,
-                                              service: ClojureDefinitionService, state: ResolveState,
-                                              processor: PsiScopeProcessor): Boolean {
-    val key = ((place as? CComposite)?.data as? ResolveTo)?.key ?: return true
-    val target = when (key.type) {
-      "java package" ->
-        if (dialect == Dialect.CLJS) return processor.skipResolve()
-        else service.java.findPackage(key.namespace, key.name)
-      "java class" ->
-        if (dialect == Dialect.CLJS) return processor.skipResolve()
-        else service.java.findClass(key.name.withPackage(key.namespace))
-      "def" -> service.getDefinition(key)
-      "ns" -> service.getDefinition(key)
-      "alias" -> service.getAlias(key.name, key.namespace, place)
-      else -> throw AssertionError("unknown explicit resolve type: ${key.type}")
-    }
-    if (target != null) {
-      if (key.type == "def") {
-        if (!processNamespace(key.namespace, dialect, state, processor, this)) return false
-        if (key.namespace == dialect.coreNs) {
-          if (!processSpecialForms(dialect, refText, place, service, state, processor)) return false
-        }
-      }
-      else if (refText != null) {
-        if (!processor.execute(target, state)) return false
-      }
-      else if (key.type == "ns") {
-        FileBasedIndex.getInstance().processAllKeys(NS_INDEX, { ns ->
-          processor.execute(service.getNamespace(ns), state)
-        }, project)
-      }
-    }
-    return false
+internal fun processPrecomputedDeclarations(dialect: Dialect, refText: String?,
+                                            place: CSymbol,
+                                            service: ClojureDefinitionService,
+                                            state: ResolveState,
+                                            processor: PsiScopeProcessor,
+                                            containingFile: CFile): Boolean {
+  val key = ((place as? CComposite)?.data as? ResolveTo)?.key ?: return true
+  val target = when (key.type) {
+    "java package" ->
+      if (dialect == Dialect.CLJS) return processor.skipResolve()
+      else service.java.findPackage(key.namespace, key.name)
+    "java class" ->
+      if (dialect == Dialect.CLJS) return processor.skipResolve()
+      else service.java.findClass(key.name.withPackage(key.namespace))
+    "def" -> service.getDefinition(key)
+    "ns" -> service.getDefinition(key)
+    "alias" -> service.getAlias(key.name, key.namespace, place)
+    else -> throw AssertionError("unknown explicit resolve type: ${key.type}")
   }
+  if (target != null) {
+    if (key.type == "def") {
+      if (!processNamespace(key.namespace, dialect, state, processor, containingFile)) return false
+      if (key.namespace == dialect.coreNs) {
+        if (!processSpecialForms(dialect, refText, place, service, state, processor)) return false
+      }
+    }
+    else if (refText != null) {
+      if (!processor.execute(target, state)) return false
+    }
+    else if (key.type == "ns") {
+      FileBasedIndex.getInstance().processAllKeys(NS_INDEX, { ns ->
+        processor.execute(service.getNamespace(ns), state)
+      }, service.project)
+    }
+  }
+  return false
 }
 
 private class RoleHelper {
@@ -568,7 +576,7 @@ private class NSReader(val helper: RoleHelper) {
       imports
     }
     if (imports.isEmpty()) return null
-    val scope = e.parentForms.filter { it.fastRole != Role.RCOND && it.fastRole != Role.RCOND_S }.first()
+    val scope = e.parentForms.skip(1).filter { it.fastRole != Role.RCOND && it.fastRole != Role.RCOND_S }.first()
     return Imports(imports, dialect, e.textRange, scope?.textRange?.endOffset ?: -1)
   }
 

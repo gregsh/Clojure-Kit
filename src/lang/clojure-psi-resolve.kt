@@ -21,7 +21,6 @@ import com.intellij.lang.Language
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.RecursionManager
-import com.intellij.openapi.util.Ref
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.pom.PomTargetPsiElement
@@ -283,7 +282,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val containingFile = element.containingFile.originalFile as CFileImpl
     val langKind = containingFile.placeLanguage(element)
     val isCljs = langKind == Dialect.CLJS
-    val parent = element.parent
+    val parent = element.context
 
     if (parent is CSymbol && element.nextSibling.elementType == ClojureTypes.C_DOT) {
       if (isCljs) return processor.skipResolve()
@@ -341,16 +340,15 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       }
       return true
     }
-    if (!containingFile.processPrecomputedDeclarations(refText, element, langKind, service, state, processor)) return false
+    if (!processPrecomputedDeclarations(langKind, refText, element, service, state, processor, containingFile)) return false
 
-    val lastParentRef = Ref.create<PsiElement>(element)
-    if (!processParentForms(langKind, refText, element, service, state, processor, lastParentRef)) return false
+    if (!processParentForms(langKind, refText, element, service, state, processor)) return false
+    if (!containingFile.processDeclarations(processor, state, element, element)) return false
 
-    if (!containingFile.processDeclarations(processor, state, lastParentRef.get(), element)) return false
     if (!processNamespace(containingFile.namespace, langKind, state, processor, containingFile)) return false
     if (!processSpecialForms(langKind, refText, element, service, state, processor)) return false
     if (!isCljs) findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
-    else if (refText == "js" && myElement.parent is CConstructor || refText == "Object") {
+    else if (refText == "js" && parent is CConstructor || refText == "Object") {
       return processor.execute(service.getDefinition(refText, "js", JS_OBJ), state)
     }
     return true
@@ -359,9 +357,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
   private fun processNamespacePartBeforeSlash(dialect: Dialect, refText: String?, service: ClojureDefinitionService, state: ResolveState, processor: PsiScopeProcessor): Boolean {
     val containingFile = element.containingFile.originalFile as CFileImpl
     val isCljs = dialect == Dialect.CLJS
-    val parent = element.parent
+    val parent = element.context
 
-    if (parent.parent is CKeyword) {
+    if (parent?.context is CKeyword) {
       return when (parent.prevSibling.elementType) {
         ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
         ClojureTypes.C_COLONCOLON -> containingFile.processDeclarations(processor, state.put(ALIAS_KEY, refText), element, element)
@@ -387,15 +385,14 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
   private fun processParentForms(dialect: Dialect, refText: String?, place: CForm,
                                  service: ClojureDefinitionService,
-                                 state: ResolveState, processor: PsiScopeProcessor,
-                                 lastParentRef: Ref<PsiElement>): Boolean {
+                                 state: ResolveState,
+                                 processor: PsiScopeProcessor): Boolean {
     val isCljs = dialect == Dialect.CLJS
     val element = place.thisForm!!
     var prevO: CForm = element
-    for (o in prevO.parents().takeWhile { it is CForm }) {
-      val type = formType(o as CForm)
+    for (o in prevO.contexts().filter(CForm::class)) {
+      val type = formType(o)
       if (o !is CList || type == null) {
-        lastParentRef.set(o)
         if (refText == "&") {
           if (o.role == Role.ARG_VEC || o.role == Role.BND_VEC) return processor.skipResolve()
         }
@@ -445,7 +442,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (isFnLike) {
           val nameSymbol = (if (isFnLike) o.first.nextForm else o.first) as? CSymbol
           if (nameSymbol != null) {
-            if (!processor.execute(nameSymbol.parent.asDef ?: nameSymbol, state)) return false
+            if (!processor.execute(nameSymbol.context.asDef ?: nameSymbol, state)) return false
           }
         }
         // def and fn bindings
@@ -478,7 +475,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (exception!= null &&  !processor.execute(exception, state)) return false
       }
       else if (innerType == "." || innerType == ".." || innerType == ".-" || innerType == ". id") {
-        if (prevO == element && prevO.parent == o || prevO is CList && prevO.firstForm == element) {
+        if (prevO == element && prevO.context == o || prevO is CList && prevO.firstForm == element) {
           val isProp = innerType == ".-"
           val isProp2 = refText != null && refText.startsWith("-")
           val isMethod = innerType == ". id"
@@ -537,7 +534,6 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       }
 
       prevO = o
-      lastParentRef.set(o)
     }
     return true
   }
@@ -620,7 +616,7 @@ fun processBindings(element: CList, mode: String, state: ResolveState, processor
   val roots = when (mode) {
     "fn" -> JBIterable.of(bindings)
     "let" -> bindings.childForms.filter(EachNth(2)).run {
-      place.parents().find { it.parent == bindings }?.let { o ->
+      place.contexts().find { it.context == bindings }?.let { o ->
         if (contains(o)) takeWhile { it != o }.append(o as CForm)
         else o.prevForm!!.let { o0 -> takeWhile { it != o0 } }
       } ?: this
@@ -639,8 +635,8 @@ fun processBindings(element: CList, mode: String, state: ResolveState, processor
 fun CFile.placeLanguage(place: PsiElement): Dialect =
     if (language == ClojureScriptLanguage) Dialect.CLJS
     else {
-      place.parents().filter { it is CForm && it.prevForm is CKeyword &&
-          it.parent.run { role == Role.RCOND || role == Role.RCOND_S }
+      place.contexts().filter { it is CForm && it.prevForm is CKeyword &&
+          it.context.run { role == Role.RCOND || role == Role.RCOND_S }
       }.first()?.let { e ->
         if ((e.prevForm as? CKeyword)?.name == "cljs") Dialect.CLJS
         else Dialect.CLJ // ":clj", ":default"

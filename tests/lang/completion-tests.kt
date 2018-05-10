@@ -25,15 +25,15 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
 
   fun testNothingInName() = doNegTest("(def strip) (def stri<caret>)", "clo-def", "clojure.string", ":strict")
 
-  fun testKeyword1() = ":keyword".let { doTest("$it :<caret>", it, "$it $it") }
+  fun testKeyword1() = ":keyword".let { doPosTest("$it :<caret>", it) }
   fun testKeyword2() = ":keyword".let { doTest("$it :key<caret>", it, "$it $it") }
   fun testKeyword3() = ":keyword".let { doNegTest("$it <caret>", it) }
-  fun testKeywordMeta1() = ":keyword".let { doTest("^meta $it ^meta :<caret>", it, "^meta $it ^meta $it") }
+  fun testKeywordMeta1() = ":keyword".let { doPosTest("^meta $it ^meta :<caret>", it) }
   fun testKeywordMeta2() = ":keyword".let { doTest("^meta $it ^meta :key<caret>", it, "^meta $it ^meta $it") }
   fun testKeywordUser1() = "::keyword".let { doTest("$it :<caret>", it, "$it $it") }
   fun testKeywordUser2() = "::keyword".let { doTest("$it ::key<caret>", it, "$it $it") }
   fun testKeywordUser3() = "::keyword".let { doNegTest("$it <caret>", it) }
-  fun testKeywordNs1() = ":$NS_KEY".let { doTest("$it :<caret>", it, "$it $it") }
+  fun testKeywordNs1() = ":$NS_KEY".let { doPosTest("$it :<caret>", it) }
   fun testKeywordNs2() = ":$NS_KEY".let { doTest("$it :key<caret>", it, "$it $it") }
   fun testKeywordNs3() = ":$NS_KEY".let { doNegTest("$it <caret>", it) }
   fun testKeywordNs4() = ":$NS_KEY".let { doTest("$it :namespace/<caret>", it, "$it $it") }
@@ -53,6 +53,13 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testKeywordNsUser6a() = "::$NS_KEY".let { doTest("$NS_ALIAS $it :some<caret>", it, "$NS_ALIAS $it $it") }
   fun testKeywordNsUser8a() = "::$NS_KEY".let { doTest("$NS_ALIAS $it :sk<caret>", it, "$NS_ALIAS $it $it") }
   fun testKeywordNsUser9() = "::$NS_KEY".let { doNegTest("$NS_ALIAS $it nk<caret>", it) }
+
+  fun testNsAlias1() = "namespace".let { doPosTest("$NS_ALIAS (<caret>", it) }
+  fun testNsAlias2() = "namespace".let { doPosTest("$NS_ALIAS (<caret>/", it) }
+  fun testNsAlias3() = "namespace".let { doPosTest("$NS_ALIAS (<caret>/xxx", it) }
+  fun testNsAlias4() = "namespace".let { doPosTest("$NS_ALIAS (nam<caret>", it) }
+  fun testNsAlias5() = "namespace".let { doPosTest("$NS_ALIAS (nam<caret>/", it) }
+  fun testNsAlias6() = "namespace".let { doPosTest("$NS_ALIAS (nam<caret>/xxx", it) }
 
   fun testFqn1() = doTest("(clojure.string/<caret>)", "blank?", "(clojure.string/blank?)")
   fun testFqn2() = "clojure.string/blank?".let { doTest("(bla<caret>)", it, "($it)", 2) }
@@ -85,6 +92,13 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
     configureByText("a.clj", text)
     complete(CompletionType.BASIC, 1)
     select.forEach { it -> assertFalse("'$it' unexpected", lookupElementStrings!!.contains(it)) }
+    checkResult(text)
+  }
+
+  private fun doPosTest(text: String, vararg select: String) = myFixture.run {
+    configureByText("a.clj", text)
+    complete(CompletionType.BASIC, 1)
+    select.forEach { it -> assertTrue("'$it' expected", lookupElementStrings!!.contains(it)) }
     checkResult(text)
   }
 }
