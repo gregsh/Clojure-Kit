@@ -83,8 +83,8 @@ class NReplClient {
   fun disconnect() {
     try {
       defaultRequest = null
-      try { closeSession(mainSession) } catch (e: Exception) { }
-      try { closeSession(toolSession) } catch (e: Exception) { }
+      try { closeSession(mainSession).get(PING_TIMEOUT, TimeUnit.MILLISECONDS) } catch (e: Exception) { }
+      try { closeSession(toolSession).get(PING_TIMEOUT, TimeUnit.MILLISECONDS) } catch (e: Exception) { }
     }
     finally {
       val tmp = transport
@@ -147,10 +147,10 @@ class NReplClient {
     val m = o.cast<Map<String, Any?>>() ?: clearCallbacks(o as? Throwable ?: Throwable(o.toString())).run { return }
     val id = m["id"] as? Long ?: return
     val r = callbacks[id] ?: defaultRequest ?: return
-    val status = m["status"].let { (it as? List<*>)?.firstOrNull() ?: it }
+    val status = m["status"] as? List<*> ?: emptyList<String>()
     r.stdout?.let { handler -> (m["out"] as? String)?.let { msg -> handler(msg) } }
     r.stderr?.let { handler -> (m["err"] as? String)?.let { msg -> handler(msg) } }
-    if (status == "need-input") r.stdin?.let { handler ->
+    if (status.contains("need-input")) r.stdin?.let { handler ->
       handler { input ->
         request("stdin") {
           session = r.session
@@ -169,7 +169,7 @@ class NReplClient {
         else -> JoinOp.JOIN
       }
     }
-    if (status == "done") {
+    if (status.contains("done")) {
       val combined = (partialResponses.remove(id) ?: LinkedHashMap()).apply { joinMaps(m, keyOp) }
       callbacks.remove(id)?.future?.complete(combined)
     }
@@ -252,6 +252,7 @@ class AsyncTransport(private val delegate: Transport, private val responseHandle
 
   val closed = AtomicReference<Throwable>()
   val reader = threadPool.submit {
+    LOG.info("recv thread started")
     while (closed.get() == null) {
       val response = try {
         delegate.recv()
@@ -270,6 +271,7 @@ class AsyncTransport(private val delegate: Transport, private val responseHandle
         catch (ignore: Throwable) {}
       }
     }
+    LOG.info("recv thread stopped")
   }!!
 
   override fun recv(timeout: Long) = throw IllegalStateException()

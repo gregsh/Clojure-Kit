@@ -31,11 +31,13 @@ import com.intellij.execution.process.*
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder
 import com.intellij.execution.runners.ExecutionUtil
+import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.ide.util.PropertiesComponent
+import com.intellij.lang.Language
 import com.intellij.openapi.actionSystem.*
 import com.intellij.openapi.application.TransactionGuard
 import com.intellij.openapi.application.WriteAction
@@ -50,7 +52,6 @@ import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.ui.InputValidator
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
-import com.intellij.openapi.util.ActionCallback
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.io.FileUtil
@@ -70,31 +71,32 @@ import com.intellij.util.containers.JBIterable
 import com.intellij.util.text.UniqueNameGenerator
 import com.intellij.util.text.nullize
 import com.intellij.util.ui.EmptyIcon
-import com.intellij.util.ui.UIUtil
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.nrepl.NReplClient
 import org.intellij.clojure.nrepl.PING_DELAY
+import org.intellij.clojure.nrepl.PING_TIMEOUT
 import org.intellij.clojure.nrepl.dumpObject
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
 import org.jetbrains.concurrency.AsyncPromise
-import org.jetbrains.concurrency.Promise
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import javax.swing.JList
 
 /**
  * @author gregsh
  */
-private val LOG = Logger.getInstance(ReplConnection::class.java)
+private val LOG = Logger.getInstance(ReplConsole::class.java)
 
 object ReplConsoleRootType : ConsoleRootType("nrepl", "nREPL Consoles")
 
-private val NREPL_CLIENT_KEY = Key.create<ReplConnection>("NREPL_CLIENT_KEY")
+private val NREPL_CLIENT_KEY = Key.create<NReplClient>("NREPL_CLIENT_KEY")
+private val NREPL_PROMISE_KEY = Key.create<AsyncPromise<*>>("NREPL_PROMISE_KEY")
 private val EXCLUSIVE_MODE_KEY = Key.create<Boolean>("EXCLUSIVE_MODE_KEY")
 private val REMOTE_ICON = AllIcons.RunConfigurations.Remote
 private val LOCAL_ICON = AllIcons.RunConfigurations.Application
@@ -132,7 +134,7 @@ class ReplExecuteAction : DumbAwareAction() {
   override fun update(e: AnActionEvent) {
     val project = e.project
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext)
-    val repl = NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)
+    val repl = e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.executionConsole as? ReplConsole
     val file = (repl?.consoleView?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) as? CFile
     e.presentation.isEnabledAndVisible = project != null && editor != null &&
         (file != null && ScratchFileService.getInstance().getRootType(file.virtualFile) !is IdeConsoleRootType ||
@@ -142,7 +144,7 @@ class ReplExecuteAction : DumbAwareAction() {
   override fun actionPerformed(e: AnActionEvent) {
     val project = e.project ?: return
     val editor = CommonDataKeys.EDITOR.getData(e.dataContext) ?: return
-    val repl = NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)
+    val repl = e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.executionConsole as? ReplConsole
     val file = (repl?.consoleView?.file ?: CommonDataKeys.PSI_FILE.getData(e.dataContext)) ?: return
     PsiDocumentManager.getInstance(project).commitAllDocuments()
 
@@ -168,7 +170,7 @@ class ReplExecuteAction : DumbAwareAction() {
             if (first) {
               pos = editor.offsetToLogicalPosition(it.textRange.startOffset)
               if (it.role == Role.NS && (it as? CList)?.first?.name?.let { it == "ns" || it == "in-ns" } == true) {
-                hasNamespace = false
+                hasNamespace = true
               }
             }
             else first = false
@@ -208,17 +210,16 @@ class ReplExclusiveModeAction : ToggleAction() {
     }
   }
 
-  private fun chooseRepl(e: AnActionEvent, consumer: ((ReplConnection?, Boolean)->Unit)? = null): ReplConnection? =
-      NREPL_CLIENT_KEY.get(e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.processHandler)?.let { consumer?.invoke(it, false); it } ?: run {
+  private fun chooseRepl(e: AnActionEvent, consumer: ((ReplConsole?, Boolean)->Unit)? = null): ReplConsole? =
+      (e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.executionConsole as? ReplConsole)?.let { consumer?.invoke(it, false); it } ?: run {
         val repls = allRepls(e.project)
-//            .sort(Comparator { o1: ReplConnection, o2: ReplConnection -> Comparing.compare(o1.consoleView.title, o2.consoleView.title) })
-            .addAllTo(mutableListOf<ReplConnection?>())
+            .addAllTo(mutableListOf<ReplConsole?>())
             .apply { add(null) }
         if (consumer == null || repls.size == 1) return repls[0].apply { consumer?.invoke(this, false) }
         else {
-          val list = JBList<ReplConnection>(repls)
-          list.cellRenderer = object : ColoredListCellRenderer<ReplConnection>() {
-            override fun customizeCellRenderer(list: JList<out ReplConnection>, value: ReplConnection?, index: Int, selected: Boolean, hasFocus: Boolean) {
+          val list = JBList<ReplConsole>(repls)
+          list.cellRenderer = object : ColoredListCellRenderer<ReplConsole>() {
+            override fun customizeCellRenderer(list: JList<out ReplConsole>, value: ReplConsole?, index: Int, selected: Boolean, hasFocus: Boolean) {
               if (value != null) {
                 val exclusive = isExclusive(value.consoleView)
                 val connected = value.repl.isConnected
@@ -237,7 +238,7 @@ class ReplExclusiveModeAction : ToggleAction() {
           }
           JBPopupFactory.getInstance().createListPopupBuilder(list)
               .setTitle(e.presentation.text!!)
-              .setFilteringEnabled { (it as? ReplConnection)?.consoleView?.title ?: "" }
+              .setFilteringEnabled { (it as? ReplConsole)?.consoleView?.title ?: "" }
               .setItemChoosenCallback { consumer(list.selectedValue, true) }
               .createPopup()
               .showCenteredInCurrentWindow(e.project!!)
@@ -256,7 +257,7 @@ private fun setExclusive(consoleView: LanguageConsoleView, value: Boolean) =
 private fun allRepls(project: Project?) =
     if (project == null) JBIterable.empty()
     else ExecutionManager.getInstance(project).contentManager.allDescriptors.jbIt()
-        .map { NREPL_CLIENT_KEY.get(it.processHandler) }.notNulls()
+        .map { it.executionConsole as? ReplConsole }.notNulls()
 
 fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
 fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
@@ -296,7 +297,7 @@ fun executeInRepl(project: Project, file: VirtualFile, editor: Editor, text: Str
   }
 }
 
-fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConnection) -> Unit) {
+fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConsole) -> Unit) {
   val projectDir = JBIterable.generate(virtualFile) { it.parent }.find {
     it.isDirectory && Tool.find(it.toIoFile()) != null }
   val title = if (projectDir == null) "REPL (default)"
@@ -316,12 +317,11 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConn
   if (contentToReuse != null) {
     contentToReuse.attachedContent!!.run { manager.setSelectedContent(this) }
 
-    var repl = NREPL_CLIENT_KEY.get(contentToReuse.processHandler)
+    val repl = contentToReuse.executionConsole as ReplConsole
     if (repl.processHandler.isProcessTerminating || repl.processHandler.isProcessTerminated) {
-      val oldRepl = repl
-      oldRepl.consoleView.println()
+      repl.consoleView.println()
       val newProcess = try {
-        oldRepl.processFactory()
+        repl.processFactory()
       }
       catch (ex: Exception) {
         val cause = ExceptionUtil.getRootCause(ex)
@@ -334,26 +334,22 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConn
         return
       }
       repl.consoleView.attachToProcess(newProcess)
-      repl = NREPL_CLIENT_KEY.get(newProcess)
-      repl.processFactory = oldRepl.processFactory
-      repl.consoleView = oldRepl.consoleView
       newProcess.startNotify()
     }
     contentToReuse.processHandler = repl.processHandler
     command(repl)
   }
   else {
-    createNewRunContent(project, title, LOCAL_ICON) {
-      newProcessHandler(project, title, projectDir?.toIoFile())
-    }.done {
-      command(it)
+    val callback = ProgramRunner.Callback { command(it.executionConsole as ReplConsole) }
+    createNewRunContent(project, title, LOCAL_ICON, callback) {
+      newProcessHandler(projectDir?.toIoFile() ?: project.baseDir.toIoFile())
     }
   }
 }
 
 private fun createNewRunContent(project: Project, title: String, icon: Icon,
-                                processFactory: () -> ProcessHandler): Promise<ReplConnection> {
-  val promise = AsyncPromise<ReplConnection>()
+                                callback: ProgramRunner.Callback? = null,
+                                processFactory: () -> ProcessHandler) {
   val existingDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
   val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")",
       existingDescriptors.map { it.displayName }.toSet().let { { s: String -> !it.contains(s) }})
@@ -371,41 +367,66 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon,
         }
 
         override fun createActions(console: ConsoleView, processHandler: ProcessHandler, executor: Executor): Array<AnAction> {
-          NREPL_CLIENT_KEY.get(processHandler).run {
-            this.processFactory = processFactory
-            consoleView = console as LanguageConsoleView
-            promise.setResult(this)
-          }
           return ArrayUtil.mergeArrays(super.createActions(console, processHandler, executor), arrayOf<AnAction>(
               ConsoleHistoryController.getController(console as LanguageConsoleView).browseHistory,
               ActionManager.getInstance().getAction("clojure.repl.exclusive.mode")))
         }
 
-        override fun createConsole(executor: Executor) =
-            LanguageConsoleImpl(project, uniqueTitle, ClojureLanguage).apply {
-              prompt = null
-              consoleEditor.setFile(virtualFile)
-              ConsoleHistoryController(ReplConsoleRootType, title, this).install()
-              setExclusive(this, allRepls(project).find { isExclusive(it.consoleView) } == null)
-            }
+        override fun createConsole(executor: Executor) = ReplConsole(project, uniqueTitle, ClojureLanguage).apply {
+          prompt = null
+          this.processFactory = processFactory
+          consoleEditor.setFile(virtualFile)
+          ConsoleHistoryController(ReplConsoleRootType, title, this).install()
+          setExclusive(this, allRepls(project).find { isExclusive(it.consoleView) } == null)
+        }
       }
     }
   }
   val environment = ExecutionEnvironmentBuilder.create(project, DefaultRunExecutor.getRunExecutorInstance(), profile).build()
   // ExecutionManager#restartRunProfile is not dumb-aware, run manually..
-  ProgramRunnerUtil.executeConfiguration(environment, false, true)
-  return promise
+  ProgramRunnerUtil.executeConfigurationAsync(environment, false, true, callback)
 }
 
-class ReplConnection(val repl: NReplClient,
-                     var processHandler: ProcessHandler,
-                     private var whenConnected: ActionCallback) {
-  lateinit var consoleView: LanguageConsoleView
+class ReplConsole(project: Project, title: String, language: Language)
+  : LanguageConsoleImpl(project, title, language) {
+  lateinit var processHandler: ProcessHandler
   lateinit var processFactory: () -> ProcessHandler
+
+  val repl: NReplClient get() = processHandler.getUserData(NREPL_CLIENT_KEY)!!
+  private var whenConnected = AsyncPromise<Unit?>()
+
   var inputHandler: ((String) -> Unit)? = null
     private set
+  val consoleView: LanguageConsoleView = this
 
-  fun eval(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.doWhenDone {
+  override fun attachToProcess(processHandler: ProcessHandler) {
+    this.processHandler = processHandler
+    super.attachToProcess(processHandler)
+    processHandler.getUserData(NREPL_PROMISE_KEY)!!.done {
+      afterConnected()
+      whenConnected.setResult(null)
+    }.rejected {
+      whenConnected.cancel()
+      val cause = ExceptionUtil.getRootCause(it)
+      if (cause is IOException || it is ExecutionException) {
+        ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, cause)
+      }
+      else {
+        LOG.error(it)
+      }
+    }
+    this.processHandler.addProcessListener(object : ProcessAdapter() {
+      override fun processWillTerminate(event: ProcessEvent, willBeDestroyed: Boolean) {
+        beforeDisconnected(willBeDestroyed)
+        whenConnected.cancel()
+        whenConnected = AsyncPromise()
+      }
+    })
+  }
+
+  fun eval(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.done { evalImpl(text, f) }
+
+  private fun evalImpl(text: String, f: NReplClient.Request.() -> Unit) {
     val trimmed = text.trim()
     consoleView.println()
     consoleView.print((consoleView.prompt ?: ""), consoleView.promptAttributes ?: ConsoleViewContentType.USER_INPUT)
@@ -427,7 +448,7 @@ class ReplConnection(val repl: NReplClient,
             consoleView.printerr(error.toString())
           }
           consoleView.println(dumpObject(result))
-          scrollToEnd()
+          requestScrollingToEnd()
         }
       }
       else {
@@ -443,12 +464,13 @@ class ReplConnection(val repl: NReplClient,
         }.whenComplete(this::onCommandCompleted)
       }
     }
-    else
+    else {
       evalImpl {
         this.namespace = namespace
         code = trimmed
         f.invoke(this)
       }.whenComplete(this::onCommandCompleted)
+    }
   }
 
   private fun onCommandCompleted(result: Map<String, Any?>?, error: Throwable?) {
@@ -471,9 +493,11 @@ class ReplConnection(val repl: NReplClient,
         value != null ->
           consoleView.print(dumpObject(value), ConsoleViewContentType.NORMAL_OUTPUT)
         ex != null ->
-          evalImpl {
-            op = "stacktrace"
-          }.whenComplete(this::onCommandCompleted)
+          if (ex != "class clojure.lang.Compiler\$CompilerException") {
+            evalImpl {
+              op = "stacktrace"
+            }.whenComplete(this::onCommandCompleted)
+          }
         stacktrace != null ->
           for (m in stacktrace) {
             if (m !is Map<*, *>) break
@@ -487,15 +511,14 @@ class ReplConnection(val repl: NReplClient,
         !processHandler.isProcessTerminated && !processHandler.isProcessTerminated) {
       processHandler.detachProcess()
     }
-    scrollToEnd()
+    requestScrollingToEnd()
   }
 
   private fun updatePrompt(namespace: String?) {
     consoleView.prompt = namespace?.let { "$it=> " } ?: "=> "
   }
 
-  fun connect(hostPort: String) {
-    repl.connect(hostPort)
+  fun afterConnected() {
     val info = repl.describeSession().get() as? Map<*, *> ?: emptyMap<Any, Any>()
     val versions = JBIterable.from((info["versions"] as? Map<*, *>)?.entries)
         .append((info["aux"] as? Map<*, *>)?.entries)
@@ -517,22 +540,15 @@ class ReplConnection(val repl: NReplClient,
     evalImpl("(when (clojure.core/resolve 'clojure.main/repl-requires)" +
         " (clojure.core/map clojure.core/require clojure.main/repl-requires))")
         .get()
-    scrollToEnd()
+    requestScrollingToEnd()
   }
 
-  fun disconnect(destroyed: Boolean) {
+  fun beforeDisconnected(destroyed: Boolean) {
     if (processHandler is BaseRemoteProcessHandler<*> && !destroyed) {
       evalImpl {
         op = "out-unsubscribe"
         repl.defaultRequest = null
-      }
-    }
-    repl.disconnect()
-  }
-
-  private fun scrollToEnd() {
-    UIUtil.invokeLaterIfNeeded {
-      (consoleView as? LanguageConsoleImpl)?.scrollToEnd()
+      }.get(PING_TIMEOUT, TimeUnit.MILLISECONDS)
     }
   }
 
@@ -564,74 +580,85 @@ class ReplConnection(val repl: NReplClient,
           consoleView.language = prevLang
           out.invoke(adjusted)
         }
-        scrollToEnd()
+        requestScrollingToEnd()
       })
     }
   }
 }
 
-fun newProcessHandler(project: Project, title: String, projectDir: File?): ProcessHandler {
-  val workingDir = projectDir ?: project.baseDir.toIoFile()
+fun newProcessHandler(workingDir: File): ProcessHandler {
   val port = try { FileUtil.loadFile(File(workingDir, ".nrepl-port")).trim().toInt() } catch (e: Exception) { -1 }
   val addressStr = if (port > 0) "Connected to nREPL server running on port $port and host localhost" else null
 
-  return try { addressStr?.let { newRemoteProcess(it) } } catch(e: Exception) { null }
-      ?: newLocalProcess(project, title, workingDir)
+  val remoteProcess = try {
+    if (addressStr != null) newRemoteProcess(addressStr) else null
+  }
+  catch (e: Exception) {
+    null
+  }
+  return remoteProcess ?: newLocalProcess(workingDir)
 }
 
 
-fun newLocalProcess(project: Project, title: String, workingDir: File): ProcessHandler {
-  val callback = ActionCallback()
-  val repl = NReplClient()
+fun newLocalProcess(workingDir: File): ProcessHandler {
   val tool = Tool.find(workingDir) ?: Lein
-  return OSProcessHandler(tool.getRepl().withWorkDirectory(workingDir.path)).apply {
-    ProcessTerminatedListener.attach(this)
-    val replConnection = ReplConnection(repl, this, callback)
-    putUserData(NREPL_CLIENT_KEY, replConnection)
-    addProcessListener(object : ProcessAdapter() {
-      override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-        val text = event.text ?: return
-        if (!text.startsWith("nREPL server started on port ")) return
-        (event.source as ProcessHandler).removeProcessListener(this)
-        executeTask {
-          try {
-            replConnection.connect(text)
-            callback.setDone()
-          }
-          catch(ex: Exception) {
-            val cause = ExceptionUtil.getRootCause(ex)
-            try {
-              if (cause is IOException || ex is ExecutionException) {
-                ExecutionUtil.handleExecutionError(project, ToolWindowId.RUN, title, cause)
-              }
-              else {
-                LOG.error(ex)
-              }
-            }
-            finally {
-              callback.setRejected()
-            }
-          }
+  val processHandler = OSProcessHandler(tool.getRepl().withWorkDirectory(workingDir.path))
+  val repl = NReplClient()
+  val promise = AsyncPromise<Unit?>()
+  processHandler.putUserData(NREPL_CLIENT_KEY, repl)
+  processHandler.putUserData(NREPL_PROMISE_KEY, promise)
+  ProcessTerminatedListener.attach(processHandler)
+  processHandler.addProcessListener(object : ProcessAdapter() {
+    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+      val text = event.text ?: return
+      if (!text.startsWith("nREPL server started on port ")) return
+      (event.source as ProcessHandler).removeProcessListener(this)
+      processHandler.executeTask {
+        try {
+          repl.connect(text)
+          promise.setResult(null)
+        }
+        catch (e: Exception) {
+          promise.setError(e)
         }
       }
+    }
 
-      override fun processWillTerminate(event: ProcessEvent, willBeDestroyed: Boolean) {
-        replConnection.disconnect(willBeDestroyed)
+    override fun processWillTerminate(event: ProcessEvent, willBeDestroyed: Boolean) {
+      processHandler.executeTask {
+        repl.disconnect()
       }
-    })
-  }
+    }
+  })
+  return processHandler
 }
 
 fun newRemoteProcess(addressString: String): ProcessHandler {
-  val callback = ActionCallback()
-  val repl = NReplClient()
-
   val emptyIn = object : InputStream() { override fun read() = -1 }
   val emptyOut = object : OutputStream() { override fun write(b: Int) = Unit }
   val pingLock = Object()
+  val repl = NReplClient()
+  val promise = AsyncPromise<Unit?>()
   val process = object : RemoteProcess() {
+    init {
+      try {
+        repl.connect(addressString)
+        promise.setResult(null)
+      }
+      catch (e: Exception) {
+        promise.processed { }
+        promise.setError(e)
+        throw e
+      }
+    }
 
     override fun destroy() {
+      try {
+        repl.eval("(System/exit 0)") { session = repl.toolSession }
+      }
+      catch (e: Exception) {
+        LOG.info(e)
+      }
     }
 
     override fun exitValue(): Int {
@@ -642,10 +669,11 @@ fun newRemoteProcess(addressString: String): ProcessHandler {
     override fun isDisconnected() = !repl.isConnected
 
     override fun waitFor(): Int {
-      while (repl.isConnected) {
-        repl.ping()
-        if (!repl.isConnected) break
+      while (repl.ping()) {
         synchronized(pingLock) { pingLock.wait(PING_DELAY) }
+      }
+      if (repl.isConnected) {
+        repl.disconnect()
       }
       return exitValue()
     }
@@ -657,38 +685,39 @@ fun newRemoteProcess(addressString: String): ProcessHandler {
     override fun killProcessTree() = false
   }
   val processHandler = object : BaseRemoteProcessHandler<RemoteProcess>(process, addressString, null) {
-    private val replConnection: ReplConnection get() = NREPL_CLIENT_KEY.get(this)
-
-    override fun startNotify() {
-      super.startNotify()
-      callback.setDone()
-    }
 
     override fun isSilentlyDestroyOnClose() = false
 
     override fun detachIsDefault() = true
 
-    override fun destroyProcess() {
+    override fun destroyProcessImpl() {
+      super.destroyProcessImpl()
       executeTask {
-        replConnection.repl.eval("(System/exit 0)") { session = repl.toolSession }
-            .handle { _, _ -> replConnection.disconnect(true) }
+        repl.disconnect()
+        synchronized(pingLock) { pingLock.notifyAll() }
+      }
+    }
+
+    override fun detachProcessImpl() {
+      executeTask {
+        repl.disconnect()
         synchronized(pingLock) { pingLock.notifyAll() }
       }
       super.detachProcessImpl()
     }
 
-    override fun detachProcessImpl() {
-      executeTask {
-        replConnection.disconnect(false)
-        synchronized(pingLock) { pingLock.notifyAll() }
-        replConnection.consoleView.println("\nDisconnected")
-      }
-      super.detachProcessImpl()
+    override fun notifyProcessDetached() {
+      notifyTextAvailable("\nProcess connection closed", ProcessOutputTypes.SYSTEM)
+      super.notifyProcessDetached()
+    }
+
+    override fun notifyProcessTerminated(exitCode: Int) {
+      notifyTextAvailable("\nProcess connection lost", ProcessOutputTypes.SYSTEM)
+      super.notifyProcessTerminated(exitCode)
     }
   }
-  val replConnection = ReplConnection(repl, processHandler, callback)
-  processHandler.putUserData(NREPL_CLIENT_KEY, replConnection)
-  replConnection.connect(addressString)
+  processHandler.putUserData(NREPL_CLIENT_KEY, repl)
+  processHandler.putUserData(NREPL_PROMISE_KEY, promise)
   return processHandler
 }
 
