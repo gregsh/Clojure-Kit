@@ -29,7 +29,7 @@ import com.intellij.ide.util.treeView.smartTree.SortableTreeElement
 import com.intellij.lang.ASTNode
 import com.intellij.lang.Commenter
 import com.intellij.lang.PsiStructureViewFactory
-import com.intellij.lang.folding.FoldingBuilderEx
+import com.intellij.lang.folding.CustomFoldingBuilder
 import com.intellij.lang.folding.FoldingDescriptor
 import com.intellij.lang.refactoring.NamesValidator
 import com.intellij.lexer.StringLiteralLexer
@@ -231,18 +231,21 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
   }
 }
 
-class ClojureFoldingBuilder : FoldingBuilderEx() {
-  override fun getPlaceholderText(node: ASTNode): String = getFormPlaceholderText(node.psi as CForm, LONG_TEXT_MAX)
+class ClojureFoldingBuilder : CustomFoldingBuilder() {
 
-  override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<FoldingDescriptor> = root.cljTraverser()
-      .traverse()
-      .filter(CPForm::class)
-      .filter {
-        it.textRange.let { r -> document.getLineNumber(r.endOffset) - document.getLineNumber(r.startOffset) > 1 }
-      }
-      .transform { FoldingDescriptor(it, it.textRange) }.toList().toTypedArray()
+  override fun getLanguagePlaceholderText(node: ASTNode, range: TextRange): String = getFormPlaceholderText(node.psi as CForm, LONG_TEXT_MAX)
 
-  override fun isCollapsedByDefault(node: ASTNode) = node.psi.role == Role.NS
+  override fun buildLanguageFoldRegions(descriptors: MutableList<FoldingDescriptor>, root: PsiElement, document: Document, quick: Boolean) {
+    root.cljTraverser()
+        .traverse()
+        .filter(CPForm::class)
+        .filter {
+          it.textRange.let { r -> document.getLineNumber(r.endOffset) - document.getLineNumber(r.startOffset) > 1 }
+        }
+        .transform { FoldingDescriptor(it, it.textRange) }.addAllTo(descriptors)
+  }
+
+  override fun isRegionCollapsedByDefault(node: ASTNode) = node.psi.role == Role.NS
 }
 
 private fun getFormPlaceholderText(o: CForm, max: Int = SHORT_TEXT_MAX) = when (o) {
