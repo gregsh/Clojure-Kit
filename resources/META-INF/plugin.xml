@@ -15,7 +15,8 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li></li>
+      <li>Debugger: initial java debugger integration</li>
+      <li>Editor: support custom folding regions</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>

@@ -1,12 +1,15 @@
 
-Clojure-Kit [[stable]](../../releases) [[dev]](https://teamcity.jetbrains.com/guestAuth/app/rest/builds/buildType:IntellijIdeaPlugins_ClojureKit_Build,status:SUCCESS/artifacts/content/ClojureKit*.zip)
+Clojure-Kit 
 ==================
 [![Build Status](https://teamcity.jetbrains.com/app/rest/builds/buildType:(id:IntellijIdeaPlugins_ClojureKit_Build)/statusIcon.svg?guest=1)](https://teamcity.jetbrains.com/viewType.html?buildTypeId=IntellijIdeaPlugins_ClojureKit_Build&guest=1)
 [![GitHub license](https://img.shields.io/badge/license-Apache%20License%202.0-blue.svg?style=flat)](http://www.apache.org/licenses/LICENSE-2.0)
 
 Clojure and ClojureScript [plugin](https://plugins.jetbrains.com/plugin/8636) for IntelliJ-based tools.
 
-Compatible with versions 2016.2 and up, and:
+Quick links: [Latest dev build](https://teamcity.jetbrains.com/guestAuth/app/rest/builds/buildType:IntellijIdeaPlugins_ClojureKit_Build,status:SUCCESS/artifacts/content/ClojureKit*.zip),
+[Changelog](CHANGELOG.md).
+
+
 * Aims to be as zero configuration as possible
 * Adds color options, basic formatter, documentation, structure view and breadcrumbs   
 * Provides `Analyze data flow [to | from] here` functionality   
@@ -36,61 +39,3 @@ Q. How to connect to remote REPL or ClojureScript REPL on a different port?<br/>
 A. Use **Connect to REPL** action (`ctrl-shift-P` or `cmd-shift-P`) to enter host, port or nrepl URL and create a new remote console. 
 Remote consoles are not mapped to project files, use **Exclusive Mode** toolbar toggle or popup (`ctrl-shift-L` or `cmd-shift-L`)
 to redirect all commands to one specific REPL.
-
-Change log
-==========
-
-0.7.3
-
-* REPL: stdin/stdout/stderr support
-* REPL: use file ns when evaluating from a file
-* Editor: Copy Reference action
-* Editor: splice at caret position
-* Editor: error recovery in case of extra closing paren
-
-0.7.2
-
-* IntelliJ Platform 2018.1 API compatibility
-* Clojure 1.9.0 compatibility (##Inf, ##-Inf, ##NaN) 
-
-0.7.1
-
-* IntelliJ Platform 2017.2.5 and 2017.3 API compatibility
-* Misc: use the latest versions of Kotlin & Gradle
-  
-0.7.0
-
-* Editor: multi-method & protocol method navigation (`ctrl-U`, `ctrl-alt-B`)
-* Editor: parameter info inlays; expression type hint
-* Formatter: follow bbatsov style guide
-* Code style: ;; (double-semicolon) commenting toggle
-* QuickDoc: search and display related specs
-* REPL: the first repl gets exclusive mode by default
-* Internals: redesigned AST/PSI, name resolution, indices and etc.
-
-0.5.0
-
-* REPL: connect to remote REPL
-* REPL: send all commands to one specific REPL
-* REPL: console history actions
-* Editor: complete namespaces and keywords
-* Structural editing: improved caret handling
-* Main menu: add clojure actions to Edit and Tools
-
-0.4.4
-
-* Editor: improved structural editing actions
-* Editor: more items in structure view and breadcrumbs
-* Editor: some default colors for **Default** and **Darcula** color schemes
-* Editor: `(comment)`, `#_` and quoted-symbol literal coloring
-* ClojureScript: resolve and usage search for `::aliased/keywords`
-* REPL: detect running nrepl via `.nrepl-port` file
-
-0.4.3
-
-* Language: basic language support for Clojure and ClojureScript
-* Editor: colors, completion, navigation, parameter info, quickdoc and live templates
-* Code Insight: `Analyze data flow [to | from] here`
-* Structural editing: `slurp`, `barf`, `splice`, `rise`, `kill` and smart `delete`, `backspace`
-* Dependencies: resolve `lein` and `boot` projects dependencies to `~/.m2/` repository
-* REPL: `lein` and `boot` supported
