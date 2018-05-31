@@ -51,6 +51,7 @@ repositories {
 dependencies {
   testRuntime "org.clojure:clojure:1.9.0"
   testRuntime "org.clojure:clojurescript:1.9.946"
+  compile files("${System.properties['java.home']}/../lib/tools.jar")
 }
 
 test {

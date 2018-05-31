@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<idea-plugin version="2">
+<idea-plugin>
   <extensions defaultExtensionNs="com.intellij">
     <projectService serviceInterface="org.intellij.clojure.java.JavaHelper"
                     serviceImplementation="org.intellij.clojure.java.JavaHelper$PsiHelper"/>
+
+    <debugger.positionManagerFactory implementation="org.intellij.clojure.debugger.ClojurePositionManagerFactory"/>
+    <debugger.sourcePositionProvider implementation="org.intellij.clojure.debugger.ClojureSourcePositionProvider"/>
+    <debugger.sourcePositionHighlighter implementation="org.intellij.clojure.debugger.ClojureSourcePositionHighlighter"/>
+    <debugger.codeFragmentFactory implementation="org.intellij.clojure.debugger.ClojureCodeFragmentFactory"/>
+    <debugger.javaBreakpointHandlerFactory implementation="org.intellij.clojure.debugger.ClojureLineBreakpointHandlerFactory" order="first"/>
+    <debuggerEditorTextProvider language="Clojure" implementationClass="org.intellij.clojure.debugger.ClojureEditorTextProvider"/>
+    <debuggerClassFilterProvider implementation="org.intellij.clojure.debugger.ClojureClassesFilterProvider"/>
+
   </extensions>
 </idea-plugin>

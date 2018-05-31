@@ -109,6 +109,9 @@
     <postStartupActivity implementation="org.intellij.clojure.tools.ClojureProjectDeps$PostStartup"/>
     <projectService serviceImplementation="org.intellij.clojure.tools.ClojureProjectDeps"/>
 
+    <!-- debugger -->
+    <xdebugger.breakpointType implementation="org.intellij.clojure.debugger.ClojureLineBreakpointType"/>
+
   </extensions>
 
   <actions>
