@@ -73,7 +73,7 @@ object ClojureConstants {
   @JvmStatic val FN_ALIKE_SYMBOLS = "\\s+".toRegex().split("""fn fn* rfn""").toSet()
 
   @JvmStatic val LET_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
-    let loop when-let when-some
+    let let* loop when-let when-some
     if-let if-some with-open when-first with-redefs
     for doseq dotimes
     with-local-vars
