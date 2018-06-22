@@ -42,7 +42,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Pair
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.impl.PsiManagerEx
 import com.intellij.psi.tree.IElementType
@@ -50,7 +49,6 @@ import com.intellij.testFramework.LightVirtualFile
 import com.intellij.ui.classFilter.ClassFilter
 import com.intellij.ui.classFilter.DebuggerClassFilterProvider
 import com.intellij.util.ThreeState
-import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.indexing.FileBasedIndex
 import com.intellij.xdebugger.breakpoints.XBreakpoint
 import com.intellij.xdebugger.breakpoints.XBreakpointProperties
@@ -66,7 +64,6 @@ import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
 import org.intellij.clojure.psi.impl.NS_INDEX
-import org.intellij.clojure.psi.impl.asCTarget
 import org.intellij.clojure.util.*
 import org.jetbrains.java.debugger.breakpoints.properties.JavaBreakpointProperties
 import org.jetbrains.java.debugger.breakpoints.properties.JavaLineBreakpointProperties
@@ -146,15 +143,16 @@ class ClojurePositionManager(private val process: DebugProcess) : PositionManage
     val namespace = top.substringBeforeLast("$")
     val name = top.substringAfterLast("$")
     if (namespace == qname) return null
+    val sourceName = try { location.sourceName() } catch (ex : AbsentInformationException) { null } ?: return null
+    val sourcePath = try { location.sourcePath() } catch (ex : AbsentInformationException) { null }
 
     val project = process.project
-
     val defService = ClojureDefinitionService.getInstance(project)
     val form = defService.getDefinition(demunge(name, true), demunge(namespace), "def").navigationElement
     val psiFile = form.containingFile ?: if (name.startsWith("eval") && name.length > 4 && name[4].isDigit()) {
       val scope = ClojureDefinitionService.getClojureSearchScope(project)
       val nsFiles = FileBasedIndex.getInstance().getContainingFiles(NS_INDEX, namespace, scope)
-      val file = nsFiles.find { it.name == location.sourceName() }
+      val file = nsFiles.find { it.name == sourceName && (sourcePath == null || it.path.endsWith(sourcePath)) }
       if (file != null) PsiManager.getInstance(project).findFile(file) else null
     }
     else { null } ?: return null
@@ -203,22 +201,7 @@ class ClojureExpressionEvaluator(val codeFragment: PsiElement, val position: Sou
     val requires = mutableListOf<String>()
     val symbols = mutableSetOf<String>()
     val fragmentText = readAction {
-      SyntaxTraverser.psiTraverser(codeFragment).expand { it !is CSymbol }
-          .traverse(TreeTraversal.LEAVES_DFS)
-          .joinToString("") {
-            val target = (it as? CSymbol)?.reference?.resolve()
-            when (target) {
-              is PomTargetPsiElement -> target.asCTarget?.key?.let {
-                if (it.type == "argument" || it.type == "let-binding") symbols.add(it.name)
-                if (it.namespace != "" && it.namespace != "clojure.core") {
-                  requires.add(it.namespace); it.qualifiedName
-                }
-                else null
-              } ?: it.text
-              is PsiQualifiedNamedElement -> target.qualifiedName ?: it.text
-              else -> it.text
-            }
-          }
+      codeFragment.qualifiedText(symbols::add, requires::add)
     }
     val frameProxyImpl = context.frameProxy as StackFrameProxyImpl
     val frameVariables = frameProxyImpl.visibleVariables().asSequence().map { it.name() }
@@ -275,11 +258,9 @@ class ClojureEditorTextProvider : EditorTextProvider {
 
   override fun findExpression(elementAtCaret: PsiElement?, allowMethodCalls: Boolean): Pair<PsiElement, TextRange>? {
     val form = elementAtCaret.thisForm ?: return null
-    if (!allowMethodCalls) {
-      if (form !is CSForm || form == (form.parentForm as? CList)?.firstForm) return null
-      return Pair.create(form as PsiElement, form.textRange)
-    }
-    val adjusted = form as? CPForm ?: form.parentForm ?: form
+    val isFirst = form is CSForm && form == (form.parentForm as? CList)?.firstForm
+    if (!allowMethodCalls && (form !is CSForm || isFirst)) return null
+    val adjusted = if (isFirst) form.parentForm ?: form else form
     return Pair.create(adjusted, adjusted.textRange)
   }
 }
@@ -345,6 +326,7 @@ fun newJavaCodeFragment(project: Project,
 
 private fun isFnMethod(methodName: String) = when (methodName) {
   "invoke" -> true // regular
+  "invokePrim" -> true // regular primitive
   "doInvoke" -> true // variadic
   "invokeStatic" -> true // no this, no bound vars
   else -> false

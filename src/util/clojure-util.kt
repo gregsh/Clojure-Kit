@@ -30,16 +30,20 @@ import com.intellij.openapi.util.Conditions
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiQualifiedNamedElement
 import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.impl.source.tree.TreeUtil
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.containers.JBIterable
+import com.intellij.util.containers.TreeTraversal
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CComposite
+import org.intellij.clojure.psi.impl.asCTarget
 import kotlin.reflect.KClass
 
 /**
@@ -151,6 +155,25 @@ private fun parseTextLight(language: Language, text: CharSequence, forcedRootTyp
   val builder = PsiBuilderFactory.getInstance().createBuilder(parserDefinition, lexer, text)
   parser.parseLight(forcedRootType ?: parserDefinition.fileNodeType, builder)
   return builder
+}
+
+fun PsiElement.qualifiedText(visitSym: (String) -> Any? = { Unit }, visitNs: (String) -> Any? = { Unit }): String {
+  return SyntaxTraverser.psiTraverser(this).expand { it !is CSymbol }
+      .traverse(TreeTraversal.LEAVES_DFS)
+      .joinToString("") {
+        val target = (it as? CSymbol)?.reference?.resolve()
+        when (target) {
+          is PomTargetPsiElement -> target.asCTarget?.key?.let {
+            if (it.type == "argument" || it.type == "let-binding") visitSym(it.name)
+            if (it.namespace != "" && it.namespace != "clojure.core") {
+              visitNs(it.namespace); it.qualifiedName
+            }
+            else null
+          } ?: it.text
+          is PsiQualifiedNamedElement -> target.qualifiedName ?: it.text
+          else -> it.text
+        }
+      }
 }
 
 fun PsiElement?.cljTraverser(): SyntaxTraverser<PsiElement> = org.intellij.clojure.util._cljTraverser().withRoot(this)
