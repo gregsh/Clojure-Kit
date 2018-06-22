@@ -92,8 +92,10 @@ object ClojureConstants {
     defprotocol definterface deftype defrecord extend-protocol extend-type proxy reify
     """.trim()).toSet()
 
-  @JvmStatic val LEIN_PROJECT_CLJ = "project.clj"
-  @JvmStatic val BOOT_BUILD_BOOT = "build.boot"
+  @JvmStatic val LEIN_CONFIG = "project.clj"
+  @JvmStatic val BOOT_CONFIG = "build.boot"
+
+  @JvmStatic val LEIN_VM_OPTS = "clojure.kit.lein.vm.opts"
 
   // clojurescript-specific
   @JvmStatic val JS_OBJ = "- js -"

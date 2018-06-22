@@ -52,7 +52,7 @@ interface Tool {
 }
 
 object Lein : Tool {
-  val projectFile = ClojureConstants.LEIN_PROJECT_CLJ
+  val projectFile = ClojureConstants.LEIN_CONFIG
   val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
     val path = "$it${File.separator}lein${if (SystemInfo.isWindows) ".bat" else ""}"
     if (File(path).exists()) path else null
@@ -61,16 +61,21 @@ object Lein : Tool {
   override fun getDeps() = GeneralCommandLine(path,
       "deps", ":tree")
 
-  override fun getRepl() = GeneralCommandLine(path,
+  override fun getRepl() = GeneralCommandLine(path, *mutableListOf(
       "update-in", ":dependencies", "conj", "[org.clojure/tools.nrepl \"RELEASE\"]", "--",
       "update-in", ":plugins", "conj", "[cider/cider-nrepl \"RELEASE\"]", "--",
-      "update-in", ":nrepl-middleware", "conj ", "[cider-nrepl.plugin/middleware \"RELEASE\"]", "--",
-      "repl", ":headless")
-
+      "update-in", ":nrepl-middleware", "conj ", "[cider-nrepl.plugin/middleware \"RELEASE\"]", "--")
+      .apply {
+        val vmOpts = System.getProperty(ClojureConstants.LEIN_VM_OPTS)
+        if (vmOpts != null) {
+          addAll(listOf("update-in", ":jvm-opts", "into", "[\"$vmOpts\"]", "--"))
+        }
+        addAll(listOf("repl", ":headless"))
+      }.toTypedArray())
 }
 
 object Boot : Tool {
-  val projectFile = ClojureConstants.BOOT_BUILD_BOOT
+  val projectFile = ClojureConstants.BOOT_CONFIG
   val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
     val path = "$it${File.separator}boot${if (SystemInfo.isWindows) ".bat" else ""}"
     if (File(path).exists()) path else null

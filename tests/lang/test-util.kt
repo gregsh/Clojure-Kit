@@ -33,7 +33,7 @@ val TEST_DATA_PATH = FileUtil.toSystemIndependentName(File("testData").absoluteP
 
 val CLJ_LIB_FS = resourceFs(ClojureConstants.CLJ_CORE_PATH)
 val CLJS_LIB_FS = resourceFs(ClojureConstants.CLJS_CORE_PATH)
-val KNOWN_LIB_FS = resourceFsn(ClojureConstants.LEIN_PROJECT_CLJ)
+val KNOWN_LIB_FS = resourceFsn(ClojureConstants.LEIN_CONFIG)
 
 fun walkClojureLang(block: (Path, String) -> Unit) = walkFs(CLJ_LIB_FS, block)
 fun walkClojureScriptLang(block: (Path, String) -> Unit) = walkFs(CLJS_LIB_FS, block)
