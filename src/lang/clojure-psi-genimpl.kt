@@ -40,10 +40,10 @@ class ClojurePsiImplUtil {
   companion object {
     @JvmStatic fun toString(o: PsiElement) = "${StringUtil.getShortName(o::class.java)}(${PsiUtilCore.getElementType(o)})"
 
-    @JvmStatic fun getReference(o: CSymbol): PsiQualifiedReference = CSymbolReference(o)
-    @JvmStatic fun getName(o: CSymbol): String = o.lastChild.text
-    @JvmStatic fun getTextOffset(o: CSymbol): Int = o.lastChild.textRange.startOffset
-    @JvmStatic fun getQualifier(o: CSymbol): CSymbol? = o.lastChild.findPrev(CSymbol::class)
+    @JvmStatic fun getReference(o: CSymbolBase): PsiQualifiedReference = o.refImpl!!
+    @JvmStatic fun getName(o: CSymbolBase): String = o.lastChild.text
+    @JvmStatic fun getTextOffset(o: CSymbolBase): Int = o.lastChild.textRange.startOffset
+    @JvmStatic fun getQualifier(o: CSymbolBase): CSymbol? = o.lastChild.findPrev(CSymbol::class)
 
     @JvmStatic fun getQualifiedName(o: CSymbol): String {
       val offset = o.qualifier?.textRange?.startOffset ?: o.findChild(CToken::class)!!.textRange.startOffset
@@ -99,7 +99,7 @@ abstract class CListBase(nodeType: IElementType) : CLVFormImpl(nodeType), CList,
 abstract class CKeywordBase(nodeType: IElementType) : CFormImpl(nodeType), CKeyword,
     PsiNameIdentifierOwner, PsiQualifiedNamedElement, ItemPresentation {
 
-  override abstract fun getName(): String
+  abstract override fun getName(): String
 
   override fun getPresentation() = this
   override fun getIcon(unused: Boolean): Icon? = null
@@ -112,6 +112,20 @@ abstract class CKeywordBase(nodeType: IElementType) : CFormImpl(nodeType), CKeyw
 
   override fun getPresentableText() = ":$qualifiedName"
   override fun getQualifiedName() = name.withNamespace(namespace)
+}
+
+abstract class CSymbolBase(nodeType: IElementType) : CSFormImpl(nodeType), CSymbol {
+
+  abstract override fun getName(): String
+  abstract override fun getReference(): PsiQualifiedReference
+
+  internal var refImpl: PsiQualifiedReference? = null
+    get() = field ?: CSymbolReference(this).apply { field = this }
+
+  override fun clearCaches() {
+    super.clearCaches()
+    refImpl = null
+  }
 }
 
 fun newLeafPsiElement(project: Project, s: String): PsiElement =

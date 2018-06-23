@@ -193,11 +193,10 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   // form_prefix *
   private static boolean form_0_1(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "form_0_1")) return false;
-    int c = current_position_(b);
     while (true) {
+      int c = current_position_(b);
       if (!form_prefix(b, l + 1)) break;
       if (!empty_element_parsed_guard_(b, "form_0_1", c)) break;
-      c = current_position_(b);
     }
     return true;
   }
@@ -207,11 +206,9 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   static boolean form_inner(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "form_inner")) return false;
     boolean r;
-    Marker m = enter_section_(b);
     r = p_forms(b, l + 1);
     if (!r) r = s_forms(b, l + 1);
     if (!r) r = constructor(b, l + 1);
-    exit_section_(b, m, null, r);
     return r;
   }
 
@@ -220,10 +217,8 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   static boolean form_prefix(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "form_prefix")) return false;
     boolean r;
-    Marker m = enter_section_(b);
     r = metadata(b, l + 1);
     if (!r) r = reader_macro(b, l + 1);
-    exit_section_(b, m, null, r);
     return r;
   }
 
@@ -260,11 +255,10 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   static boolean items(PsiBuilder b, int l, Parser _recover, Parser _param) {
     if (!recursion_guard_(b, l, "items")) return false;
     Marker m = enter_section_(b, l, _NONE_);
-    int c = current_position_(b);
     while (true) {
+      int c = current_position_(b);
       if (!items_entry(b, l + 1, _recover, _param)) break;
       if (!empty_element_parsed_guard_(b, "items", c)) break;
-      c = current_position_(b);
     }
     exit_section_(b, l, m, true, false, _recover);
     return true;
@@ -508,12 +502,10 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   private static boolean metadata_1(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "metadata_1")) return false;
     boolean r;
-    Marker m = enter_section_(b);
     r = consumeToken(b, C_STRING);
     if (!r) r = symbol(b, l + 1);
     if (!r) r = keyword(b, l + 1);
     if (!r) r = map(b, l + 1);
-    exit_section_(b, m, null, r);
     return r;
   }
 
@@ -533,13 +525,11 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   static boolean p_forms(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "p_forms")) return false;
     boolean r;
-    Marker m = enter_section_(b);
     r = list(b, l + 1);
     if (!r) r = set(b, l + 1);
     if (!r) r = vec(b, l + 1);
     if (!r) r = map(b, l + 1);
     if (!r) r = fun(b, l + 1);
-    exit_section_(b, m, null, r);
     return r;
   }
 

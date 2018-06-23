@@ -14,6 +14,7 @@
   extends='org.intellij.clojure.psi.impl.CComposite'
   mixin("list")="org.intellij.clojure.psi.impl.CListBase"
   mixin("keyword")="org.intellij.clojure.psi.impl.CKeywordBase"
+  mixin("symbol")="org.intellij.clojure.psi.impl.CSymbolBase"
 
   elementTypeHolderClass='org.intellij.clojure.psi.ClojureTypes'
   elementTypeClass="org.intellij.clojure.psi.ClojureNodeType"
@@ -30,7 +31,7 @@
     char='regexp:\\(u\d{4}|newline|space|backspace|return|.)'
     bool="regexp:true|false"
     nil='nil'
-    sym="regexp:[\w.<>$%&=*/+\-!?_'[^\d]][\w.<>$%&=*/+\-!?_']*(:[\w<>$%&=*/+\-!?_'])+)?"
+    sym="regexp:[\w.<>$%&=*/+\-!?_'[^\d]][\w.<>$%&=*/+\-!?_']*((:[\w<>$%&=*/+\-!?_'])+)?"
     sharp_hat="#^"
     sharp_quote="#'"
     sharp_comment="#_"

@@ -12,7 +12,7 @@ import org.intellij.clojure.psi.*;
 import com.intellij.psi.PsiQualifiedReference;
 import com.intellij.psi.tree.IElementType;
 
-public class CSymbolImpl extends CSFormImpl implements CSymbol {
+public class CSymbolImpl extends CSymbolBase implements CSymbol {
 
   public CSymbolImpl(IElementType type) {
     super(type);
