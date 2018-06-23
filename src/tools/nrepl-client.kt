@@ -73,8 +73,6 @@ class NReplClient {
       toolSession = if (toolSession != "" && pingImpl(toolSession)) toolSession else createSession()
     }
     catch(e: Exception) {
-      if (e is SocketException) LOG.warn("nrepl://$host:$port failed: $e")
-      else LOG.warn("nrepl://$host:$port failed", e)
       if (transport != NOT_CONNECTED) disconnect()
       throw e
     }

@@ -259,6 +259,8 @@ private fun allRepls(project: Project?) =
     else ExecutionManager.getInstance(project).contentManager.allDescriptors.jbIt()
         .map { it.executionConsole as? ReplConsole }.notNulls()
 
+fun currentRepl(project: Project?) = allRepls(project).single() ?: allRepls(project).find(::isExclusive)
+
 fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
 fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
 
@@ -457,7 +459,13 @@ class ReplConsole(project: Project, title: String, language: Language)
           this.op = op
           s.traverse().skip(1).split(2, true).forEach {
             val arg = s.api.textOf(it[0]).toString().trimStart(':')
-            val value = s.api.textOf(it[1]).toString()
+            val value = s.api.textOf(it[1]).toString().let { str ->
+              when (s.api.typeOf(it[1])) {
+                ClojureTypes.C_LITERAL -> StringUtil.unquoteString(str)
+                ClojureTypes.C_KEYWORD -> "\"$str\""
+                else -> str
+              }
+            }
             set(arg, value)
           }
           f.invoke(this)
@@ -619,6 +627,7 @@ fun newLocalProcess(workingDir: File): ProcessHandler {
           promise.setResult(null)
         }
         catch (e: Exception) {
+          promise.processed { }
           promise.setError(e)
         }
       }
