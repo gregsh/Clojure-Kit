@@ -46,6 +46,7 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CORE_NAMESPACES
 import org.intellij.clojure.getIconForType
 import org.intellij.clojure.java.JavaHelper
+import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.CStub
 import org.intellij.clojure.util.*
@@ -80,7 +81,8 @@ class ClojureDefinitionService(val project: Project) {
   companion object {
     @JvmStatic fun getInstance(project: Project) = ServiceManager.getService(project, ClojureDefinitionService::class.java)!!
 
-    @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope = EverythingGlobalScope(project)
+    @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope =
+        GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType)
 
     @JvmStatic val COMMENT_SYM = SymKey("comment", ClojureConstants.CLOJURE_CORE, "defmacro")
   }

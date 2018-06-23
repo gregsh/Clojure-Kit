@@ -42,15 +42,17 @@ import com.intellij.lang.documentation.DocumentationProviderEx
 import com.intellij.lang.parameterInfo.*
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.actionSystem.Presentation
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Comparing
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
@@ -67,13 +69,13 @@ import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
+import com.intellij.util.ExceptionUtil
 import com.intellij.util.ProcessingContext
-import com.intellij.util.TimeoutUtil
+import com.intellij.util.SingleAlarm
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
-import com.intellij.util.ui.UIUtil
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
@@ -82,8 +84,10 @@ import org.intellij.clojure.lang.usages.ClojureGotoRenderer
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.psi.stubs.CPrototypeStub
+import org.intellij.clojure.tools.currentRepl
 import org.intellij.clojure.util.*
 import java.awt.event.MouseEvent
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * @author gregsh
@@ -309,13 +313,14 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
   }
 
   override fun generateDoc(element: PsiElement?, originalElement: PsiElement?): String? {
+    val project = element?.project ?: return null
     val target = (element as? PomTargetPsiElement)?.target
     val key = (target as? CTarget)?.key
     val resolved =
         if (key != null && key.type == "keyword" &&
             key.namespace == "" && ClojureConstants.NS_ALIKE_SYMBOLS.contains(key.name)) {
           // adjust resolved element for (ns ...) macro keywords
-          ClojureDefinitionService.getInstance(element!!.project).getDefinition(key.name, Dialect.CLJ.coreNs, "def").navigationElement
+          ClojureDefinitionService.getInstance(project).getDefinition(key.name, Dialect.CLJ.coreNs, "def").navigationElement
         }
         else {
           (element as? PomTargetPsiElement)?.navigationElement
@@ -335,7 +340,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
 
     val nameSymbol = resolved.findChild(Role.NAME) as? CSymbol
     val sb = StringBuilder("<html>")
-    sb.append("<b>(${def.type}</b> ${def.qualifiedName}<b>${if (resolved is CList) " …" else ""})</b>").append("<br>")
+    sb.append("<code><b>(${def.type}</b> ${def.qualifiedName}<b>)</b></code>").append("<br>")
     val docLiteral =
         if (def.type == "method") nameSymbol.findNext(CLiteral::class)
         else nameSymbol.nextForm as? CLiteral
@@ -353,77 +358,111 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         .replace("(?:\\.\\s)".toRegex(), ".<p>")
         .replace("(?:\\:\\s)".toRegex(), ":<br>")
     val sourceFile = PsiUtilCore.getVirtualFile(resolved)
-    return scheduleSlowDocumentation(element!!, result, { e, s -> loadMoreInformation(s, def, e, sourceFile) })
+    return scheduleSlowDocumentation(element, result) { appender ->
+      if (def.type == "defmacro") {
+        val repl = currentRepl(project)
+        val qualifiedText = readAction { originalElement?.parentForm?.qualifiedText() }
+        if (repl != null && qualifiedText != null) {
+          val future = repl.repl.eval("""
+            (binding [*print-meta* true
+                      *out* (java.io.StringWriter.)]
+              (clojure.pprint/pprint (macroexpand '$qualifiedText))
+              (.toString *out*))""")
+          val value = try { future.get()?.get("value") } catch (ex : Exception) { ExceptionUtil.getThrowableText(ex) }
+          if (value is String) {
+            val adjusted = StringUtil.unescapeStringCharacters(StringUtil.unquoteString(value))
+            appender("<p><p><b>:macroexpand</b><br><pre>$adjusted</pre>")
+          }
+        }
+      }
+      DumbService.getInstance(project).runReadActionInSmartMode {
+        ProgressIndicatorUtils.runInReadActionWithWriteActionPriority {
+          loadSlowDocumentationInReadAction(project, appender, def, element, sourceFile)
+        }
+      }
+    }
   }
 
-  private fun loadMoreInformation(sb: StringBuilder, def: IDef, element: PsiElement, sourceFile: VirtualFile?) {
-    val project = element.project
-    DumbService.getInstance(project).waitForSmartMode()
+  private fun loadSlowDocumentationInReadAction(project: Project, appender: (String)->Any?, def: IDef, element: PsiElement, sourceFile: VirtualFile?) {
     if (def.type == "ns") {
-      sb.append("<br>")
+      appender("<br>")
       FileBasedIndex.getInstance().getFilesWithKey(NS_INDEX, mutableSetOf(def.name), { file ->
-        sb.append("<br><i>${file.presentableUrl}</i>")
+        appender("<br><i>${file.presentableUrl}</i>")
         true
       }, ClojureDefinitionService.getClojureSearchScope(project))
-
     }
     else {
-      appendSpecs(sb, element, sourceFile)
-    }
-  }
-
-  private fun appendSpecs(sb: StringBuilder, element: PsiElement, sourceFile: VirtualFile?) {
-    var first = true
-    for (ref in ReferencesSearch.search(element)) {
-      val form = ref.element.thisForm
-      val maybeSpec = form.parentForm as? CList
-      val callSym = maybeSpec?.first ?: continue
-      if (callSym.nextForm != form) continue
-      val key = callSym.resolveInfo() ?: continue
-      if (key.namespace != ClojureConstants.NS_SPEC || !(key.name == "def" || key.name == "fdef")) {
-        continue
-      }
-      sb.append("<p>")
-      if (first) {
-        sb.append("<p><b>").append(":specs").append("</b>")
-        first = false
-      }
-      sb.append("<br><pre>").append(maybeSpec.text).append("</pre>")
-      val specFile = PsiUtilCore.getVirtualFile(maybeSpec)
-      if (specFile != null && sourceFile != specFile) {
-        val url = specFile.presentableUrl
-        sb.append("<i>").append(StringUtil.last(url, 80, true)).append("</i>")
+      var first = true
+      for (ref in ReferencesSearch.search(element, ClojureDefinitionService.getClojureSearchScope(project))) {
+        val form = ref.element.thisForm
+        val maybeSpec = form.parentForm as? CList
+        val callSym = maybeSpec?.first ?: continue
+        if (callSym.nextForm != form) continue
+        val key = callSym.resolveInfo() ?: continue
+        if (key.namespace != ClojureConstants.NS_SPEC && key.namespace != ClojureConstants.NS_SPEC_ALPHA ||
+            key.name != "def" && key.name != "fdef") {
+          continue
+        }
+        appender("<p>")
+        if (first) {
+          appender("<p><b>:specs</b>")
+          first = false
+        }
+        appender("<br><pre>${maybeSpec.text}</pre>")
+        val specFile = PsiUtilCore.getVirtualFile(maybeSpec)
+        if (specFile != null && sourceFile != specFile) {
+          val url = specFile.presentableUrl
+          appender("<i>${StringUtil.last(url, 80, true)}</i>")
+        }
       }
     }
   }
 
-  fun scheduleSlowDocumentation(element: PsiElement,
-                                prefix: CharSequence,
-                                provider: (PsiElement, StringBuilder) -> Unit): String {
-    val moreText = "<p><p><i><small>Looking for more...</small></i>"
+  private fun scheduleSlowDocumentation(element: PsiElement,
+                                        prefix: CharSequence,
+                                        provider: (appender: (String)->Any?) -> Unit): String {
     val sb = StringBuilder(prefix)
     val project = element.project
+    val queue = ConcurrentLinkedQueue<Any>()
+    val alarmDisposable = Disposer.newDisposable()
+    Disposer.register(project, alarmDisposable)
+    val alarm = SingleAlarm(Runnable {
+      val component = QuickDocUtil.getActiveDocComponent(project)
+      if (component == null) {
+        Disposer.dispose(alarmDisposable)
+        return@Runnable
+      }
+      var s = queue.poll()
+      while (s != null) {
+        if (s !is String) break
+        sb.append(s)
+        s = queue.poll()
+      }
+      if (s != null && s !is String) {
+        sb.append("<p><p>")
+        Disposer.dispose(alarmDisposable)
+      }
+      val newText = sb.toString()
+      val prevText = component.text
+      if (!Comparing.equal(newText, prevText)) {
+        component.replaceText(newText, element)
+      }
+    }, 100, alarmDisposable)
     AppExecutorUtil.getAppExecutorService().submit {
-      ProgressIndicatorUtils.runInReadActionWithWriteActionPriority {
-        ApplicationManager.getApplication().runReadAction pooled@ {
-          if (!element.isValid) return@pooled
-          provider(element, sb)
+      try {
+        provider { str ->
+          ProgressManager.checkCanceled()
+          if (alarm.isDisposed) throw ProcessCanceledException()
+          queue.add(str)
+          alarm.cancelAndRequest()
         }
       }
-      //todo handle "Fetching Documentation..." otherwise; now just wait a bit
-      TimeoutUtil.sleep(300)
-      UIUtil.invokeLaterIfNeeded later@ {
-        val component = QuickDocUtil.getActiveDocComponent(project) ?: return@later
-        val prevText = component.text
-        val moreIdx = prevText.indexOf(moreText)
-        if (moreIdx < 0) return@later
-        val newText = sb.toString()
-        if (!Comparing.equal(newText, prevText)) {
-          component.replaceText(newText, element)
-        }
+      finally {
+        queue.add(false)
+        alarm.cancelAndRequest()
       }
     }
-    return "$prefix$moreText"
+    return "$prefix<p><p>"
   }
 }
 
@@ -648,11 +687,11 @@ class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
           }
           else it
         }
-        candidate.add(InlayInfo(if (vararg) "..." + arg else arg, param.textRange.startOffset))
+        candidate.add(InlayInfo(if (vararg) "...$arg" else arg, param.textRange.startOffset))
       }
       if (args.hasNext() || params.hasNext() && !vararg) return@Function null
       candidate
-    }.notNulls().first() ?: emptyList<InlayInfo>()
+    }.notNulls().first() ?: emptyList()
   }
 
   override fun getHintInfo(element: PsiElement): HintInfo? = HintInfo.OptionInfo(OPTION)

@@ -35,6 +35,7 @@ object ClojureConstants {
 
   @JvmStatic val NS_USER = "user"
   @JvmStatic val NS_SPEC = "clojure.spec"
+  @JvmStatic val NS_SPEC_ALPHA = "clojure.spec.alpha"
 
   @JvmStatic val CLOJURE_CORE = "clojure.core"
   @JvmStatic val CLJS_CORE = "cljs.core"
