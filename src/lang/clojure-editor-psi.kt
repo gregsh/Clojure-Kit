@@ -59,7 +59,9 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.patterns.PlatformPatterns.psiElement
 import com.intellij.patterns.StandardPatterns
 import com.intellij.pom.Navigatable
+import com.intellij.pom.PomNamedTarget
 import com.intellij.pom.PomTargetPsiElement
+import com.intellij.pom.references.PomService
 import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.BaseScopeProcessor
@@ -78,6 +80,7 @@ import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
+import org.intellij.clojure.getTokenDescription
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
 import org.intellij.clojure.lang.ClojureColors
 import org.intellij.clojure.lang.usages.ClojureGotoRenderer
@@ -308,8 +311,14 @@ class ClojureCompletionContributor : CompletionContributor() {
 }
 
 class ClojureDocumentationProvider : DocumentationProviderEx() {
-  override fun getQuickNavigateInfo(element: PsiElement?, originalElement: PsiElement?): String? {
-    return super.getQuickNavigateInfo(element, originalElement)
+  override fun getCustomDocumentationElement(editor: Editor, file: PsiFile, contextElement: PsiElement?): PsiElement? {
+    val elementType = contextElement?.elementType
+    if (elementType != null && getTokenDescription(elementType) != null) {
+      return PomService.convertToPsi(object : DelegatePsiTarget(contextElement), PomNamedTarget {
+        override fun getName() = elementType.toString()
+      })
+    }
+    return null
   }
 
   override fun generateDoc(element: PsiElement?, originalElement: PsiElement?): String? {
@@ -327,7 +336,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         }?.let {
           it.asXTarget?.resolveForm() ?: it
         } ?: element
-    val def = (resolved as? CList)?.def ?: key ?: return null
+    val def = (resolved as? CList)?.def ?: key ?: return getTokenDescription(originalElement?.elementType)
 
     fun String.sanitize() = StringUtil.escapeXml(StringUtil.unquoteString(this))
     fun StringBuilder.appendMap(m: CForm?) {
@@ -608,7 +617,8 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
   override fun getArgListStopSearchClasses() = emptySet<Class<*>>()
 
   override fun findElementForUpdatingParameterInfo(context: UpdateParameterInfoContext) =
-      if (context.parameterOwner?.textRange?.containsOffset(context.offset) ?: false) context.parameterOwner as? CList else null
+      if (context.parameterOwner?.textRange?.containsOffset(context.offset) == true) context.parameterOwner as? CList
+      else null
 
   override fun getActualParameterDelimiterType() = TokenType.WHITE_SPACE!!
   override fun getArgumentListAllowedParentClasses() = setOf(CList::class.java)

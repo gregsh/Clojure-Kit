@@ -19,6 +19,8 @@ package org.intellij.clojure
 
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.util.IconLoader
+import com.intellij.psi.tree.IElementType
+import org.intellij.clojure.psi.ClojureTypes
 import javax.swing.Icon
 
 /**
@@ -144,4 +146,68 @@ fun getIconForType(type: String): Icon? = when {
   type == "method" -> ClojureIcons.METHOD
   ClojureConstants.NS_ALIKE_SYMBOLS.contains(type) -> ClojureIcons.NAMESPACE
   else -> ClojureIcons.SYMBOL
+}
+
+fun getTokenDescription(type: IElementType?) = when (type) {
+  ClojureTypes.C_AT -> "Deref macro:<p>" +
+      "Returns in-transaction-value of refs, agents, vars, atoms, delays, futures, promises.<p>" +
+      "@form ⇒ (deref form)"
+  ClojureTypes.C_BOOL -> "A boolean value: true or false."
+  ClojureTypes.C_BRACE1,
+  ClojureTypes.C_BRACE2 -> "Braces are for maps and sets:<p>" +
+      "{:a 10 :b 5} ⇒ (hash-map :a 10, :b 5) ⇒ a map<p>" +
+      "#{1 2 3} ⇒ (set '(1 2 3)) ⇒ a set<p>"
+  ClojureTypes.C_BRACKET1,
+  ClojureTypes.C_BRACKET2 -> "Brackets are for vectors:<p>" +
+      "[1 2 3] ⇒ (vec '(1 2 3)) ⇒ a vector"
+  ClojureTypes.C_CHAR -> "A character."
+  ClojureTypes.C_COLON -> "Keywords<p>:name ⇒ (keyword 'name)"
+  ClojureTypes.C_COLONCOLON -> "Keywords with a namespace:<p>::name ⇒ (keyword (str *ns*) \"name\")"
+  ClojureTypes.C_COMMA -> "Commas are whitespaces."
+  ClojureTypes.C_DOT -> "Java interop:<p>" +
+      "(.method o) ⇒ o.method()<p>" +
+      "(. o method args) ⇒ o.method(args)<p>" +
+      "(. o (method args)) ⇒ o.method(args)<p>" +
+      "(. o -field) ⇒ (.-prop o) ⇒ o.field<p>" +
+      "(Object.) ⇒ (new Object) ⇒ new Object()"
+  ClojureTypes.C_DOTDASH -> "Java interop:<p>" +
+      "(.-prop o) ⇒ (. o -prop) ⇒ o.prop"
+  ClojureTypes.C_HAT,
+  ClojureTypes.C_SHARP_HAT -> "Metadata:<p>^(symbol|keyword|string|map) form<p>" +
+      "^:key form ⇒ ^{:key true} form<p>" +
+      "^String form ⇒ ^{:tag java.lang.String} form<p>" +
+      "^\"tag\" form ⇒ ^{:tag \"tag\"} form<p>" +
+      "Meta macro (#^) means the same as ^"
+  ClojureTypes.C_HEXNUM -> "A hex number."
+  ClojureTypes.C_NIL -> "1. a Java null<p>2. a false<p>3. an end-of-sequence marker"
+  ClojureTypes.C_PAREN1,
+  ClojureTypes.C_PAREN2 -> "Parentheses are for lists and anonymous functions:<p>" +
+      "'(1 2 3) ⇒ (list 1 2 3) ⇒ a list<p>" +
+      "#(+ % 1) ⇒ (fn [x] (+ x 1)"
+  ClojureTypes.C_QUOTE -> "Quote sign:<p>'form ⇒ (quote form)"
+  ClojureTypes.C_RATIO -> "Rational numbers:<p>" +
+      "(/ 2 3) ⇒ 2/3"
+  ClojureTypes.C_RDXNUM -> "Radix numbers<p>:" +
+      "2r1011 ⇒ 11<p>" +
+      "8r377 ⇒ 255<p>" +
+      "16rCAFEBABE ⇒ 3405691582"
+  ClojureTypes.C_SHARP -> "Dispatch macro:<p>" +
+      "#{1 2 3} ⇒ (set '(1 2 3))<p>" +
+      "#\"\\s*\\d+\" ⇒ (re-pattern \"\\\\s*\\\\d+\")<p>" +
+      "#(+ % 1) ⇒ (fn [x] (+ x 1)<p>" +
+      "#foo/bar [1 2 3] ⇒ tagged literal, e.g. #uuid \"uuid-str\", #inst \"date-str\", #js {}"
+  ClojureTypes.C_SHARP_COMMENT -> "Comment macro:<p>Means ignore next form."
+  ClojureTypes.C_SHARP_EQ -> "Evaluate macro:<p>#= (+ 1 2) ⇒ 3 ; at read time"
+  ClojureTypes.C_SHARP_NS -> "Namespace map macro:<p>:ns {:key 1} ⇒ {:ns/key 1}"
+  ClojureTypes.C_SHARP_QMARK -> "Conditional macro:<p>[1 #?(:clj [2 3])] ⇒ [1 [2 3]]"
+  ClojureTypes.C_SHARP_QMARK_AT -> "Conditional splicing macro:<p>[1 #?@(:clj [2 3])] ⇒ [1 2 3]"
+  ClojureTypes.C_SHARP_QUOTE -> "Var macro:<p>#'x ⇒ (var x)"
+  ClojureTypes.C_SHARP_SYM -> "Symbolic value macro:<p>##Inf, ##-Inf, ##NaN"
+  ClojureTypes.C_SYNTAX_QUOTE -> "Syntax quote:<p>" +
+      "(let [a 10] `(str a \"=\" ~a)) ⇒ (clojure.core/str user/a \"=\" 10)"
+  ClojureTypes.C_TILDE -> "Syntax unquote:<p>" +
+      "(let [a 10] `(str a \"=\" ~a)) ⇒ (clojure.core/str user/a \"=\" 10)"
+  ClojureTypes.C_TILDE_AT -> "Syntax unquote-splicing:<p>" +
+      "(let [a [10 11]] `(str a \"=\" ~a)) ⇒ (clojure.core/str user/a \"=\" [10 11])"
+  else -> null
 }
