@@ -45,7 +45,7 @@ object ClojureColors {
   @JvmField val STRING = createTextAttributesKey("C_STRING", DefaultLanguageHighlighterColors.STRING)
   @JvmField val CHARACTER = createTextAttributesKey("C_CHARACTER", DefaultLanguageHighlighterColors.STRING)
   @JvmField val NUMBER = createTextAttributesKey("C_NUMBER", DefaultLanguageHighlighterColors.NUMBER)
-  @JvmField val KEYWORD = createTextAttributesKey("C_KEYWORD", DefaultLanguageHighlighterColors.MARKUP_ATTRIBUTE)
+  @JvmField val KEYWORD = createTextAttributesKey("C_KEYWORD", DefaultLanguageHighlighterColors.METADATA)
   @JvmField val SYMBOL = createTextAttributesKey("C_SYMBOL", DefaultLanguageHighlighterColors.IDENTIFIER)
   @JvmField val BOOLEAN = createTextAttributesKey("C_BOOLEAN", DefaultLanguageHighlighterColors.KEYWORD)
   @JvmField val NIL = createTextAttributesKey("C_NIL", DefaultLanguageHighlighterColors.KEYWORD)
@@ -65,6 +65,8 @@ object ClojureColors {
   @JvmField val QUOTED_SYM = createTextAttributesKey("C_QUOTED_SYM", DefaultLanguageHighlighterColors.STRING)
   @JvmField val METADATA = createTextAttributesKey("C_METADATA")
   @JvmField val READER_MACRO = createTextAttributesKey("C_READER_MACRO")
+  @JvmField val DATA_READER = createTextAttributesKey("C_DATA_READER", DefaultLanguageHighlighterColors.LABEL)
+  @JvmField val DEFINITION = createTextAttributesKey("C_DEFINITION", DefaultLanguageHighlighterColors.FUNCTION_DECLARATION)
   @JvmField val FN_ARGUMENT = createTextAttributesKey("C_FN_ARGUMENT", DefaultLanguageHighlighterColors.PARAMETER)
   @JvmField val LET_BINDING = createTextAttributesKey("C_LET_BINDING", DefaultLanguageHighlighterColors.LOCAL_VARIABLE)
   @JvmField val NAMESPACE = createTextAttributesKey("C_NAMESPACE", DefaultLanguageHighlighterColors.IDENTIFIER)
@@ -111,6 +113,7 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
       ClojureHighlightingLexer.KEYWORD -> pack(ClojureColors.KEYWORD)
       ClojureHighlightingLexer.CALLABLE_KEYWORD -> pack(ClojureColors.CALLABLE, ClojureColors.KEYWORD)
       ClojureHighlightingLexer.QUOTED_SYM -> pack(ClojureColors.QUOTED_SYM)
+      ClojureHighlightingLexer.DATA_READER -> pack(ClojureColors.DATA_READER)
       else -> EMPTY
     }
   }
@@ -122,6 +125,7 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
     val KEYWORD = IElementType("C_KEYWORD*", ClojureLanguage)
     val CALLABLE_KEYWORD = IElementType("C_CALLABLE_KEYWORD*", ClojureLanguage)
     val QUOTED_SYM = IElementType("C_QUOTED_SYM*", ClojureLanguage)
+    val DATA_READER = IElementType("C_DATA_READER*", ClojureLanguage)
   }
 
   override fun lookAhead(baseLexer: Lexer) {
@@ -139,6 +143,7 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
         baseLexer.advance()
         when (baseLexer.tokenType) {
           C_STRING, C_PAREN1, C_BRACE1 -> advanceAs(baseLexer, baseLexer.tokenType)
+          C_SYM -> advanceAs(baseLexer, DATA_READER)
           else -> addToken(baseLexer.tokenStart, C_SHARP)
         }
       }
@@ -196,7 +201,7 @@ class ClojureColorSettingsPage : ColorSettingsPage {
 <ign>(comment "clojure code fragments below")</ign>
 (alias <as>core</as> <sym>'clojure.core</sym>)
 
-(defn mod
+(defn <def>mod</def>
   "Modulus of num and div. Truncates toward negative infinity."
   {<k>:added</k> "1.0"
    <k>:static</k> true}
@@ -213,15 +218,17 @@ class ClojureColorSettingsPage : ColorSettingsPage {
 #?(:clj     Double/NaN
    :cljs    <dyn>js</dyn>/NaN
    :default nil)
+(def <def>INIT</def> <dr>#js</dr> {})
   """
 
   override fun getAdditionalHighlightingTagToDescriptorMap() = hashMapOf(
       "ns" to ClojureColors.NAMESPACE,
+      "def" to ClojureColors.DEFINITION,
       "as" to ClojureColors.ALIAS,
       "k" to ClojureColors.KEYWORD,
       "sym" to ClojureColors.QUOTED_SYM,
       "dyn" to ClojureColors.DYNAMIC,
-      "reader" to ClojureColors.READER_MACRO,
+      "dr" to ClojureColors.DATA_READER,
       "arg" to ClojureColors.FN_ARGUMENT,
       "bnd" to ClojureColors.LET_BINDING,
       "ign" to ClojureColors.FORM_COMMENT
@@ -250,6 +257,8 @@ class ClojureColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Grouping//Braces", ClojureColors.BRACES),
         AttributesDescriptor("Grouping//Brackets", ClojureColors.BRACKETS),
         AttributesDescriptor("Entities//Callable (list head)", ClojureColors.CALLABLE),
+        AttributesDescriptor("Entities//Definition", ClojureColors.DEFINITION),
+        AttributesDescriptor("Entities//Data reader (tag)", ClojureColors.DATA_READER),
         AttributesDescriptor("Entities//Function argument", ClojureColors.FN_ARGUMENT),
         AttributesDescriptor("Entities//Local binding", ClojureColors.LET_BINDING),
         AttributesDescriptor("Entities//Namespace", ClojureColors.NAMESPACE),

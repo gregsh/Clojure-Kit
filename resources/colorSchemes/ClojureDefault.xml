@@ -8,6 +8,7 @@
   <option name="C_FN_ARGUMENT">
     <value>
       <option name="FOREGROUND" value="660e7a"/>
+      <option name="FONT_TYPE" value="1"/>
     </value>
   </option>
   <option name="C_FORM_COMMENT">
@@ -18,7 +19,6 @@
   <option name="C_LET_BINDING">
     <value>
       <option name="FOREGROUND" value="660e7a"/>
-      <option name="FONT_TYPE" value="1"/>
     </value>
   </option>
   <option name="C_METADATA">
