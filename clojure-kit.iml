@@ -12,7 +12,6 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" name="KotlinJavaRuntime" level="project" />
     <orderEntry type="library" scope="TEST" name="Clojure" level="project" />
     <orderEntry type="library" scope="TEST" name="ClojureScript" level="project" />
     <orderEntry type="library" scope="TEST" name="WellKnownClojureLibs" level="project" />

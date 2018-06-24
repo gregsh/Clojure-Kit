@@ -1,6 +1,6 @@
 <component name="libraryTable">
   <library name="ClojureScript" type="repository">
-    <properties maven-id="org.clojure:clojurescript:RELEASE" />
+    <properties maven-id="org.clojure:clojurescript:1.9.946" />
     <CLASSES>
       <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.9.946/clojurescript-1.9.946.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojure/1.8.0/clojure-1.8.0.jar!/" />
