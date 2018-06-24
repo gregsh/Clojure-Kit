@@ -24,7 +24,8 @@ import com.intellij.psi.PsiPolyVariantReference
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.SYMBOLIC_VALUES
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.*
+import org.intellij.clojure.psi.impl.CFileImpl
+import org.intellij.clojure.psi.impl.placeLanguage
 import org.intellij.clojure.tools.Tool
 import org.intellij.clojure.util.elementType
 import org.intellij.clojure.util.iterate
@@ -76,7 +77,7 @@ class ClojureResolveInspection : LocalInspectionTool() {
         if (o.parent is CSymbol && o.parent.parent is CKeyword) return
         val quotesAndComments = o.parents().filter { it is CMetadata
             || it is CForm && it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null
-            || it is CList && it.first.resolveInfo().matches(ClojureDefinitionService.COMMENT_SYM)
+            || it is CList && it.role == Role.COMMENT
         }.first()
         if (quotesAndComments != null) return
         holder.registerProblem(reference, "unable to resolve '${reference.referenceName}'", ProblemHighlightType.GENERIC_ERROR_OR_WARNING)

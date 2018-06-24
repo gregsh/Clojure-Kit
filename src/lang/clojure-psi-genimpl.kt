@@ -60,7 +60,7 @@ class ClojurePsiImplUtil {
         (o.findChild(Role.NAME) ?: o.firstForm)?.textOffset
             ?: o.textRange.startOffset
 
-    @JvmStatic fun getFirst(o: CList): CSymbol? = o.findChild(CForm::class) as? CSymbol
+    @JvmStatic fun getFirst(o: CList): CSymbol? = o.childForm(CForm::class) as? CSymbol
     @JvmStatic fun getLiteralType(o: CLiteral): IElementType? = o.lastChild?.elementType
     @JvmStatic fun getLiteralText(o: CLiteral): String = o.lastChild?.text ?: ""
   }

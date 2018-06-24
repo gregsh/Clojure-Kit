@@ -95,38 +95,41 @@ import java.util.concurrent.ConcurrentLinkedQueue
 class ClojureAnnotator : Annotator {
 
   override fun annotate(element: PsiElement, holder: AnnotationHolder) {
-    val callable = element is CSForm && element.parentForm.let {
-      it is CList && it.firstForm == element && it.iterate(CReaderMacro::class).isEmpty
-    }
-    if (callable) {
+    if (element is CSForm && (element.parentForm as? CList).firstForm == element
+        && element.parentForm.iterate(CReaderMacro::class).isEmpty) {
       holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
+    }
+    if (element.role == Role.COMMENT) {
+      holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
     }
     when (element) {
       is CSymbol -> {
-        val target = element.resolveInfo()
-        if (element.getUserData(RESOLVE_SKIPPED) != null) {
-          if (element.name.let { it != "&" && it != "." }) {
-            holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.DYNAMIC
-          }
-          return
-        }
-        if (target == null) return
         var enforced: TextAttributes? = null
-        val attrs = when (target.type) {
-          "ns" -> ClojureColors.NAMESPACE.also { enforced = ClojureColors.NS_COLORS[target.name] }
-          "alias" -> ClojureColors.ALIAS
-          "argument" -> ClojureColors.FN_ARGUMENT
-          "let-binding" -> ClojureColors.LET_BINDING
-          else -> null
+        val attrs = when (element.role) {
+          Role.NAME -> ClojureColors.DEFINITION
+          Role.ARG -> ClojureColors.FN_ARGUMENT
+          Role.BND -> ClojureColors.LET_BINDING
+          else -> {
+            val target = element.resolveInfo()
+            when {
+              element.getUserData(RESOLVE_SKIPPED) != null ->
+                if (element.name.let { it != "&" && it != "." }) ClojureColors.DYNAMIC else null
+              target != null -> when (target.type) {
+                "ns" -> ClojureColors.NAMESPACE.also { enforced = ClojureColors.NS_COLORS[target.name] }
+                "alias" -> ClojureColors.ALIAS
+                "argument" -> ClojureColors.FN_ARGUMENT
+                "let-binding" -> ClojureColors.LET_BINDING
+                else -> if (target.type.startsWith("#")) ClojureColors.DATA_READER else null
+              }
+              else -> null
+            }
+          }
         }
         if (attrs != null) {
           holder.createInfoAnnotation(element.valueRange, null).run {
             textAttributes = attrs
             enforcedTextAttributes = enforced
           }
-        }
-        if (callable && target.matches(ClojureDefinitionService.COMMENT_SYM)) {
-          holder.createInfoAnnotation(element.parentForm!!, null).textAttributes = ClojureColors.FORM_COMMENT
         }
       }
       is CMetadata -> {
@@ -136,9 +139,6 @@ class ClojureAnnotator : Annotator {
           }
         }
       }
-    }
-    if (element is CForm && element.iterate(CReaderMacro::class).find { it.firstChild.elementType == ClojureTypes.C_SHARP_COMMENT } != null) {
-      holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
     }
   }
 }
@@ -342,7 +342,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
     val sb = StringBuilder("<html>")
     sb.append("<code><b>(${def.type}</b> ${def.qualifiedName}<b>)</b></code>").append("<br>")
     val docLiteral =
-        if (def.type == "method") nameSymbol.findNext(CLiteral::class)
+        if (def.type == "method") nameSymbol.nextForm(CLiteral::class)
         else nameSymbol.nextForm as? CLiteral
     if (docLiteral != null) {
       if (docLiteral.literalType == ClojureTypes.C_STRING) {

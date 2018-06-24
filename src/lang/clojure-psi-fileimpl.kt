@@ -30,7 +30,6 @@ import com.intellij.psi.stubs.StubTreeLoader
 import com.intellij.util.SmartList
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.JBTreeTraverser
-import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.editor.arguments
@@ -82,7 +81,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       return fileStub?.namespace ?: state.namespace
     }
 
-  internal fun checkState(): Unit { state.namespace }
+  internal fun checkState() { state.namespace }
 
   override fun defs(dialect: Dialect): JBIterable<CList> {
     return state.definitions.jbIt()
@@ -98,7 +97,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
   @Volatile
   private var myRolesDirty: Boolean = false
   @Volatile
-  private var myState: State? = null
+  private var myState: State? = State(-1, "", emptyList(), emptyList())
   private val state: State
     get() {
       val curTimeStamp = manager.modificationTracker.outOfCodeBlockModificationCount
@@ -111,7 +110,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       myRolesDirty = true
 
       val helper = RoleHelper()
-      helper.assignRoles(this)
+      helper.assignRoles(this, curState != null && curState.timeStamp < 0)
       val definitions = cljTraverser().traverse()
           .filter { (it as? CComposite)?.roleImpl == Role.DEF }
           .filter(CList::class).toList()
@@ -134,6 +133,9 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
   private fun clearRoles() {
     for (e in cljTraverser().traverse()) {
       setData(e, null)
+      if (e.elementType == ClojureTypes.C_SHARP_COMMENT) {
+        setData(e.parent?.parent, Role.COMMENT)
+      }
     }
   }
 
@@ -328,17 +330,25 @@ private class RoleHelper {
         .firstOrNull { !it.isPlatform && it.alias == alias }?.namespace
   }
 
-  fun assignRoles(file: CFile) {
+  fun assignRoles(file: CFile, firstTime: Boolean) {
     val seenDefs = mutableSetOf<String>()
     val delayedDefs = mutableMapOf<CList, IDef>()
     langStack.push(if (file.language == ClojureScriptLanguage) Dialect.CLJS else Dialect.CLJ)
 
-    val s = file.cljTraverser().expand { it !is CListBase ||
-        it is CComposite && it.roleImpl != Role.DEF && it.roleImpl != Role.NS }.traverse()
-    val traceIt : TreeTraversal.TracingIt<PsiElement> = s.typedIterator() // can be used for parent()/parents()
+    val s = file.cljTraverser().expand {
+      it !is CListBase || it is CComposite && it.roleImpl != Role.DEF && it.roleImpl != Role.NS
+    }.traverse()
 
-    for (e in traceIt) {
-      if (e is CKeywordBase) {
+    if (firstTime) {
+      for (e in s.filter { it.elementType == ClojureTypes.C_SHARP_COMMENT }) {
+        setData(e.parent?.parent, Role.COMMENT)
+      }
+    }
+    for (e in s) {
+      if ((e.firstChild as? CReaderMacro)?.firstChild.elementType == ClojureTypes.C_SHARP_COMMENT) {
+        setData(e, Role.COMMENT)
+      }
+      else if (e is CKeywordBase) {
         processKeyword(e)
       }
 //      else if (e is CSymbol) {
@@ -362,7 +372,7 @@ private class RoleHelper {
         seenDefs.add(e.def!!.qualifiedName)
       }
       else if (e is CListBase && processRCParenForm(e)) {
-        Unit
+        // nothing
       }
       else if (e is CListBase) {
         val first = e.first
@@ -381,16 +391,16 @@ private class RoleHelper {
             val key = SymKey(nameSym.name, resolveAlias(nameSym.qualifier?.name) ?: fileNS, type)
             setData(nameSym.qualifier, key.namespace)
             setData(nameSym, Role.NAME)
-            delayedDefs.put(e, createDef(e, nameSym, key))
+            delayedDefs[e] = createDef(e, nameSym, key)
             seenDefs.add(key.qualifiedName)
 
             if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(firstName)) {
               if (firstName == "defrecord" || firstName == "deftype") {
-                setData(e.findChild(CVec::class), Role.FIELD_VEC)
+                setData(e.childForm(CVec::class), Role.FIELD_VEC)
               }
-              e.iterate(CList::class).filter { it.first?.name != null }.forEach {
+              e.childForms(CList::class).filter { it.first?.name != null }.forEach {
                 setData(it.first, Role.NAME)
-                it.iterate(CVec::class).forEach { setData(it, Role.ARG_VEC) }
+                it.childForms(CVec::class).forEach { setData(it, Role.ARG_VEC) }
               }
             }
           }
@@ -398,7 +408,7 @@ private class RoleHelper {
         else if (delayedDefs[e.parentForm]?.type.let { t -> t == "defprotocol" || t == "definterface" }) {
           val key = SymKey(firstName, fileNS, "method")
           setData(first, Role.NAME)
-          delayedDefs.put(e, createDef(e, first, key))
+          delayedDefs[e] = createDef(e, first, key)
           seenDefs.add(key.name)
         }
         else if (ClojureConstants.NS_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.coreNs) {
@@ -406,13 +416,13 @@ private class RoleHelper {
           processNSElement(e)
         }
         else if (ClojureConstants.LET_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.coreNs) {
-          setData(e.findChild(CVec::class), Role.BND_VEC)
+          setData(e.childForm(CVec::class), Role.BND_VEC)
         }
         else if (ClojureConstants.FN_ALIKE_SYMBOLS.contains(firstName)/* && ns == langKind.ns*/) {
           processPrototypes(e).size()
         }
         else if (firstName == "letfn" && ns == langKind.coreNs) {
-          (first.nextForm as? CVec).iterate(CListBase::class).forEach {
+          (first.nextForm as? CVec).childForms(CListBase::class).forEach {
             setData(it.first ?: return@forEach, Role.NAME)
             processPrototypes(it).size()
           }
@@ -422,10 +432,13 @@ private class RoleHelper {
           setData((e.childForms[3] as? CVec), Role.ARG_VEC)
         }
         else if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(firstName)) {
-          e.iterate(CList::class).forEach {
+          e.childForms(CList::class).forEach {
             setData(it.first ?: return@forEach, Role.NAME)
-            prototypes(it).flatMap { it.iterate(CVec::class) }.forEach { setData(it, Role.ARG_VEC) }
+            prototypes(it).flatMap { it.childForms(CVec::class) }.forEach { setData(it, Role.ARG_VEC) }
           }
+        }
+        else if (firstName == "comment" && ns == langKind.coreNs) {
+          setData(e, Role.COMMENT)
         }
       }
     }
@@ -447,14 +460,14 @@ private class RoleHelper {
     }
     // the order of processing from less important to more : ^{..}, ^:, {..}
     nameSym.formPrefix().filter(CMetadata::class)
-        .flatMap { (it.form as? CMap).iterate(CKeyword::class) }
+        .flatMap { (it.form as? CMap).childForms(CKeyword::class) }
         .unique { it.name }
         .forEach(metaProcessor)
     nameSym.typeHintMeta()?.let { typeHint = it.qualifiedName }
     nameSym.keyMetas().find { it.name == "private" }?.let { private = true }
-    nameSym.siblings().find { it is CMap }
-        ?.iterate(CKeyword::class)
-        ?.forEach(metaProcessor)
+    nameSym.nextForms.find { it is CMap }
+        .childForms(CKeyword::class)
+        .forEach(metaProcessor)
     if (typeHint == null && prototypes.isNotEmpty()) {
       typeHint = prototypes.jbIt().reduce(prototypes[0].typeHint) { r, p -> if (r == p.typeHint) r else null }
     }
@@ -466,9 +479,9 @@ private class RoleHelper {
     return Def(key, prototypes, if (meta.isNotEmpty()) meta else emptyMap())
   }
 
-  private fun processPrototypes(e: CListBase): JBIterable<CVec> = e.iterate(CList::class)
+  private fun processPrototypes(e: CListBase): JBIterable<CVec> = e.childForms(CList::class)
       .map { list -> (list.firstForm as? CVec)?.also { setData(list, Role.PROTOTYPE) } }
-      .append(e.first.siblings().filter(CVec::class).first())
+      .append(e.childForms(CVec::class).first())
       .notNulls()
       .onEach { setData(it, Role.ARG_VEC) }
 
@@ -563,7 +576,7 @@ private class NSReader(val helper: RoleHelper) {
         .filter { it is CForm }
     val imports = if (nsType == "ns") {
       val imports = s.expandAndSkip { it == e }.filter(CListBase::class.java).flatMap {
-        val name = it.findChild(CForm::class)?.let {
+        val name = it.childForm(CForm::class)?.let {
           (it as? CKeyword)?.name ?:
               (it as? CSymbol)?.name /* clojure < 1.9 */
         } ?: return@flatMap emptyList<Import>()
@@ -648,7 +661,7 @@ private class NSReader(val helper: RoleHelper) {
         "refer" -> if (nsType != "refer") refer = iterator.safeNext().let { it as? CPForm ?: it as? CKeyword }
         "only" -> only = iterator.safeNext() as? CLVForm
         "exclude" -> exclude = iterator.safeNext() as? CLVForm
-        "rename" -> rename = (iterator.safeNext() as? CMap)?.iterate(CSymbol::class)
+        "rename" -> rename = (iterator.safeNext() as? CMap).childForms(CSymbol::class)
       }
     }
     val namespace = if (forcedNamespace) nsPrefix else (nsSym?.name?.withPackage(nsPrefix) ?: "")
@@ -662,8 +675,7 @@ private class NSReader(val helper: RoleHelper) {
         (refer as? CPForm)?.toNames() ?: (refer as? CKeyword)?.let { if (it.name == "all") ALL else null } ?: emptySet(),
         only.toNames(), exclude.toNames(),
         rename?.split(2, true)?.reduce(HashMap()) { map, o ->
-          if (o.size == 2) map.put(o[0].name,
-              o[1].also { setResolveTo(it, SymKey(it.name, namespace, "alias")) }); map
+          if (o.size == 2) map[o[0].name] = o[1].also { setResolveTo(it, SymKey(it.name, namespace, "alias")) }; map
         } ?: emptyMap())
     return import
   }

@@ -44,6 +44,7 @@ import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CComposite
 import org.intellij.clojure.psi.impl.asCTarget
+import org.intellij.clojure.psi.impl.fastRole
 import kotlin.reflect.KClass
 
 /**
@@ -54,8 +55,10 @@ import kotlin.reflect.KClass
 inline fun <reified T : Any> Any?.cast(): T? = this as? T
 
 fun <E> E.isIn(c: Collection<E>) = c.contains(this)
-fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith(it + ".") } != null
+fun String?.prefixedBy(c: Iterable<String>) = this != null && c.find { this.startsWith("$it.") } != null
 fun <E> Array<E>?.iterate() = this.jbIt()
+fun <T> Iterable<T>?.iterate() = this.jbIt()
+fun <E: Any> E?.generate(f : (E)->E?) = JBIterable.generate<E>(this, f)
 fun <E: Any> E?.asListOrEmpty() = listOfNotNull(this)
 fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
 fun <T> Array<T>?.jbIt() = if (this == null) JBIterable.empty() else JBIterable.of(*this)
@@ -69,19 +72,28 @@ fun <T : PsiElement> PsiElement?.findNext(c: KClass<T>) = PsiTreeUtil.getNextSib
 fun <T : PsiElement> PsiElement?.findPrev(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
 
 val PsiElement?.role : Role get() = (this as? CElement)?.role ?: Role.NONE
-val PsiElement?.asDef : CList? get() = if (role == Role.DEF) this as? CList else null
+fun <T : CForm> PsiElement?.childForm(c: KClass<T>) = skipComments({ findChild(c) }) { findNext(c) }
+fun <T : CForm> PsiElement?.nextForm(c: KClass<T>) = skipComments { findNext(c) }
+fun <T : CForm> PsiElement?.prevForm(c: KClass<T>) = skipComments { findPrev(c) }
+private fun <E : PsiElement> PsiElement?.skipComments(f0: (PsiElement?.() -> E?)? = null, f : PsiElement?.()->E?): E? {
+  var o = (f0 ?: f)(); while (true) if (notComment(o)) return o else o = o.f()
+}
+private fun <E : PsiElement> notComment(e: E?) = e.fastRole != Role.COMMENT
 
+val PsiElement?.asDef : CList? get() = if (role == Role.DEF) this as? CList else null
 val PsiElement?.elementType : IElementType? get() = this?.node?.elementType
 val PsiElement?.deepFirst: PsiElement? get() = if (this == null) null else PsiTreeUtil.getDeepestFirst(this)
 val PsiElement?.deepLast: PsiElement? get() = if (this == null) null else PsiTreeUtil.getDeepestLast(this)
-val PsiElement?.firstForm: CForm? get() = findChild(CForm::class)
-val PsiElement?.nextForm: CForm? get() = findNext(CForm::class)
-val PsiElement?.prevForm: CForm? get() = findPrev(CForm::class)
+val PsiElement?.firstForm: CForm? get() = childForm(CForm::class)
+val PsiElement?.nextForm: CForm? get() = nextForm(CForm::class)
+val PsiElement?.prevForm: CForm? get() = prevForm(CForm::class)
 val PsiElement?.thisForm: CForm? get() = (this as? CForm ?: findParent(CForm::class)).let {
   ((it as? CSymbol)?.parent as? CSymbol ?: it).let { it?.parent as? CSForm ?: it } }
 val PsiElement?.parentForm: CForm? get() = thisForm.findParent(CForm::class)
 val PsiElement?.parentForms: JBIterable<CForm> get() = JBIterable.generate(this.thisForm) { it.parentForm }
-val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class)
+val PsiElement?.childForms: JBIterable<CForm> get() = iterate(CForm::class).filter(::notComment)
+fun <T : CForm> PsiElement?.childForms(c: KClass<T>) = iterate(c).filter(::notComment)
+val PsiElement?.nextForms: JBIterable<CForm> get() = siblings().filter(CForm::class).filter(::notComment)
 fun IElementType?.wsOrComment() = this != null && (ClojureTokens.WHITESPACES.contains(this) || ClojureTokens.COMMENTS.contains(this))
 
 fun PsiElement?.findChild(role: Role) = iterate().find { (it as? CElement)?.role == role } as CForm?

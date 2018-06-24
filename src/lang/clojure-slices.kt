@@ -108,8 +108,8 @@ class ClojureSliceUsage : SliceUsage {
           if (argIndex < 0) return
           val argCount = list.childForms.size() - 1
           for (prototype in prototypes(def)) {
-            val vec = prototype.iterate(CVec::class).first() ?: continue
-            val partition = vec.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
+            val vec = prototype.childForms(CVec::class).first() ?: continue
+            val partition = vec.childForms.split(JBIterable.Split.OFF) { (it is CSymbol) && it.text == "&" }
             val sizes = partition.transform { it.size() }.toList()
             val arg = when {
               sizes.size == 1 && sizes[0] == argCount -> partition[0]!![argIndex]
@@ -145,14 +145,14 @@ class ClojureSliceUsage : SliceUsage {
       else -> {
         val def = list.asDef ?: return
         val vec = element.parents().takeWhile { it != def }.filter(CVec::class).last() ?: return
-        val partition = vec.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
+        val partition = vec.childForms.split(JBIterable.Split.OFF) { (it is CSymbol) && it.text == "&" }
         val argIndex = partition.flatten { it }.indexOf { it.isAncestorOf(element) }
         if (argIndex < 0) return
         val sizes = partition.transform { it.size() }.toList()
         val otherSizes = BitSet()
         for (prototype in prototypes(def).filter { it != vec.parent }) {
-          val vec1 = prototype.iterate(CVec::class).first() ?: continue
-          val partition1 = vec1.childForms.split(JBIterable.Split.OFF, { (it is CSymbol) && it.text == "&" })
+          val vec1 = prototype.childForms(CVec::class).first() ?: continue
+          val partition1 = vec1.childForms.split(JBIterable.Split.OFF) { (it is CSymbol) && it.text == "&" }
           otherSizes.set(partition1[0]?.size() ?: continue)
         }
         val usageTarget = ClojureDefinitionService.getInstance(def.project).getDefinition(def)

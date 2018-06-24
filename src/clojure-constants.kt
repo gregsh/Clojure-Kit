@@ -99,7 +99,7 @@ object ClojureConstants {
   @JvmStatic val LEIN_VM_OPTS = "clojure.kit.lein.vm.opts"
 
   // clojurescript-specific
-  @JvmStatic val JS_OBJ = "- js -"
+  @JvmStatic val JS_OBJ = "#js"
   @JvmStatic val JS_NAMESPACES = hashSetOf("js", "Math", "goog")
 
   //core.cljs/special-symbol?

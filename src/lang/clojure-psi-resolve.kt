@@ -134,7 +134,7 @@ private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
             "new" -> (first.nextForm as? CSymbol)?.resolveQualifiedName()
             "." -> (first.nextForm as? CSymbol)?.resolveQualifiedName() ?:
                 javaType(first.nextForm?.nextForm) // method call
-            ".." -> javaType(first.siblings().filter(CForm::class).last())
+            ".." -> javaType(first.nextForms.last())
             "var" -> ClojureConstants.C_VAR
             else -> javaType(first)
           }
@@ -201,6 +201,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         && myElement.parentForms.find { it.asDef?.def?.type == "defmacro" } != null) {
       return service.getSymbol(myElement)
     }
+    else if (parent is CConstructor && parent.firstForm == myElement) {
+      return service.getDefinition(SymKey(refText, "", "#$refText"))
+    }
     // anonymous function param
     if (refText.startsWith("%")) {
       myElement.findParent(CFun::class).let {
@@ -247,7 +250,8 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             if (refText == state.get(RENAMED_KEY) || refText == o.name ||
                 o is PsiQualifiedNamedElement && refText == o.qualifiedName ||
                 o.asCTarget?.key?.run {
-                  type == JS_OBJ && refText == "$namespace.$name" } ?: false) o
+                  type == JS_OBJ && refText == "$namespace.$name"
+                } == true) o
             else null
           }
           else -> null
@@ -348,9 +352,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     if (!processNamespace(containingFile.namespace, langKind, state, processor, containingFile)) return false
     if (!processSpecialForms(langKind, refText, element, service, state, processor)) return false
     if (!isCljs) findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
-    else if (refText == "js" && parent is CConstructor || refText == "Object") {
-      return processor.execute(service.getDefinition(refText, "js", JS_OBJ), state)
-    }
+    else if (refText == "Object") return processor.execute(service.getDefinition(refText, "", JS_OBJ), state)
     return true
   }
 
@@ -405,7 +407,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       val innerType = if (type.endsWith("->") || type.endsWith("->>")) formType(prevO) ?: type else type
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(type)) {
-        for (part in (prevO as? CVec ?: o.findChild(Role.FIELD_VEC) as? CVec).iterate(CSymbol::class)) {
+        for (part in (prevO as? CVec ?: o.findChild(Role.FIELD_VEC) as? CVec).childForms(CSymbol::class)) {
           if (!processor.execute(part, state)) return false
         }
         if (prevO is CList) {
@@ -455,7 +457,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (!processBindings(o, if (type == "for" || type == "doseq") "for" else "let", state, processor, myElement)) return false
       }
       else if (type == "letfn") {
-        for (fn in (o.first.nextForm as? CVec).iterate(CList::class)) {
+        for (fn in (o.first.nextForm as? CVec).childForms(CList::class)) {
           val nameSymbol = fn.first
           if (nameSymbol != null) {
             if (!processor.execute(nameSymbol, state)) return false
@@ -483,7 +485,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           val isInFirst = o.firstForm.isAncestorOf(element)
 
           val siblings = if (type.endsWith("->") || type.endsWith("->>")) JBIterable.of(prevO.prevForm)
-          else o.firstForm.siblings().filter(CForm::class).skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
+          else o.firstForm.nextForms.skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
 
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()
           val className = if (isCljs) null
@@ -556,7 +558,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
 
 }
 
-fun prototypes(o: CList) = o.iterate(CList::class)
+fun prototypes(o: CList) = o.childForms(CList::class)
     .filter { it.firstChild?.nextSibling is CVec }.append(o)
 
 fun formType(o: CForm): String? {
@@ -583,10 +585,11 @@ fun processNamespace(namespace: String, dialect: Dialect, state: ResolveState, p
   if (state.get(ALIAS_KEY) != null) return true
   val lastFile = PsiUtilCore.getVirtualFile(lastParent)
   val scope = ClojureDefinitionService.getClojureSearchScope(lastParent.project)
-  FileBasedIndex.getInstance().getContainingFiles(NS_INDEX, namespace, scope).forEach { file ->
-    if (lastFile == file) return@forEach
-    val it = lastParent.manager.findFile(file) as? CFile ?: return@forEach
-    if (!it.processDeclarations(processor, state.put(DIALECT_KEY, dialect), lastParent, lastParent)) return false
+  val nsFiles = FileBasedIndex.getInstance().getContainingFiles(NS_INDEX, namespace, scope)
+  for (file in nsFiles) {
+    if (lastFile == file) continue
+    val psiFile = lastParent.manager.findFile(file) as? CFile
+    if (psiFile != null && !psiFile.processDeclarations(processor, state.put(DIALECT_KEY, dialect), lastParent, lastParent)) return false
   }
   return true
 }
@@ -659,7 +662,7 @@ fun CForm.keyMetas(): JBIterable<CKeyword> = formPrefix().filter(CMetadata::clas
       .notNulls()
 
 private val SKIP_RESOLVE = object : PsiScopeProcessor.Event {}
-private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {
+private val DESTRUCTURING = JBTreeTraverser<CForm> f@ {
   return@f when (it) {
     is CVec -> {
       it.childForms.filter { (it !is CSymbol) || it.text != "&" }
@@ -686,7 +689,7 @@ private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {
                 "as" -> skip = false
                 "keys", "syms", "strs" -> (t.nextForm as? CVec)?.let {
                   skip = true
-                  keys = it.iterate()
+                  keys = it.childForms
                       .transform { (it as? CKeyword)?.symbol ?: it }
                       .filter(CSymbol::class).iterator()
                 }
@@ -700,5 +703,5 @@ private val DESTRUCTURING = JBTreeTraverser<CForm>(f@ {
     }
     else -> JBIterable.empty()
   }
-})
+}
 

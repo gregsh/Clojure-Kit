@@ -36,9 +36,10 @@ enum class Dialect(val coreNs: String) {
 
 enum class Role {
   NONE, DEF, NS, NAME,
-  RCOND, RCOND_S,
+  RCOND, RCOND_S, COMMENT,
+  PROTOTYPE,
   ARG_VEC, BND_VEC, FIELD_VEC, BODY,
-  ARG, BND, FIELD, PROTOTYPE
+  ARG, BND, FIELD // currently not set
 }
 
 interface CElement : NavigatablePsiElement {

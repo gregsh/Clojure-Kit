@@ -84,7 +84,6 @@ class ClojureDefinitionService(val project: Project) {
     @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope =
         GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType)
 
-    @JvmStatic val COMMENT_SYM = SymKey("comment", ClojureConstants.CLOJURE_CORE, "defmacro")
   }
 
   val java = JavaHelper.getJavaHelper(project)
@@ -213,7 +212,7 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
   override fun toString() = target.key.toString()
 }
 
-abstract internal class CTarget(val project: Project,
+internal abstract class CTarget(val project: Project,
                                 val key: SymKey) : PomRenameableTarget<Any> {
   override fun canNavigate() = true
   override fun canNavigateToSource() = true
@@ -273,12 +272,11 @@ internal fun wrapWithNavigationElement(project: Project, key: SymKey, file: Virt
     }
   }
 
-  val result = when (key.type) {
-    in "ns" -> CPomTargetElement(project, XTarget(project, key, file, { it }))
+  return when (key.type) {
+    "ns" -> CPomTargetElement(project, XTarget(project, key, file) { it })
     "keyword" -> CPomTargetElement(project, XTarget(project, key, file, locate(key, CKeywordBase::class)))
     else -> CPomTargetElement(project, XTarget(project, key, file, locate(key, CListBase::class)))
   }
-  return result
 }
 
 internal class XTarget(project: Project,
