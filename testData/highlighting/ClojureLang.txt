@@ -37,7 +37,7 @@
       12681: unable to resolve 'getChannel'
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/main.clj                        0 errors, 0 warnings, 8 dynamic
+/clojure/main.clj                        0 errors, 0 warnings, 9 dynamic
 /clojure/parallel.clj                    0 errors, 22 warnings, 5 dynamic
       4270: unable to resolve 'ParallelArrayWithMapping'
       4323: unable to resolve 'ParallelArray'
@@ -137,9 +137,7 @@
 /clojure/pprint/utilities.clj            0 errors, 0 warnings, 0 dynamic
 /clojure/reflect.clj                     0 errors, 0 warnings, 0 dynamic
 /clojure/reflect/java.clj                0 errors, 0 warnings, 2 dynamic
-/clojure/repl.clj                        0 errors, 2 warnings, 4 dynamic
-      4788: unable to resolve 'get-spec'
-      4990: unable to resolve 'describe'
+/clojure/repl.clj                        0 errors, 0 warnings, 4 dynamic
 /clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/stacktrace.clj                  0 errors, 0 warnings, 7 dynamic
 /clojure/string.clj                      0 errors, 2 warnings, 2 dynamic
@@ -153,4 +151,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 112 warnings in 43 files (729.74K chars)
+Total: 110 warnings in 43 files (729.74K chars)

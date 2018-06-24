@@ -27,6 +27,7 @@ import javax.swing.Icon
 object ClojureConstants {
 
   @JvmStatic val CLJ_CORE_PATH = "/clojure/core.clj"
+  @JvmStatic val CLJ_SPEC_PATH = "/clojure/spec/alpha.clj"
   @JvmStatic val CLJS_CORE_PATH = "/cljs/core.cljs"
 
   @JvmStatic val CLJS = "cljs"

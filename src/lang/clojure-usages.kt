@@ -25,7 +25,6 @@ import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.navigation.ChooseByNameContributor
 import com.intellij.navigation.GotoClassContributor
 import com.intellij.navigation.NavigationItem
-import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.editor.Editor
@@ -46,14 +45,15 @@ import com.intellij.util.Processor
 import com.intellij.util.QueryExecutor
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
+import com.intellij.util.io.URLUtil
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CLJS_CORE_PATH
 import org.intellij.clojure.ClojureConstants.CLJ_CORE_PATH
+import org.intellij.clojure.ClojureConstants.CLJ_SPEC_PATH
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.util.*
-import java.util.*
 import javax.swing.Icon
 
 /**
@@ -136,15 +136,18 @@ class ClojureGotoSymbolContributor : ChooseByNameContributor, GotoClassContribut
 }
 
 class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
-  override fun getAdditionalProjectLibrarySourceRoots(project: Project): Set<VirtualFile> = JBIterable.of(CLJ_CORE_PATH, CLJS_CORE_PATH)
+  override fun getAdditionalProjectLibrarySourceRoots(project: Project): Set<VirtualFile> = JBIterable.of(
+      CLJ_CORE_PATH, CLJ_SPEC_PATH, CLJS_CORE_PATH)
       .flatten {
-        PathManager.getResourceRoot(javaClass, it)?.let {
-          LocalFileSystem.getInstance().findFileByPath(it)?.let {
-            JarFileSystem.getInstance().getJarRootForLocalFile(it)?.let {
-              Collections.singleton(it)
-            }
-          }
-        } ?: Collections.emptySet() }
+        javaClass.classLoader.getResources(it.trimStart('/'))
+            .asSequence()
+            .map {
+              val pair = URLUtil.splitJarUrl(it.toExternalForm()) ?: return@map null
+              val vFile = LocalFileSystem.getInstance().findFileByPath(pair.first) ?: return@map null
+              JarFileSystem.getInstance().getJarRootForLocalFile(vFile)
+            }.asIterable()
+      }
+      .notNulls()
       .toSet()
 }
 
