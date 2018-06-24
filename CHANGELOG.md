@@ -1,7 +1,10 @@
 0.7.4-snapshot
 
 * Debugger: initial java debugger integration
+* QuickDoc: fix specs and show macroexpand from repl
+* Editor: data-reader & name declaration colors
 * Editor: support custom folding regions
+* Clojure: better support for #_ forms
 
 0.7.3
 

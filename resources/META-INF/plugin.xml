@@ -3,7 +3,7 @@
   <id>org.jetbrains.idea.clojure</id>
   <version>0.7.4-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="171.3780"/>
+  <idea-version since-build="172"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript</description>
@@ -16,7 +16,10 @@
     <![CDATA[
     <ul>
       <li>Debugger: initial java debugger integration</li>
+      <li>QuickDoc: fix specs and show macroexpand from repl</li>
+      <li>Editor: data-reader & name declaration colors</li>
       <li>Editor: support custom folding regions</li>
+      <li>Clojure: better support for #_ forms</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>
