@@ -74,6 +74,7 @@ class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testSimpleRecover2() = doCodeTest("(a))(b)")
   fun testSimpleFixes() = doCodeTest(".1 x .-;comment\n1;unclosed eof\n\"x")
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
+  fun testCommentedForms() = doCodeTest("(def #_cc n 0) {#_0 #_1 :a #_'(xxx)  'a :b 'b #_2 #_3} # #_asd dbg 10")
 
   fun testParseClojureLang() = walkAndParse(::walkClojureLang)
 //  fun testParseWellKnownLibs() = walkAndParse(::walkKnownLibs)
@@ -92,7 +93,7 @@ abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingT
     addExplicitExtension(LanguageBraceMatching.INSTANCE, ClojureLanguage, ClojureBraceMatcher())
   }
 
-  fun walkAndParse(walker: ((Path, String) -> Unit) -> Unit): Unit {
+  fun walkAndParse(walker: ((Path, String) -> Unit) -> Unit) {
     val stat = object {
       var duration = System.currentTimeMillis()
       var files: Int = 0
@@ -107,9 +108,11 @@ abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingT
       for (o in SyntaxTraverser.psiTraverser(psiFile)) {
         stat.nodes++
         val elementType = o.elementType
-        val message =
-            if (elementType == TokenType.BAD_CHARACTER) "bad char '${o.text}'"
-            else if (o is PsiErrorElement) "error: ${o.errorDescription}" else null
+        val message = when {
+          elementType == TokenType.BAD_CHARACTER -> "bad char '${o.text}'"
+          o is PsiErrorElement -> "error: ${o.errorDescription}"
+          else -> null
+        }
         if (message != null) {
           stat.errors++
           println("${psiFile.name} [${o.textRange.startOffset}]: $message")
@@ -126,7 +129,7 @@ abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingT
 }
 
 class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
-  override fun getTestDataPath() = TEST_DATA_PATH + "/highlighting"
+  override fun getTestDataPath() = "$TEST_DATA_PATH/highlighting"
   override fun setUp() {
     super.setUp()
     FileBasedIndex.getInstance().ensureUpToDate(StubUpdatingIndex.INDEX_ID, myFixture.project, null)
@@ -138,7 +141,7 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testClojureLang() = walkAndHighlight(::walkClojureLang)
   fun testClojureScript() = walkAndHighlight(::walkClojureScriptLang)
 
-  fun doTest(extension: String): Unit {
+  private fun doTest(extension: String) {
     myFixture.configureByFile(getTestName(false) + ".$extension")
     myFixture.checkHighlighting()
   }
@@ -146,7 +149,7 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
 //  fun testClojureFile() = "/clojure/core.clj".let { file ->
 //    walkAndHighlight { block -> walkFs(CLJ_LIB_FS, file, block) } }
 
-  fun walkAndHighlight(walker: ((Path, String) -> Unit) -> Unit) {
+  private fun walkAndHighlight(walker: ((Path, String) -> Unit) -> Unit) {
     val stat = object {
       var duration = System.currentTimeMillis()
       var files: Int = 0

@@ -48,5 +48,5 @@ CFileImpl:a.clj
   PsiWhiteSpace(' ')
   CSymbolImpl(C_SYMBOL)
     PsiElement(sym)('sym')
-  PsiErrorElement:'.' or '/' expected, got ')'
+  PsiErrorElement:'.' expected, got ')'
     PsiElement())(')')

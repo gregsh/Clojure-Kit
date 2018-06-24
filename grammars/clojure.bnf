@@ -76,6 +76,7 @@
   name("metadata|constructor|reader_.*")=form
 
   methods("reader_macro|metadata")=[toString]
+  consumeTokenMethod("ignored|symbol_nsq")="fast"
 }
 
 root ::= <<parseTree (root_entry)>>
@@ -115,7 +116,7 @@ literal ::= number | hexnum | rdxnum | ratio | bool | nil | string | char
 regexp ::= '#' <<nospace>> string {extends=literal}
 access ::= ('.' | '.-') symbol
 left access_left ::= !<<space>> '.'
-constructor ::= '#' symbol form
+constructor ::= '#' ignored symbol ignored form
 metadata ::= ("^" | "#^") (string | symbol | keyword | map)
 reader_macro ::= "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | symbolic_value | reader_cond | map_ns_prefix
 private symbolic_value ::= '##' &sym {pin=1}
@@ -131,5 +132,7 @@ private meta items_entry ::= (not_eof <<recover>>) <<param>> {pin=1 recoverWhile
 private list_body ::= <<items !')' form>>
 private set_body ::= <<items !'}' form>>
 private vec_body ::= <<items !']' form>>
-private map_body ::= <<items !'}' map_entry>>
-private map_entry ::= form form {pin=1}
+private map_body ::= ignored <<items !'}' map_entry>>
+private map_entry ::=  form ignored form ignored {pin=2}
+
+private ignored ::= (&'#_' form) * {pin(".*")=1}

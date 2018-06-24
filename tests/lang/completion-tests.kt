@@ -2,6 +2,7 @@ package org.intellij.clojure.lang
 
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.Lookup.REPLACE_SELECT_CHAR
+import com.intellij.openapi.util.registry.Registry
 import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
 
 /**
@@ -12,6 +13,11 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
     val NS_KEY = "namespace/keyword"
     val NS_ALIAS = "(alias 'namespace some-ns)"
     val STR_ALIAS = "(alias 'str clojure.string)"
+  }
+
+  override fun setUp() {
+    super.setUp()
+    Registry.get("ide.completion.variant.limit").setValue(10000)
   }
 
   fun testCoreNs1() = doTest("<caret>", "clojure.core", "clojure.core")

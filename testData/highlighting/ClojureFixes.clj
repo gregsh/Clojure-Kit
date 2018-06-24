@@ -76,3 +76,7 @@
 #:some-ns {:some-key <warning>not-to-resolve</warning>}
 (#'clojure.uuid/default-uuid-reader)
 (clojure.uuid/<warning>default-uuid-reader</warning>)
+
+(def #_comment named-zero 0)
+{#_0 #_1 :a #_'(xxx)  'a :b 'b #_2 #_3}
+# #_comment dbg 10
