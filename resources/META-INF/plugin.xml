@@ -17,6 +17,8 @@
     <ul>
       <li>Debugger: initial java debugger integration</li>
       <li>QuickDoc: fix specs and show macroexpand from repl</li>
+      <li>QuickDoc: show info for syntax tokens, e.g. ~@, #^, etc.</li>
+      <li>Editor: Context Info and Move Left/Right actions</li>
       <li>Editor: data-reader & name declaration colors</li>
       <li>Editor: support custom folding regions</li>
       <li>Clojure: better support for #_ forms</li>
@@ -145,11 +147,11 @@
       <keyboard-shortcut keymap="$default" first-keystroke="alt shift Y"/>
     </action>
     <action id="clojure.editor.rise" class="org.intellij.clojure.actions.RiseAction"
-            text="Rise" description="">
+            text="Rise" description="Rise form">
       <keyboard-shortcut keymap="$default" first-keystroke="alt shift U"/>
     </action>
     <action id="clojure.editor.kill" class="org.intellij.clojure.actions.KillAction"
-            text="Kill" description="">
+            text="Kill" description="Kill form">
       <keyboard-shortcut keymap="$default" first-keystroke="alt shift PERIOD"/>
     </action>
 
@@ -165,15 +167,15 @@
       <keyboard-shortcut keymap="$default" first-keystroke="control shift P"/>
     </action>
     <action id="clojure.repl.exclusive.mode" class="org.intellij.clojure.tools.ReplExclusiveModeAction"
-            icon="AllIcons.Welcome.CreateNewProject"
-            text="Set Exclusive REPL" description="Make this REPL an exclusive target for all operations">
+            icon="AllIcons.Nodes.Parameter"
+            text="Make REPL Exclusive" description="Make this REPL an exclusive target for all operations">
       <keyboard-shortcut keymap="$default" first-keystroke="control shift L"/>
     </action>
     <action id="clojure.tools.sync.dependencies" class="org.intellij.clojure.tools.SyncDepsAction"
-            text="Sync Dependencies" description=""
+            text="Sync Dependencies" description="Sync current project dependencies (Clojure)"
             icon="AllIcons.Actions.Refresh"/>
     <action id="clojure.tools.sync.dependencies.all" class="org.intellij.clojure.tools.SyncAllDepsAction"
-            text="Sync All Dependencies" description=""
+            text="Sync All Dependencies" description="Sync all project dependencies (Clojure)"
             icon="AllIcons.Actions.ForceRefresh"/>
 
     <!-- action groups -->

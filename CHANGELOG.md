@@ -2,6 +2,8 @@
 
 * Debugger: initial java debugger integration
 * QuickDoc: fix specs and show macroexpand from repl
+* QuickDoc: show info for syntax tokens, e.g. ~@, #^, etc.
+* Editor: Context Info and Move Left/Right actions
 * Editor: data-reader & name declaration colors
 * Editor: support custom folding regions
 * Clojure: better support for #_ forms
