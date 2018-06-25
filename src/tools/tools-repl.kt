@@ -34,6 +34,7 @@ import com.intellij.execution.runners.ExecutionUtil
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
+import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.ide.util.PropertiesComponent
@@ -48,7 +49,6 @@ import com.intellij.openapi.fileTypes.PlainTextLanguage
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectFileIndex
 import com.intellij.openapi.ui.InputValidator
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.popup.JBPopupFactory
@@ -185,9 +185,11 @@ class ReplExecuteAction : DumbAwareAction() {
 class ReplExclusiveModeAction : ToggleAction() {
   override fun isDumbAware() = true
 
-  override fun isSelected(e: AnActionEvent): Boolean =
-      chooseRepl(e)?.let { isExclusive(it.consoleView) } ?:
-          (allRepls(e.project).find { isExclusive(it.consoleView) } != null)
+  override fun isSelected(e: AnActionEvent): Boolean {
+    val project = e.project ?: return false
+    return chooseRepl(e)?.let { isExclusive(it.consoleView) } ?:
+    (allRepls(project).find { isExclusive(it.consoleView) } != null)
+  }
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
     val project = e.project ?: return
@@ -210,41 +212,47 @@ class ReplExclusiveModeAction : ToggleAction() {
     }
   }
 
-  private fun chooseRepl(e: AnActionEvent, consumer: ((ReplConsole?, Boolean)->Unit)? = null): ReplConsole? =
-      (e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.executionConsole as? ReplConsole)?.let { consumer?.invoke(it, false); it } ?: run {
-        val repls = allRepls(e.project)
-            .addAllTo(mutableListOf<ReplConsole?>())
-            .apply { add(null) }
-        if (consumer == null || repls.size == 1) return repls[0].apply { consumer?.invoke(this, false) }
-        else {
-          val list = JBList<ReplConsole>(repls)
-          list.cellRenderer = object : ColoredListCellRenderer<ReplConsole>() {
-            override fun customizeCellRenderer(list: JList<out ReplConsole>, value: ReplConsole?, index: Int, selected: Boolean, hasFocus: Boolean) {
-              if (value != null) {
-                val exclusive = isExclusive(value.consoleView)
-                val connected = value.repl.isConnected
-                val attrs = when {
-                  connected -> if (exclusive) SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES else SimpleTextAttributes.REGULAR_ATTRIBUTES
-                  else -> if (exclusive) SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES else SimpleTextAttributes.GRAYED_ATTRIBUTES
-                }
-                append(value.consoleView.title, attrs)
-                icon = if (value.processHandler is RemoteProcess) REMOTE_ICON else LOCAL_ICON
-              }
-              else {
-                icon = EmptyIcon.ICON_16
-                append("<no exclusive REPL>", SimpleTextAttributes.GRAYED_ATTRIBUTES)
-              }
+  private fun chooseRepl(e: AnActionEvent, consumer: ((ReplConsole?, Boolean) -> Unit)? = null): ReplConsole? {
+    val fromDescr = e.getData(LangDataKeys.RUN_CONTENT_DESCRIPTOR)?.executionConsole as? ReplConsole
+    if (fromDescr != null) {
+      return fromDescr.apply { consumer?.invoke(this, false) }
+    }
+    val project = e.project ?: return null
+    val repls = allRepls(project)
+        .addAllTo(mutableListOf<ReplConsole?>())
+        .apply { add(null) }
+    if (consumer == null || repls.size == 1) {
+      return repls[0].apply { consumer?.invoke(this, false) }
+    }
+    else {
+      val list = JBList<ReplConsole>(repls)
+      list.cellRenderer = object : ColoredListCellRenderer<ReplConsole>() {
+        override fun customizeCellRenderer(list: JList<out ReplConsole>, value: ReplConsole?, index: Int, selected: Boolean, hasFocus: Boolean) {
+          if (value != null) {
+            val exclusive = isExclusive(value.consoleView)
+            val connected = value.repl.isConnected
+            val attrs = when {
+              connected -> if (exclusive) SimpleTextAttributes.REGULAR_BOLD_ATTRIBUTES else SimpleTextAttributes.REGULAR_ATTRIBUTES
+              else -> if (exclusive) SimpleTextAttributes.GRAYED_BOLD_ATTRIBUTES else SimpleTextAttributes.GRAYED_ATTRIBUTES
             }
+            append(value.consoleView.title, attrs)
+            icon = if (value.processHandler is RemoteProcess) REMOTE_ICON else LOCAL_ICON
           }
-          JBPopupFactory.getInstance().createListPopupBuilder(list)
-              .setTitle(e.presentation.text!!)
-              .setFilteringEnabled { (it as? ReplConsole)?.consoleView?.title ?: "" }
-              .setItemChoosenCallback { consumer(list.selectedValue, true) }
-              .createPopup()
-              .showCenteredInCurrentWindow(e.project!!)
-          return null
+          else {
+            icon = EmptyIcon.ICON_16
+            append("<no exclusive REPL>", SimpleTextAttributes.GRAYED_ATTRIBUTES)
+          }
         }
       }
+      JBPopupFactory.getInstance().createListPopupBuilder(list)
+          .setTitle(e.presentation.text!!)
+          .setFilteringEnabled { (it as? ReplConsole)?.consoleView?.title ?: "" }
+          .setItemChoosenCallback { consumer(list.selectedValue, true) }
+          .createPopup()
+          .showCenteredInCurrentWindow(project)
+      return null
+    }
+  }
 
 }
 
@@ -254,12 +262,13 @@ private fun isExclusive(consoleView: LanguageConsoleView) =
 private fun setExclusive(consoleView: LanguageConsoleView, value: Boolean) =
     EXCLUSIVE_MODE_KEY.set(consoleView.consoleEditor, value)
 
-private fun allRepls(project: Project?) =
-    if (project == null) JBIterable.empty()
-    else ExecutionManager.getInstance(project).contentManager.allDescriptors.jbIt()
-        .map { it.executionConsole as? ReplConsole }.notNulls()
+private fun allRepls(project: Project) = ExecutionManager.getInstance(project).contentManager.allDescriptors
+    .iterate().map { it.executionConsole as? ReplConsole }.notNulls()
 
-fun currentRepl(project: Project?) = allRepls(project).single() ?: allRepls(project).find(::isExclusive)
+fun findReplForFile(project: Project, file: VirtualFile?): ReplConsole? {
+  val triple = if (file != null) findReplInner(project, file) else null
+  return triple?.first?.executionConsole as? ReplConsole ?: allRepls(project).single()
+}
 
 fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
 fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
@@ -299,23 +308,43 @@ fun executeInRepl(project: Project, file: VirtualFile, editor: Editor, text: Str
   }
 }
 
-fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConsole) -> Unit) {
-  val projectDir = JBIterable.generate(virtualFile) { it.parent }.find {
-    it.isDirectory && Tool.find(it.toIoFile()) != null }
-  val title = if (projectDir == null) "REPL (default)"
-  else ProjectFileIndex.SERVICE.getInstance(project).getContentRootForFile(projectDir).let {
-    "REPL [${if (it == null || it == projectDir) projectDir.name else VfsUtil.getRelativePath(projectDir, it)}]"
+private fun findReplInner(project: Project, virtualFile: VirtualFile): Triple<RunContentDescriptor?, String, VirtualFile> {
+  val toolProjectDir = JBIterable.generate(virtualFile) { it.parent }
+      .find { it.isDirectory && Tool.find(it.toIoFile()) != null }
+  val baseDir = project.baseDir
+  val workingDir = when {
+    toolProjectDir != null -> toolProjectDir
+    baseDir != null && VfsUtil.isAncestor(baseDir, virtualFile, true) -> baseDir
+    else -> virtualFile.parent
   }
 
-  val allDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
+  val workingDirTitle = when {
+    workingDir == baseDir -> project.name
+    toolProjectDir != null && baseDir != null &&VfsUtil.isAncestor(baseDir, toolProjectDir, false) ->
+      VfsUtil.getRelativePath(toolProjectDir, baseDir)
+    else -> StringUtil.last(workingDir.path, 30, true)
+  }
+  val tool = Tool.find(workingDir.toIoFile()) ?: Lein
+  val title = "${tool::class.simpleName} REPL ($workingDirTitle)"
+
+  val allDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors.asSequence()
+      .filter { it.executionConsole is ReplConsole }
+      .filterNotNull().toList()
   val ownContent = allDescriptors.find {
-    Comparing.equal((it.executionConsole as? LanguageConsoleView)?.virtualFile, virtualFile)
+    Comparing.equal((it.executionConsole as ReplConsole).virtualFile, virtualFile)
   }
   val exclusiveContent = allDescriptors.find {
-    (it.executionConsole as? LanguageConsoleView)?.let { isExclusive(it) } ?: false
+    (it.executionConsole as ReplConsole).let { isExclusive(it) }
   }
-  val sameTitleContent = allDescriptors.find { Comparing.equal(title, it.displayName) }
+  val sameTitleContent = allDescriptors.find {
+    Comparing.equal(title, it.displayName)
+  }
   val contentToReuse = ownContent ?: exclusiveContent ?: sameTitleContent
+  return Triple(contentToReuse, title, workingDir)
+}
+
+fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConsole) -> Unit) {
+  val (contentToReuse, title, workingDir) = findReplInner(project, virtualFile)
   if (contentToReuse != null) {
     contentToReuse.attachedContent!!.run { manager.setSelectedContent(this) }
 
@@ -342,9 +371,10 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplCons
     command(repl)
   }
   else {
+    val workingDir = workingDir.toIoFile()
     val callback = ProgramRunner.Callback { command(it.executionConsole as ReplConsole) }
     createNewRunContent(project, title, LOCAL_ICON, callback) {
-      newProcessHandler(projectDir?.toIoFile() ?: project.baseDir.toIoFile())
+      newProcessHandler(workingDir)
     }
   }
 }
@@ -352,9 +382,9 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplCons
 private fun createNewRunContent(project: Project, title: String, icon: Icon,
                                 callback: ProgramRunner.Callback? = null,
                                 processFactory: () -> ProcessHandler) {
-  val existingDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors
-  val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")",
-      existingDescriptors.map { it.displayName }.toSet().let { { s: String -> !it.contains(s) }})
+  val existingTitles = ExecutionManager.getInstance(project).contentManager.allDescriptors
+      .asSequence().map { it.displayName }.toSet()
+  val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")") { !existingTitles.contains(it) }
   val profile = object : RunProfile {
     override fun getIcon() = icon
     override fun getName() = uniqueTitle
@@ -379,7 +409,7 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon,
           this.processFactory = processFactory
           consoleEditor.setFile(virtualFile)
           ConsoleHistoryController(ReplConsoleRootType, title, this).install()
-          setExclusive(this, allRepls(project).find { isExclusive(it.consoleView) } == null)
+          setExclusive(this, allRepls(project).isEmpty)
         }
       }
     }

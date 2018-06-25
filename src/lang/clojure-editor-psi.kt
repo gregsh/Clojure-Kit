@@ -87,7 +87,7 @@ import org.intellij.clojure.lang.usages.ClojureGotoRenderer
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.psi.stubs.CPrototypeStub
-import org.intellij.clojure.tools.currentRepl
+import org.intellij.clojure.tools.findReplForFile
 import org.intellij.clojure.util.*
 import java.awt.event.MouseEvent
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -367,16 +367,18 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         .replace("(?:\\.\\s)".toRegex(), ".<p>")
         .replace("(?:\\:\\s)".toRegex(), ":<br>")
     val sourceFile = PsiUtilCore.getVirtualFile(resolved)
+    val originalFile = PsiUtilCore.getVirtualFile(originalElement)
     return scheduleSlowDocumentation(element, result) { appender ->
       if (def.type == "defmacro") {
-        val repl = currentRepl(project)
-        val qualifiedText = readAction { originalElement?.parentForm?.qualifiedText() }
+        val repl = findReplForFile(project, originalFile)
+        val qualifiedText = readAction { originalElement.parentForms.filter(CList::class).first()?.qualifiedText() }
         if (repl != null && qualifiedText != null) {
-          val future = repl.repl.eval("""
+          val code = """
             (binding [*print-meta* true
                       *out* (java.io.StringWriter.)]
               (clojure.pprint/pprint (macroexpand '$qualifiedText))
-              (.toString *out*))""")
+              (.toString *out*))"""
+          val future = repl.repl.eval(code)
           val value = try { future.get()?.get("value") } catch (ex : Exception) { ExceptionUtil.getThrowableText(ex) }
           if (value is String) {
             val adjusted = StringUtil.unescapeStringCharacters(StringUtil.unquoteString(value))
