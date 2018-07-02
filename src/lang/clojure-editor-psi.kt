@@ -26,7 +26,9 @@ import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
 import com.intellij.codeInsight.daemon.impl.PsiElementListNavigator
 import com.intellij.codeInsight.documentation.QuickDocUtil
+import com.intellij.codeInsight.editorActions.moveLeftRight.MoveElementLeftRightHandler
 import com.intellij.codeInsight.generation.actions.PresentableCodeInsightActionHandler
+import com.intellij.codeInsight.hint.DeclarationRangeHandler
 import com.intellij.codeInsight.hints.HintInfo
 import com.intellij.codeInsight.hints.InlayInfo
 import com.intellij.codeInsight.hints.InlayParameterHintsProvider
@@ -570,7 +572,7 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
     }
     val firstFound = collectProcessor.collection.toTypedArray()
     PsiElementListNavigator.openTargets(event, firstFound,
-        updater.getCaption(firstFound.size), "Implementing methods of " + name, renderer, updater)
+        updater.getCaption(firstFound.size), "Implementing methods of $name", renderer, updater)
   }
 }
 
@@ -734,5 +736,23 @@ class ClojureTypeInfoProvider : ExpressionTypeProvider<CForm>() {
   }
 
   override fun getExpressionsAt(elementAt: PsiElement): List<CForm> =
-      JBIterable.generate(elementAt.thisForm, { it.parentForm }).notNulls().toList()
+      JBIterable.generate(elementAt.thisForm) { it.parentForm }.notNulls().toList()
 }
+
+class ClojureDeclarationRangeHandler : DeclarationRangeHandler<CPForm> {
+  override fun getDeclarationRange(container: CPForm): TextRange =
+      (container.parentForms.last() ?: container).run {
+        val name = childForms.find { it.role == Role.NAME } ?: firstForm
+        if (name != null) TextRange.create(textRange.startOffset, name.textRange.endOffset)
+        else textRange
+      }
+}
+
+class ClojureMoveLeftRightHandler : MoveElementLeftRightHandler() {
+  override fun getMovableSubElements(p0: PsiElement): Array<PsiElement> = when (p0) {
+    is CList -> p0.childForms.skip(1)
+    is CPForm -> p0.childForms
+    else -> JBIterable.empty()
+  }.toList().toTypedArray()
+}
+

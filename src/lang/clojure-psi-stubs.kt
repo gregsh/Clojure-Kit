@@ -41,8 +41,8 @@ private val VERSION: Int = 4
 class ClojureStubBuilder : BinaryFileStubBuilder {
   override fun getStubVersion() = VERSION
   override fun acceptsFile(file: VirtualFile): Boolean = file.fileType == ClojureFileType
-  override fun buildStubTree(fileContent: FileContent?): Stub? {
-    return buildStubTree(fileContent?.psiFile as? CFile ?: return null)
+  override fun buildStubTree(fileContent: FileContent): Stub? {
+    return buildStubTree(fileContent.psiFile as? CFile ?: return null)
   }
 
   companion object {

@@ -71,7 +71,7 @@ object ClojureScriptLanguage : Language(ClojureLanguage, "ClojureScript")
 
 class ClojureLanguageSubstitutor : LanguageSubstitutor() {
   override fun getLanguage(file: VirtualFile, project: Project): Language? {
-    return if (file.extension?.equals(ClojureConstants.CLJS) ?: false)
+    return if (file.extension?.equals(ClojureConstants.CLJS) == true)
       ClojureScriptLanguage
     else null
   }
@@ -81,10 +81,10 @@ class ClojureBraceMatcher : PairedBraceMatcher {
 
   override fun getPairs() = ClojureTokens.BRACE_PAIRS.toTypedArray()
   override fun getCodeConstructStart(file: PsiFile, openingBraceOffset: Int) = openingBraceOffset
-  override fun isPairedBracesAllowedBeforeType(lbraceType: IElementType, tokenType: IElementType?) =
-      tokenType == null || ClojureTokens.WHITESPACES.contains(tokenType) || ClojureTokens.COMMENTS.contains(tokenType)
-          || tokenType === C_COMMA || tokenType === C_PAREN2
-          || tokenType === C_BRACE2 || tokenType === C_BRACKET2
+  override fun isPairedBracesAllowedBeforeType(lbraceType: IElementType, tokenType: IElementType?) = tokenType === null
+      || ClojureTokens.WHITESPACES.contains(tokenType) || ClojureTokens.COMMENTS.contains(tokenType)
+      || tokenType === C_COMMA || tokenType === C_PAREN2
+      || tokenType === C_BRACE2 || tokenType === C_BRACKET2
 }
 
 class ClojureQualifiedNameProvider : QualifiedNameProvider {
@@ -118,7 +118,7 @@ class ClojureLiveTemplateContext : FileTypeBasedContextType("Clojure", "Clojure"
 
 class ClojureLiveTemplateProvider : DefaultLiveTemplatesProvider {
   override fun getDefaultLiveTemplateFiles() = arrayOf("liveTemplates/clojureLiveTemplates")
-  override fun getHiddenLiveTemplateFiles() = null
+  override fun getHiddenLiveTemplateFiles(): Array<String>? = null
 }
 
 object ClojureTokens {

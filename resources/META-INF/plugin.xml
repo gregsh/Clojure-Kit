@@ -43,8 +43,14 @@
     <additionalTextAttributes scheme="Darcula" file="colorSchemes/ClojureDarcula.xml"/>
     <lang.braceMatcher language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureBraceMatcher"/>
     <qualifiedNameProvider implementation="org.intellij.clojure.lang.ClojureQualifiedNameProvider"/>
+    <declarationRangeHandler key="org.intellij.clojure.psi.CPForm" implementationClass="org.intellij.clojure.editor.ClojureDeclarationRangeHandler"/>
 
     <spellchecker.support language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureSpellCheckingStrategy"/>
+    <renameHandler implementation="org.intellij.clojure.editor.ClojureInplaceRenameHandler"/>
+    <moveLeftRightHandler language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureMoveLeftRightHandler"/>
+    <lang.namesValidator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureNamesValidator"/>
+    <renameInputValidator implementation="org.intellij.clojure.editor.ClojureNamesValidator"/>
+    <elementDescriptionProvider implementation="org.intellij.clojure.lang.usages.ClojureElementDescriptionProvider"/>
     <lang.commenter language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCommenter"/>
     <quoteHandler fileType="Clojure" className="org.intellij.clojure.editor.ClojureQuoteHandler"/>
     <extendWordSelectionHandler implementation="org.intellij.clojure.editor.ClojureWordSelectioner"/>
@@ -81,6 +87,7 @@
     <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureKeywordIndex"/>
     <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureKeywordFqnIndex"/>
     <additionalLibraryRootsProvider implementation="org.intellij.clojure.lang.usages.ClojureLibraryRootsProvider"/>
+
     <gotoSymbolContributor implementation="org.intellij.clojure.lang.usages.ClojureGotoSymbolContributor"/>
     <lang.findUsagesProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureFindUsagesProvider"/>
     <usageTargetProvider implementation="org.intellij.clojure.lang.usages.ClojureUsageTargetProvider"/>
@@ -88,17 +95,12 @@
     <projectService serviceInterface="org.intellij.clojure.psi.impl.ClojureDefinitionService"
                     serviceImplementation="org.intellij.clojure.psi.impl.ClojureDefinitionService" />
     <projectService serviceImplementation="org.intellij.clojure.psi.impl.ClojureTypeCache" />
-    <renameHandler implementation="org.intellij.clojure.editor.ClojureInplaceRenameHandler"/>
-    <lang.namesValidator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureNamesValidator"/>
-    <renameInputValidator implementation="org.intellij.clojure.editor.ClojureNamesValidator"/>
-    <elementDescriptionProvider implementation="org.intellij.clojure.lang.usages.ClojureElementDescriptionProvider"/>
+    <referencesSearch implementation="org.intellij.clojure.lang.usages.MapDestructuringUsagesSearcher"/>
     <lang.sliceProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureSliceSupportProvider"/>
 
     <lang.formatter language="Clojure" implementationClass="org.intellij.clojure.formatter.ClojureFormattingModelBuilder"/>
     <codeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureCodeStyleSettingsProvider"/>
     <langCodeStyleSettingsProvider implementation="org.intellij.clojure.ui.formatter.ClojureLangCodeStyleSettingsProvider"/>
-
-    <referencesSearch implementation="org.intellij.clojure.lang.usages.MapDestructuringUsagesSearcher"/>
 
     <lang.inspectionSuppressor language="Clojure" implementationClass="org.intellij.clojure.inspections.ClojureInspectionSuppressor"/>
     <localInspection language="Clojure" shortName="ClojureResolveInspection" suppressId="clojure-resolve" bundle="messages.ClojureBundle"
