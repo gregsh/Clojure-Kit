@@ -1,4 +1,4 @@
-0.7.4-snapshot
+0.7.4
 
 * Debugger: initial java debugger integration
 * QuickDoc: fix specs and show macroexpand from repl
