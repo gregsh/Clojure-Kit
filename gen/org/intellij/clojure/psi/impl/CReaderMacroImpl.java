@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CReaderMacroImpl extends CComposite implements CReaderMacro {
 
-  public CReaderMacroImpl(IElementType type) {
+  public CReaderMacroImpl(@NotNull IElementType type) {
     super(type);
   }
 

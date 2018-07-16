@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CKeywordImpl extends CKeywordBase implements CKeyword {
 
-  public CKeywordImpl(IElementType type) {
+  public CKeywordImpl(@NotNull IElementType type) {
     super(type);
   }
 

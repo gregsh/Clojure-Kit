@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CVecImpl extends CLVFormImpl implements CVec {
 
-  public CVecImpl(IElementType type) {
+  public CVecImpl(@NotNull IElementType type) {
     super(type);
   }
 

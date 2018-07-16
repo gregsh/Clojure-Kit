@@ -522,7 +522,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   // ("^" | "#^") (string | symbol | keyword | map)
   public static boolean metadata(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "metadata")) return false;
-    if (!nextTokenIs(b, "<form>", C_SHARP_HAT, C_HAT)) return false;
+    if (!nextTokenIs(b, "<form>", C_HAT, C_SHARP_HAT)) return false;
     boolean r;
     Marker m = enter_section_(b, l, _NONE_, C_METADATA, "<form>");
     r = metadata_0(b, l + 1);

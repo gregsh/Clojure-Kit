@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CPFormImpl extends CFormImpl implements CPForm {
 
-  public CPFormImpl(IElementType type) {
+  public CPFormImpl(@NotNull IElementType type) {
     super(type);
   }
 

@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CFunImpl extends CListImpl implements CFun {
 
-  public CFunImpl(IElementType type) {
+  public CFunImpl(@NotNull IElementType type) {
     super(type);
   }
 

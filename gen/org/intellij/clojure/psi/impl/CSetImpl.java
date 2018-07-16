@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CSetImpl extends CPFormImpl implements CSet {
 
-  public CSetImpl(IElementType type) {
+  public CSetImpl(@NotNull IElementType type) {
     super(type);
   }
 

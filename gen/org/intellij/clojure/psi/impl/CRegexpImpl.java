@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CRegexpImpl extends CLiteralImpl implements CRegexp {
 
-  public CRegexpImpl(IElementType type) {
+  public CRegexpImpl(@NotNull IElementType type) {
     super(type);
   }
 

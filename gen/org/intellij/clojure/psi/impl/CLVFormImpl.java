@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CLVFormImpl extends CPFormImpl implements CLVForm {
 
-  public CLVFormImpl(IElementType type) {
+  public CLVFormImpl(@NotNull IElementType type) {
     super(type);
   }
 

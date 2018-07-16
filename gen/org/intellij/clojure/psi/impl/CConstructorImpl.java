@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CConstructorImpl extends CPFormImpl implements CConstructor {
 
-  public CConstructorImpl(IElementType type) {
+  public CConstructorImpl(@NotNull IElementType type) {
     super(type);
   }
 

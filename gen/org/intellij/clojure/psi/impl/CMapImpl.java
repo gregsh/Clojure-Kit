@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CMapImpl extends CPFormImpl implements CMap {
 
-  public CMapImpl(IElementType type) {
+  public CMapImpl(@NotNull IElementType type) {
     super(type);
   }
 

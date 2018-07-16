@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CAccessImpl extends CSFormImpl implements CAccess {
 
-  public CAccessImpl(IElementType type) {
+  public CAccessImpl(@NotNull IElementType type) {
     super(type);
   }
 

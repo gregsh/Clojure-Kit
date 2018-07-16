@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CMetadataImpl extends CComposite implements CMetadata {
 
-  public CMetadataImpl(IElementType type) {
+  public CMetadataImpl(@NotNull IElementType type) {
     super(type);
   }
 

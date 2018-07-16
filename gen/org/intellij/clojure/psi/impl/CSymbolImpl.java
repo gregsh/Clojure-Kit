@@ -14,7 +14,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CSymbolImpl extends CSymbolBase implements CSymbol {
 
-  public CSymbolImpl(IElementType type) {
+  public CSymbolImpl(@NotNull IElementType type) {
     super(type);
   }
 

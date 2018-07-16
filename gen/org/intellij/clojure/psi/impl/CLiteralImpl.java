@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CLiteralImpl extends CSFormImpl implements CLiteral {
 
-  public CLiteralImpl(IElementType type) {
+  public CLiteralImpl(@NotNull IElementType type) {
     super(type);
   }
 

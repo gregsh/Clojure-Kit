@@ -13,7 +13,7 @@ import com.intellij.psi.tree.IElementType;
 
 public class CListImpl extends CListBase implements CList {
 
-  public CListImpl(IElementType type) {
+  public CListImpl(@NotNull IElementType type) {
     super(type);
   }
 
