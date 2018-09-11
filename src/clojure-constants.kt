@@ -98,6 +98,7 @@ object ClojureConstants {
 
   @JvmStatic val LEIN_CONFIG = "project.clj"
   @JvmStatic val BOOT_CONFIG = "build.boot"
+  @JvmStatic val DEPS_CONFIG = "deps.edn"
 
   @JvmStatic val LEIN_VM_OPTS = "clojure.kit.lein.vm.opts"
 
