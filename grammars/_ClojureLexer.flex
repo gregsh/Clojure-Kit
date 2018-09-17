@@ -39,7 +39,7 @@ NUMBER=[+-]? [0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?M?
 HEXNUM=[+-]? "0x" [\da-fA-F]+
 RADIX=[+-]? [0-9]{1,2}r[\da-zA-Z]+
 RATIO=[+-]? [0-9]+"/"[0-9]+
-CHARACTER=\\([btrnf]|u[0-9]{4}|backspace|tab|newline|formfeed|return|space|.)
+CHARACTER=\\([btrnf]|u[0-9a-fA-F]{4}|backspace|tab|newline|formfeed|return|space|.)
 
 SYM_START=[[\w<>$%&=*+\-!?_|]--#\d] | ".."
 SYM_CHAR="."? [\w<>$%&=*+\-!?_|'#]
