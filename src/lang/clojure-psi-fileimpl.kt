@@ -336,7 +336,7 @@ private class RoleHelper {
     langStack.push(if (file.language == ClojureScriptLanguage) Dialect.CLJS else Dialect.CLJ)
 
     val s = file.cljTraverser().expand {
-      it !is CListBase || it is CComposite && it.roleImpl != Role.DEF && it.roleImpl != Role.NS
+      it !is CListBase || (it as CComposite).roleImpl != Role.DEF && (it as CComposite).roleImpl != Role.NS
     }.traverse()
 
     if (firstTime) {

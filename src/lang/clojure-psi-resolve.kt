@@ -267,7 +267,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     return if (result.isEmpty()) PsiElementResolveResult.EMPTY_ARRAY else result.toTypedArray()
   }
 
-  override fun isReferenceTo(element: PsiElement?): Boolean {
+  override fun isReferenceTo(element: PsiElement): Boolean {
     return super.isReferenceTo(element)
   }
 
@@ -275,7 +275,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     return super.bindToElement(element)
   }
 
-  override fun handleElementRename(newElementName: String?): PsiElement? {
+  override fun handleElementRename(newElementName: String): PsiElement? {
     element.lastChild.replace(newLeafPsiElement(element.project, newElementName!!))
     return element
   }
