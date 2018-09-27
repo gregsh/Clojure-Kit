@@ -21,6 +21,7 @@ import com.intellij.formatting.*
 import com.intellij.formatting.alignment.AlignmentStrategy
 import com.intellij.lang.ASTNode
 import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiElement
@@ -50,7 +51,7 @@ class ClojureCodeStyleSettings (container: CodeStyleSettings?) : CustomCodeStyle
   @JvmField var USE_2SEMI_COMMENT: Boolean = false
 }
 
-fun CodeStyleSettings.getClojureSettings() = getCustomSettings(ClojureCodeStyleSettings::class.java)!!
+fun CodeStyleSettings.getClojureSettings() = getCustomSettings(ClojureCodeStyleSettings::class.java)
 
 class ClojureFormattingModelBuilder : FormattingModelBuilder {
   override fun getRangeAffectingIndent(file: PsiFile?, offset: Int, elementAtOffset: ASTNode?) = null
@@ -211,7 +212,7 @@ class ClojureFormattingBlock(node: ASTNode,
     val psi = node.psi
     val listName = (psi as? CList)?.first?.name
     val hasBody = (psi as? CList)?.let {
-      val target = it.first.resolveXTarget() ?: return@let false
+      val target = try { it.first.resolveXTarget() } catch (e : IndexNotReadyException) { null } ?: return@let false
       val name = target.key.name
       if (target.key.namespace == Dialect.CLJ.coreNs || target.key.namespace == Dialect.CLJS.coreNs) {
         ClojureConstants.SPECIAL_FORMS.contains(name) ||
@@ -221,7 +222,8 @@ class ClojureFormattingBlock(node: ASTNode,
             name.startsWith("with-") || name.startsWith("if-") ||
             name == "extend-protocol" || name == "extend-type" || name == "extend" ||
             name == "deftype" || name == "defmethod" ||
-            target.resolveStub()?.childrenStubs.jbIt().filter(CPrototypeStub::class).find {
+            try { target.resolveStub() } catch(e : IndexNotReadyException) { null }
+                ?.childrenStubs.jbIt().filter(CPrototypeStub::class).find {
               val last = it.args.lastOrNull()
               last == "body" || last == "clauses" || last == "specs"
             } != null
