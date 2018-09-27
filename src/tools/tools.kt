@@ -18,10 +18,18 @@
 package org.intellij.clojure.tools
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.OSProcessHandler
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessOutputTypes
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
+import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.util.EnvironmentUtil
 import org.intellij.clojure.ClojureConstants
 import java.io.File
+import java.util.*
 
 /**
  * @author gregsh
@@ -32,7 +40,7 @@ object Repo {
 
 
 interface Tool {
-  fun getDeps(): GeneralCommandLine
+  fun getDeps(projectFile: File): List<Dependency>
   fun getRepl(): GeneralCommandLine
 
   companion object {
@@ -40,12 +48,14 @@ interface Tool {
     fun choose(fileName: String) = when (fileName) {
       Lein.projectFile -> Lein
       Boot.projectFile -> Boot
+      Deps.projectFile -> Deps
       else -> null
     }
 
     fun find(dir: File) = when {
       File(dir, Lein.projectFile).exists() -> Lein
       File(dir, Boot.projectFile).exists() -> Boot
+      File(dir, Deps.projectFile).exists() -> Deps
       else -> null
     }
   }
@@ -53,15 +63,17 @@ interface Tool {
 
 object Lein : Tool {
   val projectFile = ClojureConstants.LEIN_CONFIG
-  val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
-    val path = "$it${File.separator}lein${if (SystemInfo.isWindows) ".bat" else ""}"
-    if (File(path).exists()) path else null
-  }.firstOrNull() ?: "lein"
+  private val command = findCommandPath("lein")
 
-  override fun getDeps() = GeneralCommandLine(path,
-      "deps", ":tree")
+  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
+    readDepsOutput(GeneralCommandLine(command, "deps", ":tree"), projectFile.parent) { line ->
+      parseCoordVector(line)?.let {
+        this.add(it)
+      }
+    }
+  }
 
-  override fun getRepl() = GeneralCommandLine(path, *mutableListOf(
+  override fun getRepl() = GeneralCommandLine(command, *mutableListOf(
       "update-in", ":dependencies", "conj", "[org.clojure/tools.nrepl \"RELEASE\"]", "--",
       "update-in", ":plugins", "conj", "[cider/cider-nrepl \"RELEASE\"]", "--",
       "update-in", ":nrepl-middleware", "conj ", "[cider-nrepl.plugin/middleware \"RELEASE\"]", "--")
@@ -76,17 +88,65 @@ object Lein : Tool {
 
 object Boot : Tool {
   val projectFile = ClojureConstants.BOOT_CONFIG
-  val path = (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
-    val path = "$it${File.separator}boot${if (SystemInfo.isWindows) ".bat" else ""}"
-    if (File(path).exists()) path else null
-  }.firstOrNull() ?: "boot"
+  private val command = findCommandPath("boot")
 
-  override fun getDeps() = GeneralCommandLine(path,
-      "--no-colors", "show", "-d")
+  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
+    readDepsOutput(GeneralCommandLine(command, "--no-colors", "show", "-d"), projectFile.parent) { line ->
+      val trimmed = line.trimEnd()
+      val idx = trimmed.indexOf("[")
+      if (idx == -1 || !trimmed.endsWith("]")) return@readDepsOutput
+      val coordVec = StringUtil.repeat(" ", idx) + trimmed.substring(idx)
+      parseCoordVector(coordVec)?.let {
+        this.add(it)
+      }
+    }
+  }
 
-  override fun getRepl() = GeneralCommandLine(path,
+  override fun getRepl() = GeneralCommandLine(command,
       "--no-colors",
       "-d", "org.clojure/tools.nrepl",
       "-d", "cider/cider-nrepl",
       "repl", "-m", "cider.nrepl/cider-middleware", "-s", "wait")
+}
+
+object Deps : Tool {
+  val projectFile = ClojureConstants.DEPS_CONFIG
+  private val command = findCommandPath("clojure")
+
+  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
+    readDepsOutput(GeneralCommandLine(command, "-Stree"), projectFile.parent) { line ->
+      Regex("(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
+        val (group, artifact, version) = it.destructured
+        this.add(Dependency(group, artifact, version))
+      }
+    }
+  }
+
+  override fun getRepl() = GeneralCommandLine(command,
+      "-Sdeps", "{:deps { org.clojure/tools.nrepl {:mvn/version \"RELEASE\"}" +
+      "                   cider/cider-nrepl       {:mvn/version \"RELEASE\"}}}",
+      "--eval", "(do (use '[clojure.tools.nrepl.server :only (start-server stop-server)])" +
+      "              (use '[cider.nrepl :only (cider-nrepl-handler)])" +
+      "              (println (str \"nREPL server started on port \" (:port (start-server :handler cider-nrepl-handler)) \" host localhost\")))")
+
+}
+
+
+private fun readDepsOutput(commandLine: GeneralCommandLine, workingDirectory: String, processor: (String) -> Unit) {
+  val process = OSProcessHandler(commandLine.withWorkDirectory(workingDirectory).withCharset(CharsetToolkit.UTF8_CHARSET))
+  process.addProcessListener(object : ProcessAdapter() {
+    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+      if (outputType != ProcessOutputTypes.STDOUT) return
+      processor(event.text)
+    }
+  })
+  process.startNotify()
+  process.waitFor()
+}
+
+private fun findCommandPath(commandName: String): String {
+  return (EnvironmentUtil.getValue("PATH") ?: "").split(File.pathSeparator).mapNotNull {
+    val path = "$it${File.separator}$commandName${if (SystemInfo.isWindows) ".bat" else ""}"
+    if (File(path).exists()) path else null
+  }.firstOrNull() ?: commandName
 }

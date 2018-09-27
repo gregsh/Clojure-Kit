@@ -17,10 +17,6 @@
 
 package org.intellij.clojure.tools
 
-import com.intellij.execution.process.OSProcessHandler
-import com.intellij.execution.process.ProcessAdapter
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -37,9 +33,6 @@ import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.EmptyRunnable
-import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.text.StringUtil
-import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -62,7 +55,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 private class ClojureProjectDeps(val project: Project) {
   class PostStartup : StartupActivity {
     override fun runActivity(project: Project) {
-      ClojureProjectDeps.getInstance(project).initialize()
+      getInstance(project).initialize()
     }
   }
 
@@ -70,7 +63,7 @@ private class ClojureProjectDeps(val project: Project) {
     override fun getAdditionalProjectLibrarySourceRoots(project: Project): Set<VirtualFile> {
       if (ApplicationManager.getApplication().isUnitTestMode) return emptySet()
       if (!Repo.path.exists()) return emptySet()
-      return ClojureProjectDeps.getInstance(project).allDependencies
+      return getInstance(project).allDependencies
     }
   }
 
@@ -82,10 +75,10 @@ private class ClojureProjectDeps(val project: Project) {
   }
 
   val cacheFile = File(PathManager.getSystemPath(), "clojure/deps-${project.locationHash}.txt")
-  val mapping: MutableMap<String, List<String>> = ContainerUtil.newConcurrentMap()
+  val mapping: MutableMap<String, List<Dependency>> = ContainerUtil.newConcurrentMap()
   val allDependencies: Set<VirtualFile> get() = mapping.values.jbIt()
       .flatten { it }
-      .transform(::gavToJar)
+      .transform(::resolveDependency)
       .notNulls()
       .addAllTo(LinkedHashSet<VirtualFile>())
   var resolveInProgress = AtomicBoolean(true)
@@ -114,19 +107,19 @@ private class ClojureProjectDeps(val project: Project) {
   private fun read(cacheFile: File) {
     LOG.info("reading ${cacheFile.path}")
     mapping.putAll(cacheFile.bufferedReader().useLines { seq ->
-      val map = HashMap<String, List<String>>()
-      var file = ""
-      val list = ArrayList<String>()
+      val map = HashMap<String, List<Dependency>>()
+      var file : String? = null
+      val list = ArrayList<Dependency>()
       for (line in seq) {
         val trimmed = line.trimEnd()
-        if (trimmed.endsWith("]")) list.add(trimmed)
-        else if (trimmed.endsWith(".clj")) {
-          if (file != "") map.put(file, ArrayList(list))
+        if (trimmed.endsWith("]")) parseCoordVector(trimmed)?.let { list.add(it)}
+        else if (Tool.choose(File(trimmed)) != null) {
+          if (file != null) map.put(file, ArrayList(list))
           file = trimmed
           list.clear()
         }
       }
-      if (file != "") map.put(file, ArrayList(list))
+      if (file != null) map[file] = ArrayList(list)
       map
     })
   }
@@ -161,7 +154,7 @@ private class ClojureProjectDeps(val project: Project) {
           indicator.fraction = (100.0 * index / files.size)
           indicator.text = file.path
           val tool = Tool.choose(file) ?: continue
-          mapping[file.path] = ArrayList<String>().apply { collectDeps(tool, this, file.parentFile.path) }
+          mapping[file.path] = tool.getDeps(file)
         }
       }
 
@@ -177,39 +170,43 @@ private class ClojureProjectDeps(val project: Project) {
   }
 }
 
-private fun collectDeps(tool: Tool, result: ArrayList<String>, path: String): Unit {
-  val process = OSProcessHandler(tool.getDeps().withWorkDirectory(path).withCharset(CharsetToolkit.UTF8_CHARSET))
-  process.addProcessListener(object : ProcessAdapter() {
-    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-      if (outputType != ProcessOutputTypes.STDOUT) return
-      val trimmed = event.text.trimEnd()
-      val idx = trimmed.indexOf("[")
-      if (idx == -1 || !trimmed.endsWith("]")) return
-      result.add(StringUtil.repeat(" ", idx) + trimmed.substring(idx))
+data class Dependency(val group: String?, val artifact: String, val version: String) {
+  override fun toString(): String {
+    if (group != null) {
+      return "[$group/$artifact \"$version\"]"
     }
-  })
-  process.startNotify()
-  process.waitFor()
+    return "[$artifact \"$version\"]"
+  }
 }
 
-private fun gavToJar(gav: String) : VirtualFile? {
+fun parseCoordVector(line: String): Dependency? {
   val lexer = ClojureLexer(ClojureLanguage)
-  lexer.start(gav)
+  lexer.start(line)
   while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_SYM) lexer.advance()
   if (lexer.tokenType != ClojureTypes.C_SYM) return null
   val i1 = lexer.tokenStart
   while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_STRING && !lexer.tokenType.wsOrComment()) lexer.advance()
-  val artifact = gav.substring(i1, lexer.tokenStart)
+  val libName = line.substring(i1, lexer.tokenStart)
   while (lexer.tokenType != null && lexer.tokenType != ClojureTypes.C_STRING) lexer.advance()
   val version = if (lexer.tokenType == ClojureTypes.C_STRING) lexer.tokenText.trim('\"') else ""
 
-  val (path, name) = (if (artifact.contains("/")) artifact else "$artifact/$artifact").let { artifact ->
-    val idx = artifact.indexOf("/")
-    Pair(artifact.substring(0, idx).replace('.', '/') + artifact.substring(idx), artifact.substring(idx + 1))
+  return if (libName.contains("/")) {
+    val idx = libName.indexOf("/")
+    Dependency(libName.substring(0, idx), libName.substring(idx + 1), version)
   }
-  val gavFile = File(Repo.path, "$path/$version/$name-$version.jar")
+  else Dependency(null, libName, version)
+}
+
+private fun resolveDependency(dependency: Dependency) : VirtualFile? {
+  val path = if (dependency.group != null) {
+    "${dependency.group.replace('.', '/')}/${dependency.artifact}"
+  } else {
+    "${dependency.artifact}/${dependency.artifact}"
+  }
+
+  val gavFile = File(Repo.path, "$path/${dependency.version}/${dependency.artifact}-${dependency.version}.jar")
   if (!(gavFile.exists() && !gavFile.isDirectory)) {
-    ClojureProjectDeps.LOG.info("$name:$version dependency not found")
+    ClojureProjectDeps.LOG.info("${dependency.artifact}:${dependency.version} dependency not found")
   }
   else {
     val localFS = LocalFileSystem.getInstance()
@@ -217,7 +214,7 @@ private fun gavToJar(gav: String) : VirtualFile? {
     val vFile = localFS.refreshAndFindFileByIoFile(gavFile)
     val jarFile = if (vFile == null) null else jarFS.getJarRootForLocalFile(vFile)
     if (jarFile == null) {
-      ClojureProjectDeps.LOG.info("$name:$version dependency not found in VFS")
+      ClojureProjectDeps.LOG.info("${dependency.artifact}:${dependency.version} dependency not found in VFS")
     }
     else {
       return jarFile
@@ -230,6 +227,7 @@ private fun allProjectFiles(project: Project) = ReadAction.compute<Collection<Fi
   val contentScope = ProjectScope.getContentScope(project)
   FilenameIndex.getFilesByName(project, Lein.projectFile, contentScope, false).iterate()
       .append(FilenameIndex.getFilesByName(project, Boot.projectFile, contentScope, false))
+      .append(FilenameIndex.getFilesByName(project, Deps.projectFile, contentScope, false))
       .transform { it.virtualFile.toIoFile() }
       .toSortedSet()
 }
