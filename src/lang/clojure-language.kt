@@ -59,7 +59,7 @@ class ClojureFileTypeFactory : FileTypeFactory() {
 }
 
 object ClojureFileType : LanguageFileType(ClojureLanguage) {
-  override fun getIcon() = ClojureIcons.CLOJURE_ICON
+  override fun getIcon() = ClojureIcons.FILE
   override fun getName() = "Clojure"
   override fun getDefaultExtension() = ClojureConstants.CLJ
   override fun getDescription() = "Clojure and ClojureScript"
