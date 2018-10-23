@@ -37,7 +37,7 @@
       12681: unable to resolve 'getChannel'
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/main.clj                        0 errors, 0 warnings, 9 dynamic
+/clojure/main.clj                        0 errors, 0 warnings, 8 dynamic
 /clojure/parallel.clj                    0 errors, 22 warnings, 5 dynamic
       4270: unable to resolve 'ParallelArrayWithMapping'
       4323: unable to resolve 'ParallelArray'

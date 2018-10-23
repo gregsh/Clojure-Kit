@@ -100,7 +100,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
   private var myState: State? = State(-1, "", emptyList(), emptyList())
   private val state: State
     get() {
-      val curTimeStamp = manager.modificationTracker.outOfCodeBlockModificationCount
+      val curTimeStamp = manager.modificationTracker.modificationCount
       val curState = myState
       if (curState != null && curState.timeStamp == curTimeStamp) return curState
       myState = null
@@ -133,8 +133,9 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
   private fun clearRoles() {
     for (e in cljTraverser().traverse()) {
       setData(e, null)
+      resetFlags(e)
       if (e.elementType == ClojureTypes.C_SHARP_COMMENT) {
-        setData(e.parent?.parent, Role.COMMENT)
+        setFlag(e.parent?.parent, FLAG_COMMENTED)
       }
     }
   }
@@ -341,23 +342,17 @@ private class RoleHelper {
 
     if (firstTime) {
       for (e in s.filter { it.elementType == ClojureTypes.C_SHARP_COMMENT }) {
-        setData(e.parent?.parent, Role.COMMENT)
+        setFlag(e.parent?.parent, FLAG_COMMENTED)
       }
     }
     for (e in s) {
       if ((e.firstChild as? CReaderMacro)?.firstChild.elementType == ClojureTypes.C_SHARP_COMMENT) {
-        setData(e, Role.COMMENT)
+        setFlag(e, FLAG_COMMENTED)
       }
-      else if (e is CKeywordBase) {
+
+      if (e is CKeywordBase) {
         processKeyword(e)
       }
-//      else if (e is CSymbol) {
-//        val qualifier = e.qualifier
-//        val name = qualifier?.name
-//        if (name != null && e.parent !is CKeyword) {
-//          setData(qualifier, resolveAlias(name) ?: name)
-//        }
-//      }
       else if (e is CToken) {
         processInRCParenToken(e)
         // optimization: finishing up the delayed def
@@ -438,7 +433,7 @@ private class RoleHelper {
           }
         }
         else if (firstName == "comment" && ns == langKind.coreNs) {
-          setData(e, Role.COMMENT)
+          setFlag(e, FLAG_COMMENTED)
         }
       }
     }
@@ -736,6 +731,14 @@ internal data class Import(
 
 private fun setData(o: PsiElement?, data: Any?) {
   if (o is CComposite) o.dataImpl = data
+}
+
+private fun setFlag(o: PsiElement?, flag: Int) {
+  if (o is CComposite) o.flagsImpl = o.flagsImpl or flag
+}
+
+private fun resetFlags(o: PsiElement?) {
+  if (o is CComposite) o.flagsImpl = 0
 }
 
 private fun setResolveTo(o: CSymbol?, key: SymKey) {

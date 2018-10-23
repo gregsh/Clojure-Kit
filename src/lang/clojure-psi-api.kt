@@ -36,16 +36,19 @@ enum class Dialect(val coreNs: String) {
 
 enum class Role {
   NONE, DEF, NS, NAME,
-  RCOND, RCOND_S, COMMENT,
+  RCOND, RCOND_S,
   PROTOTYPE,
   ARG_VEC, BND_VEC, FIELD_VEC, BODY,
   ARG, BND, FIELD // currently not set
 }
 
+const val FLAG_COMMENTED = 0x1
+
 interface CElement : NavigatablePsiElement {
   val role: Role
   val def: IDef?
   val resolvedNs: String?
+  val flags: Int
 }
 
 interface ClojureElementType

@@ -44,7 +44,7 @@ import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.CComposite
 import org.intellij.clojure.psi.impl.asCTarget
-import org.intellij.clojure.psi.impl.fastRole
+import org.intellij.clojure.psi.impl.fastFlags
 import kotlin.reflect.KClass
 
 /**
@@ -72,13 +72,14 @@ fun <T : PsiElement> PsiElement?.findNext(c: KClass<T>) = PsiTreeUtil.getNextSib
 fun <T : PsiElement> PsiElement?.findPrev(c: KClass<T>) = PsiTreeUtil.getPrevSiblingOfType(this, c.java)
 
 val PsiElement?.role : Role get() = (this as? CElement)?.role ?: Role.NONE
+val PsiElement?.flags : Int get() = (this as? CElement)?.flags ?: 0
 fun <T : CForm> PsiElement?.childForm(c: KClass<T>) = skipComments({ findChild(c) }) { findNext(c) }
 fun <T : CForm> PsiElement?.nextForm(c: KClass<T>) = skipComments { findNext(c) }
 fun <T : CForm> PsiElement?.prevForm(c: KClass<T>) = skipComments { findPrev(c) }
 private fun <E : PsiElement> PsiElement?.skipComments(f0: (PsiElement?.() -> E?)? = null, f : PsiElement?.()->E?): E? {
   var o = (f0 ?: f)(); while (true) if (notComment(o)) return o else o = o.f()
 }
-private fun <E : PsiElement> notComment(e: E?) = e.fastRole != Role.COMMENT
+private fun <E : PsiElement> notComment(e: E?) = e.fastFlags and FLAG_COMMENTED != FLAG_COMMENTED
 
 val PsiElement?.asDef : CList? get() = if (role == Role.DEF) this as? CList else null
 val PsiElement?.elementType : IElementType? get() = this?.node?.elementType

@@ -78,5 +78,5 @@
 (clojure.uuid/<warning>default-uuid-reader</warning>)
 
 (def #_comment named-zero 0)
-{#_0 #_1 :a #_'(xxx)  'a :b 'b #_2 #_3}
+{#_0 #_1 :a #_'(xxx)  'a :b #_:comm 'b #_2 #_3}
 # #_comment dbg 10

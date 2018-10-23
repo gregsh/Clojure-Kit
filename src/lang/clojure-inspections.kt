@@ -77,7 +77,7 @@ class ClojureResolveInspection : LocalInspectionTool() {
         if (o.parent is CSymbol && o.parent.parent is CKeyword) return
         val quotesAndComments = o.parents().filter { it is CMetadata
             || it is CForm && it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null
-            || it is CList && it.role == Role.COMMENT
+            || it is CList && it.flags and FLAG_COMMENTED != 0
         }.first()
         if (quotesAndComments != null) return
         holder.registerProblem(reference, "unable to resolve '${reference.referenceName}'", ProblemHighlightType.GENERIC_ERROR_OR_WARNING)

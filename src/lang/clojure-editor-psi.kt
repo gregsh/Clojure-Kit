@@ -104,7 +104,7 @@ class ClojureAnnotator : Annotator {
         && element.parentForm.iterate(CReaderMacro::class).isEmpty) {
       holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
     }
-    if (element.role == Role.COMMENT) {
+    if (element.flags and FLAG_COMMENTED != 0) {
       holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
     }
     when (element) {

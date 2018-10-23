@@ -68,14 +68,23 @@ class ClojurePsiImplUtil {
 
 open class CComposite(tokenType: IElementType) : CompositePsiElement(tokenType), CElement {
   override val role: Role get() = role(data)
+  override val flags: Int get() = role.run { flagsImpl }
   override val def: IDef? get() = data as? IDef
   override val resolvedNs: String? get() = data as? String
 
+  @JvmField internal var dataImpl: Any? = null
+  @JvmField internal var flagsImpl: Int = 0
+
   internal val roleImpl: Role get() = role(dataImpl)
-  @JvmField
-  internal var dataImpl: Any? = null
   internal val data: Any get() = dataImpl ?: (containingFile as CFileImpl).checkState().let {
     dataImpl ?: Role.NONE.also { dataImpl = it }
+  }
+
+  private fun role(data: Any?): Role = when (data) {
+    is Role -> data
+    is Imports, is NSDef -> Role.NS
+    is IDef -> Role.DEF
+    else -> Role.NONE
   }
 }
 
@@ -131,16 +140,9 @@ abstract class CSymbolBase(nodeType: IElementType) : CSFormImpl(nodeType), CSymb
 fun newLeafPsiElement(project: Project, s: String): PsiElement =
     PsiFileFactory.getInstance(project).createFileFromText(ClojureLanguage, s).firstChild.lastChild
 
-private fun role(data: Any?): Role {
-  return when (data) {
-    is Role -> data
-    is Imports, is NSDef -> Role.NS
-    is IDef -> Role.DEF
-    else -> Role.NONE
-  }
-}
 
 val PsiElement?.fastRole: Role get() = (this as? CComposite)?.roleImpl ?: Role.NONE
+val PsiElement?.fastFlags: Int get() = (this as? CComposite)?.flagsImpl ?: 0
 val CList?.fastDef: IDef?
   get() = (this as? CListBase)?.run {
     ((this as CComposite).dataImpl as? IDef)?.run {
