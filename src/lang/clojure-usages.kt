@@ -24,12 +24,14 @@ import com.intellij.ide.util.DefaultPsiElementCellRenderer
 import com.intellij.lang.findUsages.FindUsagesProvider
 import com.intellij.navigation.ChooseByNameContributor
 import com.intellij.navigation.GotoClassContributor
+import com.intellij.navigation.ItemPresentation
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.application.QueryExecutorBase
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
+import com.intellij.openapi.roots.SyntheticLibrary
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -54,6 +56,7 @@ import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.util.*
+import java.util.*
 import javax.swing.Icon
 
 /**
@@ -136,8 +139,8 @@ class ClojureGotoSymbolContributor : ChooseByNameContributor, GotoClassContribut
 }
 
 class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
-  override fun getAdditionalProjectLibrarySourceRoots(project: Project): Set<VirtualFile> = JBIterable.of(
-      CLJ_CORE_PATH, CLJ_SPEC_PATH, CLJS_CORE_PATH)
+  override fun getAdditionalProjectLibraries(project: Project): MutableCollection<SyntheticLibrary> = JBIterable
+      .of(CLJ_CORE_PATH, CLJ_SPEC_PATH, CLJS_CORE_PATH)
       .flatten {
         javaClass.classLoader.getResources(it.trimStart('/'))
             .asSequence()
@@ -148,7 +151,19 @@ class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
             }.asIterable()
       }
       .notNulls()
-      .toSet()
+      .unique()
+      .map { CljLib(it) }
+      .addAllTo(ArrayList())
+}
+
+class CljLib(val root: VirtualFile) : SyntheticLibrary(), ItemPresentation {
+  fun getBinaryRoots(): MutableCollection<VirtualFile> = Collections.singletonList(root)
+  override fun getSourceRoots(): MutableCollection<VirtualFile> = Collections.singletonList(root)
+  override fun getLocationString(): String? = null
+  override fun getIcon(unused: Boolean) = ClojureIcons.CLOJURE_ICON
+  override fun getPresentableText() = root.name
+  override fun equals(other: Any?) = root == (other as? CljLib)?.root
+  override fun hashCode() = root.hashCode()
 }
 
 class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {

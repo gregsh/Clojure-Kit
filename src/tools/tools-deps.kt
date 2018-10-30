@@ -30,6 +30,7 @@ import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.AdditionalLibraryRootsProvider
+import com.intellij.openapi.roots.SyntheticLibrary
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.EmptyRunnable
@@ -41,6 +42,7 @@ import com.intellij.psi.search.ProjectScope
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.io.SafeFileOutputStream
 import org.intellij.clojure.lang.ClojureLanguage
+import org.intellij.clojure.lang.usages.CljLib
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.util.*
@@ -60,10 +62,10 @@ private class ClojureProjectDeps(val project: Project) {
   }
 
   class RootsProvider : AdditionalLibraryRootsProvider() {
-    override fun getAdditionalProjectLibrarySourceRoots(project: Project): Set<VirtualFile> {
-      if (ApplicationManager.getApplication().isUnitTestMode) return emptySet()
-      if (!Repo.path.exists()) return emptySet()
-      return getInstance(project).allDependencies
+    override fun getAdditionalProjectLibraries(project: Project): MutableCollection<SyntheticLibrary> {
+      if (ApplicationManager.getApplication().isUnitTestMode) return Collections.emptyList()
+      if (!Repo.path.exists()) return Collections.emptyList()
+      return getInstance(project).allDependencies.jbIt().map { CljLib(it) }.addAllTo(ArrayList())
     }
   }
 
