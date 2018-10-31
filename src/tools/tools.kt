@@ -17,11 +17,16 @@
 
 package org.intellij.clojure.tools
 
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.OSProcessHandler
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessOutputTypes
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationType
+import com.intellij.notification.Notifications
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.util.text.StringUtil
@@ -29,11 +34,14 @@ import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.util.EnvironmentUtil
 import org.intellij.clojure.ClojureConstants
 import java.io.File
-import java.util.*
 
 /**
  * @author gregsh
  */
+
+private val LOG = Logger.getInstance(Tool::class.java)
+const val DEPS_NOTIFICATION = "clojure-kit.tool.deps.group"
+
 object Repo {
   val path = File(File(com.intellij.util.SystemProperties.getUserHome(), ".m2"), "repository")
 }
@@ -65,13 +73,10 @@ object Lein : Tool {
   val projectFile = ClojureConstants.LEIN_CONFIG
   private val command = findCommandPath("lein")
 
-  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
-    readDepsOutput(GeneralCommandLine(command, "deps", ":tree"), projectFile.parent) { line ->
-      parseCoordVector(line)?.let {
-        this.add(it)
-      }
-    }
-  }
+  override fun getDeps(projectFile: File) = readProcessOutput(
+      GeneralCommandLine(command, "deps", ":tree"), projectFile.parent)
+      .mapNotNull(::parseCoordVector)
+
 
   override fun getRepl() = GeneralCommandLine(command, *mutableListOf(
       "update-in", ":dependencies", "conj", "[org.clojure/tools.nrepl \"RELEASE\"]", "--",
@@ -90,17 +95,17 @@ object Boot : Tool {
   val projectFile = ClojureConstants.BOOT_CONFIG
   private val command = findCommandPath("boot")
 
-  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
-    readDepsOutput(GeneralCommandLine(command, "--no-colors", "show", "-d"), projectFile.parent) { line ->
-      val trimmed = line.trimEnd()
-      val idx = trimmed.indexOf("[")
-      if (idx == -1 || !trimmed.endsWith("]")) return@readDepsOutput
-      val coordVec = StringUtil.repeat(" ", idx) + trimmed.substring(idx)
-      parseCoordVector(coordVec)?.let {
-        this.add(it)
+  override fun getDeps(projectFile: File) = readProcessOutput(
+      GeneralCommandLine(command, "--no-colors", "show", "-d"), projectFile.parent)
+      .mapNotNull {
+        val trimmed = it.trimEnd()
+        val idx = trimmed.indexOf("[")
+        if (idx != -1 && trimmed.endsWith("]")) {
+          val coordVec = StringUtil.repeat(" ", idx) + trimmed.substring(idx)
+          parseCoordVector(coordVec)
+        }
+        else null
       }
-    }
-  }
 
   override fun getRepl() = GeneralCommandLine(command,
       "--no-colors",
@@ -113,14 +118,14 @@ object Deps : Tool {
   val projectFile = ClojureConstants.DEPS_CONFIG
   private val command = findCommandPath("clojure")
 
-  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
-    readDepsOutput(GeneralCommandLine(command, "-Stree"), projectFile.parent) { line ->
-      Regex("(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
-        val (group, artifact, version) = it.destructured
-        this.add(Dependency(group, artifact, version))
+  override fun getDeps(projectFile: File) = readProcessOutput(
+      GeneralCommandLine(command, "-Stree"), projectFile.parent)
+      .mapNotNull { line ->
+        Regex("(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
+          val (group, artifact, version) = it.destructured
+          Dependency(group, artifact, version)
+        }
       }
-    }
-  }
 
   override fun getRepl() = GeneralCommandLine(command,
       "-Sdeps", "{:deps { org.clojure/tools.nrepl {:mvn/version \"RELEASE\"}" +
@@ -132,16 +137,34 @@ object Deps : Tool {
 }
 
 
-private fun readDepsOutput(commandLine: GeneralCommandLine, workingDirectory: String, processor: (String) -> Unit) {
+private fun readProcessOutput(commandLine: GeneralCommandLine, workingDirectory: String): List<String> {
+  val stdout = mutableListOf<String>()
+  val stderr = mutableListOf<String>()
+  var exitCode: Int? = null
   val process = OSProcessHandler(commandLine.withWorkDirectory(workingDirectory).withCharset(CharsetToolkit.UTF8_CHARSET))
   process.addProcessListener(object : ProcessAdapter() {
     override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-      if (outputType != ProcessOutputTypes.STDOUT) return
-      processor(event.text)
+      when (outputType) {
+        ProcessOutputTypes.STDOUT -> stdout.add(event.text)
+        ProcessOutputTypes.STDERR -> stderr.add(event.text)
+      }
+    }
+
+    override fun processTerminated(event: ProcessEvent) {
+      exitCode = event.exitCode
     }
   })
+  LOG.info("${commandLine.commandLineString} (in $workingDirectory)")
   process.startNotify()
   process.waitFor()
+  LOG.info("${commandLine.commandLineString} (exit code: $exitCode)")
+  if (exitCode == null || exitCode != 0) {
+    val title = commandLine.exePath + ": exit code " + exitCode
+    val message = if (stderr.isEmpty()) "" else stderr.joinToString("")
+    Notifications.Bus.notify(Notification(DEPS_NOTIFICATION, title, message, NotificationType.ERROR))
+    throw ExecutionException(title)
+  }
+  return stdout
 }
 
 private fun findCommandPath(commandName: String): String {

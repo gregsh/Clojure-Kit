@@ -17,6 +17,7 @@
 
 package org.intellij.clojure.tools
 
+import com.intellij.execution.ExecutionException
 import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -24,6 +25,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.application.*
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
@@ -54,6 +56,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * @author gregsh
  */
+
+private val LOG = Logger.getInstance(ClojureProjectDeps::class.java)
+
 private class ClojureProjectDeps(val project: Project) {
   class PostStartup : StartupActivity {
     override fun runActivity(project: Project) {
@@ -72,8 +77,6 @@ private class ClojureProjectDeps(val project: Project) {
   companion object {
     @JvmStatic
     fun getInstance(project: Project) = ServiceManager.getService(project, ClojureProjectDeps::class.java)!!
-    @JvmStatic
-    val LOG = Logger.getInstance(ClojureProjectDeps::class.java)
   }
 
   val cacheFile = File(PathManager.getSystemPath(), "clojure/deps-${project.locationHash}.txt")
@@ -116,7 +119,7 @@ private class ClojureProjectDeps(val project: Project) {
         val trimmed = line.trimEnd()
         if (trimmed.endsWith("]")) parseCoordVector(trimmed)?.let { list.add(it)}
         else if (Tool.choose(File(trimmed)) != null) {
-          if (file != null) map.put(file, ArrayList(list))
+          if (file != null) map[file] = ArrayList(list)
           file = trimmed
           list.clear()
         }
@@ -156,7 +159,10 @@ private class ClojureProjectDeps(val project: Project) {
           indicator.fraction = (100.0 * index / files.size)
           indicator.text = file.path
           val tool = Tool.choose(file) ?: continue
-          mapping[file.path] = tool.getDeps(file)
+          try {
+            mapping[file.path] = tool.getDeps(file)
+          }
+          catch (e: ExecutionException) { }
         }
       }
 
@@ -202,13 +208,14 @@ fun parseCoordVector(line: String): Dependency? {
 private fun resolveDependency(dependency: Dependency) : VirtualFile? {
   val path = if (dependency.group != null) {
     "${dependency.group.replace('.', '/')}/${dependency.artifact}"
-  } else {
+  }
+  else {
     "${dependency.artifact}/${dependency.artifact}"
   }
 
   val gavFile = File(Repo.path, "$path/${dependency.version}/${dependency.artifact}-${dependency.version}.jar")
   if (!(gavFile.exists() && !gavFile.isDirectory)) {
-    ClojureProjectDeps.LOG.info("${dependency.artifact}:${dependency.version} dependency not found")
+    LOG.info("${dependency.artifact}:${dependency.version} dependency not found")
   }
   else {
     val localFS = LocalFileSystem.getInstance()
@@ -216,7 +223,7 @@ private fun resolveDependency(dependency: Dependency) : VirtualFile? {
     val vFile = localFS.refreshAndFindFileByIoFile(gavFile)
     val jarFile = if (vFile == null) null else jarFS.getJarRootForLocalFile(vFile)
     if (jarFile == null) {
-      ClojureProjectDeps.LOG.info("${dependency.artifact}:${dependency.version} dependency not found in VFS")
+      LOG.info("${dependency.artifact}:${dependency.version} dependency not found in VFS")
     }
     else {
       return jarFile
@@ -243,8 +250,10 @@ class SyncDepsAction : AnAction() {
   override fun update(e: AnActionEvent) = updateSyncActionImpl(e, false)
 
   override fun actionPerformed(e: AnActionEvent) {
+    val project = e.project ?: return
+    FileDocumentManager.getInstance().saveAllDocuments()
     val files = contextProjectFiles(e)
-    ClojureProjectDeps.getInstance(e.project ?: return).resolveDepsInBackground { files }
+    ClojureProjectDeps.getInstance(project).resolveDepsInBackground { files }
   }
 }
 
@@ -252,7 +261,9 @@ class SyncAllDepsAction : AnAction() {
   override fun update(e: AnActionEvent) = updateSyncActionImpl(e, true)
 
   override fun actionPerformed(e: AnActionEvent) {
-    ClojureProjectDeps.getInstance(e.project ?: return).resolveAllDepsInBackground()
+    val project = e.project ?: return
+    FileDocumentManager.getInstance().saveAllDocuments()
+    ClojureProjectDeps.getInstance(project).resolveAllDepsInBackground()
   }
 }
 
