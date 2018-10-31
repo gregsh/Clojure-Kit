@@ -114,6 +114,7 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
       ClojureHighlightingLexer.CALLABLE_KEYWORD -> pack(ClojureColors.CALLABLE, ClojureColors.KEYWORD)
       ClojureHighlightingLexer.QUOTED_SYM -> pack(ClojureColors.QUOTED_SYM)
       ClojureHighlightingLexer.DATA_READER -> pack(ClojureColors.DATA_READER)
+      ClojureHighlightingLexer.HAT_SYM -> pack(ClojureColors.METADATA)
       else -> EMPTY
     }
   }
@@ -124,6 +125,7 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
     val CALLABLE = IElementType("C_CALLABLE*", ClojureLanguage)
     val KEYWORD = IElementType("C_KEYWORD*", ClojureLanguage)
     val CALLABLE_KEYWORD = IElementType("C_CALLABLE_KEYWORD*", ClojureLanguage)
+    val HAT_SYM = IElementType("C_HAT_SYM*", ClojureLanguage)
     val QUOTED_SYM = IElementType("C_QUOTED_SYM*", ClojureLanguage)
     val DATA_READER = IElementType("C_DATA_READER*", ClojureLanguage)
   }
@@ -167,17 +169,22 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
         val callableType = if (baseLexer.tokenType.let { it == C_COLON || it == C_COLONCOLON }) CALLABLE_KEYWORD else CALLABLE
         advanceSymbolAs(baseLexer, callableType)
       }
+      C_HAT -> {
+        advanceAs(baseLexer, tokenType0)
+        skipWs(baseLexer)
+        if (baseLexer.tokenType === C_SYM) advanceSymbolAs(baseLexer, HAT_SYM, true)
+      }
       else -> super.lookAhead(baseLexer)
     }
   }
 
-  private fun advanceSymbolAs(baseLexer: Lexer, type: IElementType) {
+  private fun advanceSymbolAs(baseLexer: Lexer, type: IElementType, strict: Boolean = false) {
     w@ while (true) {
       val tokenType = baseLexer.tokenType
       when (tokenType) {
-        C_DOT, C_DOTDASH -> advanceAs(baseLexer, tokenType)
+        C_DOT, C_DOTDASH -> if (!strict) advanceAs(baseLexer, tokenType) else break@w
         C_SLASH, C_SYM -> advanceAs(baseLexer, type)
-        C_COLON, C_COLONCOLON -> advanceAs(baseLexer, type)
+        C_COLON, C_COLONCOLON -> if (!strict) advanceAs(baseLexer, type) else break@w
         else -> break@w
       }
     }

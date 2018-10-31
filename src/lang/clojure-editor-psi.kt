@@ -101,6 +101,7 @@ class ClojureAnnotator : Annotator {
 
   override fun annotate(element: PsiElement, holder: AnnotationHolder) {
     if (element is CSForm && (element.parentForm as? CList).firstForm == element
+        && element.firstChild.elementType != ClojureTypes.C_SYM
         && element.parentForm.iterate(CReaderMacro::class).isEmpty) {
       holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
     }
@@ -134,13 +135,6 @@ class ClojureAnnotator : Annotator {
           holder.createInfoAnnotation(element.valueRange, null).run {
             textAttributes = attrs
             enforcedTextAttributes = enforced
-          }
-        }
-      }
-      is CMetadata -> {
-        element.firstForm.let {
-          if (it is CSymbol) {
-            holder.createInfoAnnotation(it, null).textAttributes = ClojureColors.METADATA
           }
         }
       }
