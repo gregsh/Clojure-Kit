@@ -156,7 +156,9 @@ private class ClojureProjectDeps(val project: Project) {
           indicator.fraction = (100.0 * index / files.size)
           indicator.text = file.path
           val tool = Tool.choose(file) ?: continue
-          mapping[file.path] = tool.getDeps(file)
+          tool.getDeps(file)?.let {
+            mapping[file.path] = it
+          }
         }
       }
 

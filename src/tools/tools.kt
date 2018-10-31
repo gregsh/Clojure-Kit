@@ -29,7 +29,6 @@ import com.intellij.openapi.vfs.CharsetToolkit
 import com.intellij.util.EnvironmentUtil
 import org.intellij.clojure.ClojureConstants
 import java.io.File
-import java.util.*
 
 /**
  * @author gregsh
@@ -40,7 +39,7 @@ object Repo {
 
 
 interface Tool {
-  fun getDeps(projectFile: File): List<Dependency>
+  fun getDeps(projectFile: File): List<Dependency>?
   fun getRepl(): GeneralCommandLine
 
   companion object {
@@ -65,13 +64,11 @@ object Lein : Tool {
   val projectFile = ClojureConstants.LEIN_CONFIG
   private val command = findCommandPath("lein")
 
-  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
-    readDepsOutput(GeneralCommandLine(command, "deps", ":tree"), projectFile.parent) { line ->
-      parseCoordVector(line)?.let {
-        this.add(it)
-      }
+  override fun getDeps(projectFile: File) =
+    readProcessOutput(GeneralCommandLine(command, "deps", ":tree"), projectFile.parent)?.mapNotNull { line ->
+      parseCoordVector(line)
     }
-  }
+
 
   override fun getRepl() = GeneralCommandLine(command, *mutableListOf(
       "update-in", ":dependencies", "conj", "[org.clojure/tools.nrepl \"RELEASE\"]", "--",
@@ -90,17 +87,17 @@ object Boot : Tool {
   val projectFile = ClojureConstants.BOOT_CONFIG
   private val command = findCommandPath("boot")
 
-  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
-    readDepsOutput(GeneralCommandLine(command, "--no-colors", "show", "-d"), projectFile.parent) { line ->
+  override fun getDeps(projectFile: File) =
+    readProcessOutput(GeneralCommandLine(command, "--no-colors", "show", "-d"), projectFile.parent)?.mapNotNull { line ->
       val trimmed = line.trimEnd()
       val idx = trimmed.indexOf("[")
-      if (idx == -1 || !trimmed.endsWith("]")) return@readDepsOutput
-      val coordVec = StringUtil.repeat(" ", idx) + trimmed.substring(idx)
-      parseCoordVector(coordVec)?.let {
-        this.add(it)
+      if (idx == -1 || !trimmed.endsWith("]")) {
+        null
+      } else {
+        val coordVec = StringUtil.repeat(" ", idx) + trimmed.substring(idx)
+        parseCoordVector(coordVec)
       }
     }
-  }
 
   override fun getRepl() = GeneralCommandLine(command,
       "--no-colors",
@@ -113,14 +110,13 @@ object Deps : Tool {
   val projectFile = ClojureConstants.DEPS_CONFIG
   private val command = findCommandPath("clojure")
 
-  override fun getDeps(projectFile: File) = ArrayList<Dependency>().apply {
-    readDepsOutput(GeneralCommandLine(command, "-Stree"), projectFile.parent) { line ->
-      Regex("(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
-        val (group, artifact, version) = it.destructured
-        this.add(Dependency(group, artifact, version))
+  override fun getDeps(projectFile: File) =
+      readProcessOutput(GeneralCommandLine(command, "-Stree"), projectFile.parent)?.mapNotNull { line ->
+        Regex("(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
+          val (group, artifact, version) = it.destructured
+          Dependency(group, artifact, version)
+        }
       }
-    }
-  }
 
   override fun getRepl() = GeneralCommandLine(command,
       "-Sdeps", "{:deps { org.clojure/tools.nrepl {:mvn/version \"RELEASE\"}" +
@@ -132,16 +128,29 @@ object Deps : Tool {
 }
 
 
-private fun readDepsOutput(commandLine: GeneralCommandLine, workingDirectory: String, processor: (String) -> Unit) {
+private fun readProcessOutput(commandLine: GeneralCommandLine, workingDirectory: String): List<String>? {
+  val result = mutableListOf<String>()
+  var exitCode: Int? = null
+
   val process = OSProcessHandler(commandLine.withWorkDirectory(workingDirectory).withCharset(CharsetToolkit.UTF8_CHARSET))
   process.addProcessListener(object : ProcessAdapter() {
     override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
       if (outputType != ProcessOutputTypes.STDOUT) return
-      processor(event.text)
+      result.add(event.text)
+    }
+
+    override fun processTerminated(event: ProcessEvent) {
+      exitCode = event.exitCode
     }
   })
+
   process.startNotify()
   process.waitFor()
+
+  return if (exitCode!! == 0)
+    result
+  else
+    null
 }
 
 private fun findCommandPath(commandName: String): String {
