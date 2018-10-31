@@ -178,7 +178,13 @@ class ReplExecuteAction : DumbAwareAction() {
           }
     }
     val namespace = if (repl == null && !hasNamespace && file is CFile) file.namespace.nullize(true) else null
-    executeInRepl(project, file.virtualFile, editor, text, namespace, pos)
+    val consumeRepl: (ReplConsole) -> Unit = { executeInRepl(it, editor, text, namespace, pos, file.virtualFile) }
+    if (repl != null) {
+      consumeRepl(repl)
+    }
+    else {
+      findOrCreateRepl(project, file.virtualFile, consumeRepl)
+    }
   }
 }
 
@@ -278,31 +284,29 @@ class ReplActionPromoter : ActionPromoter {
       actions.find { it is ReplExecuteAction }?.let { listOf(it) }
 }
 
-fun executeInRepl(project: Project, file: VirtualFile, editor: Editor, text: String, namespace: String?, pos: LogicalPosition) {
-  executeInRepl(project, file) { repl ->
-    val replEditor = repl.consoleView.consoleEditor
-    val b = editor == replEditor || !replEditor.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer
-    val code =
-        if (b) WriteAction.compute<String, Exception> { replEditor.document.run { val s = getText(); setText(""); s } }
-        else text
-    val inputHandler = repl.inputHandler
-    if (inputHandler != null) {
-      inputHandler(code)
-    }
-    else {
-      ConsoleHistoryController.addToHistory(repl.consoleView, code)
-      repl.eval(code) {
-        if (b) {
-          set("line", 1)
-          set("column", 1)
-          set("file", repl.consoleView.virtualFile.path)
-        }
-        else {
-          this.namespace = namespace
-          set("line", pos.line + 1)
-          set("column", pos.column + 1)
-          set("file", file.path)
-        }
+private fun executeInRepl(repl: ReplConsole, editor: Editor, text: String, namespace: String?, pos: LogicalPosition, file: VirtualFile) {
+  val replEditor = repl.consoleView.consoleEditor
+  val b = editor == replEditor || !replEditor.document.text.trim().isEmpty() && editor == repl.consoleView.historyViewer
+  val code =
+      if (b) WriteAction.compute<String, Exception> { replEditor.document.run { val s = getText(); setText(""); s } }
+      else text
+  val inputHandler = repl.inputHandler
+  if (inputHandler != null) {
+    inputHandler(code)
+  }
+  else {
+    ConsoleHistoryController.addToHistory(repl.consoleView, code)
+    repl.eval(code) {
+      if (b) {
+        set("line", 1)
+        set("column", 1)
+        set("file", repl.consoleView.virtualFile.path)
+      }
+      else {
+        this.namespace = namespace
+        set("line", pos.line + 1)
+        set("column", pos.column + 1)
+        set("file", file.path)
       }
     }
   }
@@ -343,7 +347,7 @@ private fun findReplInner(project: Project, virtualFile: VirtualFile): Triple<Ru
   return Triple(contentToReuse, title, workingDir)
 }
 
-fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplConsole) -> Unit) {
+fun findOrCreateRepl(project: Project, virtualFile: VirtualFile, consumer: (ReplConsole) -> Unit) {
   val (contentToReuse, title, workingDir) = findReplInner(project, virtualFile)
   if (contentToReuse != null) {
     contentToReuse.attachedContent!!.run { manager.setSelectedContent(this) }
@@ -368,11 +372,11 @@ fun executeInRepl(project: Project, virtualFile: VirtualFile, command: (ReplCons
       newProcess.startNotify()
     }
     contentToReuse.processHandler = repl.processHandler
-    command(repl)
+    consumer(repl)
   }
   else {
     val workingDir = workingDir.toIoFile()
-    val callback = ProgramRunner.Callback { command(it.executionConsole as ReplConsole) }
+    val callback = ProgramRunner.Callback { consumer(it.executionConsole as ReplConsole) }
     createNewRunContent(project, title, LOCAL_ICON, callback) {
       newProcessHandler(workingDir)
     }
