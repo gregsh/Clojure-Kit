@@ -35,6 +35,7 @@ import com.intellij.psi.impl.PomTargetPsiElementImpl
 import com.intellij.psi.search.EverythingGlobalScope
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
+import com.intellij.psi.search.SearchScope
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.containers.ConcurrentFactoryMap
@@ -208,6 +209,10 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
     if (psiFile != null) return psiFile
     return super.getContainingFile()
   }
+
+  override fun getUseScope(): SearchScope =
+      if (target.key.type == "keyword" || target.key.type == "ns") GlobalSearchScope.everythingScope(project)
+      else super.getUseScope()
 
   override fun toString() = target.key.toString()
 }
