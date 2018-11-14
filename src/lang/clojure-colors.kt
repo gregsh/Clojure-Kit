@@ -17,6 +17,7 @@
 
 package org.intellij.clojure.lang
 
+import com.intellij.codeHighlighting.RainbowHighlighter
 import com.intellij.lang.Language
 import com.intellij.lang.LanguageUtil
 import com.intellij.lexer.Lexer
@@ -30,7 +31,7 @@ import com.intellij.openapi.fileTypes.SyntaxHighlighterBase
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory
 import com.intellij.openapi.options.colors.AttributesDescriptor
 import com.intellij.openapi.options.colors.ColorDescriptor
-import com.intellij.openapi.options.colors.ColorSettingsPage
+import com.intellij.openapi.options.colors.RainbowColorSettingsPage
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.TokenType
@@ -69,9 +70,16 @@ object ClojureColors {
   @JvmField val DEFINITION = createTextAttributesKey("C_DEFINITION", DefaultLanguageHighlighterColors.FUNCTION_DECLARATION)
   @JvmField val FN_ARGUMENT = createTextAttributesKey("C_FN_ARGUMENT", DefaultLanguageHighlighterColors.PARAMETER)
   @JvmField val LET_BINDING = createTextAttributesKey("C_LET_BINDING", DefaultLanguageHighlighterColors.LOCAL_VARIABLE)
+  @JvmField val TYPE_FIELD = createTextAttributesKey("C_TYPE_FIELD", DefaultLanguageHighlighterColors.INSTANCE_FIELD)
   @JvmField val NAMESPACE = createTextAttributesKey("C_NAMESPACE", DefaultLanguageHighlighterColors.IDENTIFIER)
   @JvmField val ALIAS = createTextAttributesKey("C_ALIAS", DefaultLanguageHighlighterColors.IDENTIFIER)
   @JvmField val DYNAMIC = createTextAttributesKey("C_DYNAMIC", DefaultLanguageHighlighterColors.PREDEFINED_SYMBOL)
+
+  @JvmField val JAVA_CLASS = createTextAttributesKey("C_JAVA_CLASS", DefaultLanguageHighlighterColors.CLASS_NAME)
+  @JvmField val JAVA_STATIC_METHOD = createTextAttributesKey("C_JAVA_STATIC_METHOD", DefaultLanguageHighlighterColors.STATIC_METHOD)
+  @JvmField val JAVA_STATIC_FIELD = createTextAttributesKey("C_JAVA_STATIC_FIELD", DefaultLanguageHighlighterColors.STATIC_FIELD)
+  @JvmField val JAVA_INSTANCE_FIELD = createTextAttributesKey("C_JAVA_INSTANCE_FIELD", DefaultLanguageHighlighterColors.INSTANCE_FIELD)
+  @JvmField val JAVA_INSTANCE_METHOD = createTextAttributesKey("C_JAVA_INSTANCE_METHOD", DefaultLanguageHighlighterColors.INSTANCE_METHOD)
 
   @JvmField val NS_COLORS: Map<String, TextAttributes> = ContainerUtil.newConcurrentMap()
 }
@@ -191,7 +199,10 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
   }
 }
 
-class ClojureColorSettingsPage : ColorSettingsPage {
+class ClojureColorSettingsPage : RainbowColorSettingsPage {
+  override fun isRainbowType(key: TextAttributesKey?): Boolean =
+      key == ClojureColors.FN_ARGUMENT || key == ClojureColors.LET_BINDING
+  override fun getLanguage() = ClojureLanguage
 
   override fun getDisplayName() = "Clojure"
   override fun getIcon() = ClojureFileType.icon
@@ -205,10 +216,10 @@ class ClojureColorSettingsPage : ColorSettingsPage {
        <k>:author</k> "Rich Hickey"}
   <ns>clojure.core</ns>)
 
-<ign>(comment "clojure code fragments below")</ign>
-(alias <as>core</as> <sym>'clojure.core</sym>)
+<ign>(<call>comment</call> <str>"clojure code fragments below"</str>)</ign>
+(alias 'core 'clojure.core)
 
-(defn <def>mod</def>
+(<as>core</as>/defn <def>mod</def>
   "Modulus of num and div. Truncates toward negative infinity."
   {<k>:added</k> "1.0"
    <k>:static</k> true}
@@ -219,27 +230,39 @@ class ClojureColorSettingsPage : ColorSettingsPage {
       (+ <bnd>m</bnd> <arg>div</arg>))))
 
 ; field access
-(.-x (java.awt.Point. 1 2))
+(. (<call><jc>java.awt.Point</jc>.</call> 1 2) <jif>-x</jif>)
+(. <jc>Integer</jc> <jsf>MAX_VALUE</jsf>)
+(. (. <jc>Integer</jc> <jsm>parseInt</jsm> "123") <jim>toString</jim>)
 
 ; reader conditionals and dynamic resolve
 #?(:clj     Double/NaN
    :cljs    <dyn>js</dyn>/NaN
    :default nil)
 (def <def>INIT</def> <dr>#js</dr> {})
+
+;${RainbowHighlighter.generatePaletteExample("\n; ")}
   """
 
-  override fun getAdditionalHighlightingTagToDescriptorMap() = hashMapOf(
-      "ns" to ClojureColors.NAMESPACE,
-      "def" to ClojureColors.DEFINITION,
-      "as" to ClojureColors.ALIAS,
-      "k" to ClojureColors.KEYWORD,
-      "sym" to ClojureColors.QUOTED_SYM,
-      "dyn" to ClojureColors.DYNAMIC,
-      "dr" to ClojureColors.DATA_READER,
-      "arg" to ClojureColors.FN_ARGUMENT,
-      "bnd" to ClojureColors.LET_BINDING,
-      "ign" to ClojureColors.FORM_COMMENT
-      )
+  override fun getAdditionalHighlightingTagToDescriptorMap(): MutableMap<String, TextAttributesKey> =
+      RainbowHighlighter.createRainbowHLM().apply {
+        put("ns", ClojureColors.NAMESPACE)
+        put("def", ClojureColors.DEFINITION)
+        put("as", ClojureColors.ALIAS)
+        put("k", ClojureColors.KEYWORD)
+        put("sym", ClojureColors.QUOTED_SYM)
+        put("dyn", ClojureColors.DYNAMIC)
+        put("dr", ClojureColors.DATA_READER)
+        put("arg", ClojureColors.FN_ARGUMENT)
+        put("bnd", ClojureColors.LET_BINDING)
+        put("ign", ClojureColors.FORM_COMMENT)
+        put("call", ClojureColors.CALLABLE)
+        put("str", ClojureColors.STRING)
+        put("jc", ClojureColors.JAVA_CLASS)
+        put("jsm", ClojureColors.JAVA_STATIC_METHOD)
+        put("jsf", ClojureColors.JAVA_STATIC_FIELD)
+        put("jif", ClojureColors.JAVA_INSTANCE_FIELD)
+        put("jim", ClojureColors.JAVA_INSTANCE_METHOD)
+      }
 
   companion object {
     private val ATTRS = arrayOf(
@@ -268,10 +291,16 @@ class ClojureColorSettingsPage : ColorSettingsPage {
         AttributesDescriptor("Entities//Data reader (tag)", ClojureColors.DATA_READER),
         AttributesDescriptor("Entities//Function argument", ClojureColors.FN_ARGUMENT),
         AttributesDescriptor("Entities//Local binding", ClojureColors.LET_BINDING),
+        AttributesDescriptor("Entities//Type field", ClojureColors.TYPE_FIELD),
         AttributesDescriptor("Entities//Namespace", ClojureColors.NAMESPACE),
-        AttributesDescriptor("Entities//Aliases", ClojureColors.ALIAS),
+        AttributesDescriptor("Entities//Alias", ClojureColors.ALIAS),
         AttributesDescriptor("Entities//Dynamic", ClojureColors.DYNAMIC),
         AttributesDescriptor("Entities//Metadata", ClojureColors.METADATA),
-        AttributesDescriptor("Entities//Reader macro", ClojureColors.READER_MACRO))
+        AttributesDescriptor("Entities//Reader macro", ClojureColors.READER_MACRO),
+        AttributesDescriptor("Java//Class", ClojureColors.JAVA_CLASS),
+        AttributesDescriptor("Java//Static method", ClojureColors.JAVA_STATIC_METHOD),
+        AttributesDescriptor("Java//Static field", ClojureColors.JAVA_STATIC_FIELD),
+        AttributesDescriptor("Java//Instance method", ClojureColors.JAVA_INSTANCE_METHOD),
+        AttributesDescriptor("Java//Instance field", ClojureColors.JAVA_INSTANCE_FIELD))
   }
 }

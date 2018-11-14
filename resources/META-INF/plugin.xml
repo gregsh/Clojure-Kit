@@ -68,6 +68,7 @@
 
     <completion.contributor language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureCompletionContributor"/>
     <annotator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureAnnotator"/>
+    <highlightVisitor implementation="org.intellij.clojure.editor.ClojureRainbowVisitor"/>
     <codeInsight.lineMarkerProvider language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureLineMarkerProvider"/>
     <codeInsight.gotoSuper language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureGotoSuperHandler"/>
     <definitionsScopedSearch implementation="org.intellij.clojure.lang.usages.ClojureImplementationSearch"/>

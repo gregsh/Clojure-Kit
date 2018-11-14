@@ -25,6 +25,7 @@ import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Comparing
+import com.intellij.openapi.util.NotNullLazyKey
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtil
@@ -67,10 +68,12 @@ abstract class JavaHelper {
 
   companion object {
 
-    fun getJavaHelper(project: Project): JavaHelper {
-      val service = ServiceManager.getService(project, JavaHelper::class.java)
-      return service ?: AsmHelper(project)
+    private val INSTANCE_KEY: NotNullLazyKey<JavaHelper, Project> = NotNullLazyKey.create(
+        "Service: " + JavaHelper::class.qualifiedName) {
+      ServiceManager.getService(it, JavaHelper::class.java) ?: AsmHelper(it)
     }
+
+    fun getJavaHelper(project: Project): JavaHelper = INSTANCE_KEY.getValue(project)
 
 
     private fun acceptsName(expected: String?, actual: String?) =
@@ -83,6 +86,12 @@ abstract class JavaHelper {
   enum class Scope {
     STATIC, INSTANCE, INIT
   }
+
+  enum class ElementType {
+    PACKAGE, CLASS, CONSTRUCTOR, STATIC_METHOD, STATIC_FIELD, INSTANCE_METHOD, INSTANCE_FIELD
+  }
+
+  open fun getElementType(element: PsiElement?): ElementType? = null
 
   open fun findClass(className: String?): NavigatablePsiElement? = null
 
@@ -105,6 +114,21 @@ abstract class JavaHelper {
 
   private class PsiHelper(private val myFacade: JavaPsiFacade, private val myElementFactory: PsiElementFactory) : JavaHelper() {
     val asm = AsmHelper(myFacade.project)
+
+    override fun getElementType(element: PsiElement?): ElementType? = when (element) {
+      is PsiPackage -> ElementType.PACKAGE
+      is PsiClass -> ElementType.CLASS
+      is PsiMethod -> when {
+        element.isConstructor -> ElementType.CONSTRUCTOR
+        element.modifierList.hasModifierProperty(PsiModifier.STATIC) -> ElementType.STATIC_METHOD
+        else -> ElementType.INSTANCE_METHOD
+      }
+      is PsiField -> when {
+        element.modifierList?.hasModifierProperty(PsiModifier.STATIC) ?: false -> ElementType.STATIC_FIELD
+        else -> ElementType.INSTANCE_FIELD
+      }
+      else -> asm.getElementType(element)
+    }
 
     override fun getClassReferenceProvider(): PsiReferenceProvider? {
       val provider = JavaClassReferenceProvider()
@@ -244,6 +268,25 @@ abstract class JavaHelper {
     val c_nulls: ConcurrentMap<String, Boolean> = ContainerUtil.createConcurrentWeakKeySoftValueMap()
     val p_nulls: ConcurrentMap<String, Boolean> = ContainerUtil.createConcurrentWeakKeySoftValueMap()
     val map: ConcurrentMap<String, MyElement<*>> = ContainerUtil.createConcurrentWeakValueMap()
+
+    override fun getElementType(element: PsiElement?): ElementType? {
+      val delegate = (element as? MyElement<*>)?.delegate
+      return when (delegate) {
+        is PackageInfo -> ElementType.PACKAGE
+        is ClassInfo -> ElementType.CLASS
+        is MethodInfo -> when (delegate.scope) {
+          Scope.STATIC -> ElementType.STATIC_METHOD
+          Scope.INSTANCE -> ElementType.INSTANCE_METHOD
+          Scope.INIT -> ElementType.CONSTRUCTOR
+        }
+        is FieldInfo -> when (delegate.scope) {
+          Scope.STATIC -> ElementType.STATIC_FIELD
+          Scope.INSTANCE -> ElementType.INSTANCE_FIELD
+          else -> null
+        }
+        else -> null
+      }
+    }
 
     override fun findPackage(packageName: String?, withClass: String?) =
         if (packageName == null || withClass == null) null
@@ -678,10 +721,10 @@ abstract class JavaHelper {
     override fun getDeclaration() = this
 
     override fun getTypeName() = when (delegate) {
-      is PackageInfo -> "Package"
-      is ClassInfo -> "Class"
-      is MethodInfo -> "Method"
-      is FieldInfo -> "Field"
+      is PackageInfo -> "package"
+      is ClassInfo -> "class"
+      is MethodInfo -> "method"
+      is FieldInfo -> "field"
       else -> null
     }
 

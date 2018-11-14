@@ -24,6 +24,9 @@ import com.intellij.codeInsight.TargetElementUtil
 import com.intellij.codeInsight.completion.*
 import com.intellij.codeInsight.daemon.LineMarkerInfo
 import com.intellij.codeInsight.daemon.LineMarkerProviderDescriptor
+import com.intellij.codeInsight.daemon.RainbowVisitor
+import com.intellij.codeInsight.daemon.UsedColors
+import com.intellij.codeInsight.daemon.impl.HighlightVisitor
 import com.intellij.codeInsight.daemon.impl.PsiElementListNavigator
 import com.intellij.codeInsight.documentation.QuickDocUtil
 import com.intellij.codeInsight.editorActions.moveLeftRight.MoveElementLeftRightHandler
@@ -56,6 +59,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.TextRange
+import com.intellij.openapi.util.UserDataHolderEx
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.patterns.PlatformPatterns.psiElement
@@ -84,6 +88,7 @@ import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureIcons
 import org.intellij.clojure.getTokenDescription
 import org.intellij.clojure.inspections.RESOLVE_SKIPPED
+import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureColors
 import org.intellij.clojure.lang.usages.ClojureGotoRenderer
 import org.intellij.clojure.psi.*
@@ -115,17 +120,28 @@ class ClojureAnnotator : Annotator {
           Role.NAME -> ClojureColors.DEFINITION
           Role.ARG -> ClojureColors.FN_ARGUMENT
           Role.BND -> ClojureColors.LET_BINDING
+          Role.FIELD -> ClojureColors.TYPE_FIELD
           else -> {
-            val target = element.resolveInfo()
+            val resolved = element.reference.resolve()
+            val target = resolved.asCTarget?.key
             when {
               element.getUserData(RESOLVE_SKIPPED) != null ->
                 if (element.name.let { it != "&" && it != "." }) ClojureColors.DYNAMIC else null
               target != null -> when (target.type) {
                 "ns" -> ClojureColors.NAMESPACE.also { enforced = ClojureColors.NS_COLORS[target.name] }
                 "alias" -> ClojureColors.ALIAS
+                "field" -> ClojureColors.TYPE_FIELD
                 "argument" -> ClojureColors.FN_ARGUMENT
                 "let-binding" -> ClojureColors.LET_BINDING
                 else -> if (target.type.startsWith("#")) ClojureColors.DATA_READER else null
+              }
+              resolved != null -> when (JavaHelper.getJavaHelper(resolved.project).getElementType(resolved)) {
+                JavaHelper.ElementType.CLASS -> ClojureColors.JAVA_CLASS
+                JavaHelper.ElementType.STATIC_METHOD -> ClojureColors.JAVA_STATIC_METHOD
+                JavaHelper.ElementType.STATIC_FIELD -> ClojureColors.JAVA_STATIC_FIELD
+                JavaHelper.ElementType.INSTANCE_METHOD -> ClojureColors.JAVA_INSTANCE_METHOD
+                JavaHelper.ElementType.INSTANCE_FIELD -> ClojureColors.JAVA_INSTANCE_FIELD
+                else -> null
               }
               else -> null
             }
@@ -139,6 +155,26 @@ class ClojureAnnotator : Annotator {
         }
       }
     }
+  }
+}
+
+class ClojureRainbowVisitor : RainbowVisitor() {
+  override fun suitableForFile(file: PsiFile) = file is CFile
+  override fun clone(): HighlightVisitor = ClojureRainbowVisitor()
+  override fun visit(element: PsiElement) {
+    if (element !is CSymbol) return
+    val resolved = element.reference.resolve() ?: return
+    val target = resolved.asCTarget?.key ?: return
+    val attrs = when (target.type) {
+      "argument" -> ClojureColors.FN_ARGUMENT
+      "let-binding" -> ClojureColors.LET_BINDING
+      else -> return
+    }
+    val context = (resolved.asCTarget as? PsiTarget)?.navigationElement.parentForms.find {
+      it is CList && it.role != Role.PROTOTYPE || it is CMetadata } as? CList ?: return
+    val colorIndex = UsedColors.getOrAddColorIndex(context as UserDataHolderEx, element.name, highlighter.colorsCount)
+    val range = element.valueRange
+    addInfo(highlighter.getInfo(colorIndex, range.startOffset, range.endOffset, attrs))
   }
 }
 

@@ -43,7 +43,6 @@ import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.indexing.FileBasedIndex
 import com.intellij.util.indexing.ID
 import com.intellij.util.ui.EmptyIcon
-import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.CORE_NAMESPACES
 import org.intellij.clojure.getIconForType
 import org.intellij.clojure.java.JavaHelper
@@ -136,15 +135,18 @@ class ClojureDefinitionService(val project: Project) {
   }
 
   fun getSymbol(o: CSymbol): PsiElement {
-    val topVec = o.parentForms.filter(CVec::class).find { it.role == Role.ARG_VEC || it.role == Role.BND_VEC }
-    val isLocal = topVec != null && !(topVec.parent.let { it is CList && it.first?.name == "binding" })
-    val symKey = if (isLocal) {
-      val isArgument = o.findParent(CList::class)?.let {
-        it.role == Role.DEF || it.first.let { it == null || it.name.isIn(ClojureConstants.FN_ALIKE_SYMBOLS) }
-      } ?: false
-      SymKey(o.name, "", if (isArgument) "argument" else "let-binding")
-    }
-    else SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")
+    val topVec = o.parentForms.filter(CVec::class).find { it.role == Role.ARG_VEC || it.role == Role.BND_VEC || it.role == Role.FIELD_VEC }
+    var isLocal = true
+    val symKey = when (topVec?.role) {
+      Role.FIELD_VEC -> SymKey(o.name, "", "field")
+      Role.ARG_VEC -> SymKey(o.name, "", "argument")
+      Role.BND_VEC -> {
+        isLocal = (topVec.parentForm as? CList)?.first?.name != "binding"
+        if (isLocal) SymKey(o.name, "", "let-binding")
+        else null
+      }
+      else -> { isLocal = false; null }
+    } ?: SymKey(o.name, o.qualifier?.let { it.resolveInfo()?.namespace } ?: "", "symbol")
     return (if (isLocal) topVec!!.parent.map else map)[symKey]!!
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
