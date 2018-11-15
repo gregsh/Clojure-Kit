@@ -43,6 +43,8 @@ enum class Role {
 }
 
 const val FLAG_COMMENTED = 0x1
+const val FLAG_QUOTED = 0x2
+const val FLAG_UNQUOTED = 0x4
 
 interface CElement : NavigatablePsiElement {
   val role: Role

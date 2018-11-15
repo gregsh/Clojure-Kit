@@ -113,45 +113,43 @@ class ClojureAnnotator : Annotator {
     if (element.flags and FLAG_COMMENTED != 0) {
       holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
     }
-    when (element) {
-      is CSymbol -> {
-        var enforced: TextAttributes? = null
-        val attrs = when (element.role) {
-          Role.NAME -> ClojureColors.DEFINITION
-          Role.ARG -> ClojureColors.FN_ARGUMENT
-          Role.BND -> ClojureColors.LET_BINDING
-          Role.FIELD -> ClojureColors.TYPE_FIELD
-          else -> {
-            val resolved = element.reference.resolve()
-            val target = resolved.asCTarget?.key
-            when {
-              element.getUserData(RESOLVE_SKIPPED) != null ->
-                if (element.name.let { it != "&" && it != "." }) ClojureColors.DYNAMIC else null
-              target != null -> when (target.type) {
-                "ns" -> ClojureColors.NAMESPACE.also { enforced = ClojureColors.NS_COLORS[target.name] }
-                "alias" -> ClojureColors.ALIAS
-                "field" -> ClojureColors.TYPE_FIELD
-                "argument" -> ClojureColors.FN_ARGUMENT
-                "let-binding" -> ClojureColors.LET_BINDING
-                else -> if (target.type.startsWith("#")) ClojureColors.DATA_READER else null
-              }
-              resolved != null -> when (JavaHelper.getJavaHelper(resolved.project).getElementType(resolved)) {
-                JavaHelper.ElementType.CLASS -> ClojureColors.JAVA_CLASS
-                JavaHelper.ElementType.STATIC_METHOD -> ClojureColors.JAVA_STATIC_METHOD
-                JavaHelper.ElementType.STATIC_FIELD -> ClojureColors.JAVA_STATIC_FIELD
-                JavaHelper.ElementType.INSTANCE_METHOD -> ClojureColors.JAVA_INSTANCE_METHOD
-                JavaHelper.ElementType.INSTANCE_FIELD -> ClojureColors.JAVA_INSTANCE_FIELD
-                else -> null
-              }
+    if (element is CSymbol && element.flags and FLAG_QUOTED == 0) {
+      var enforced: TextAttributes? = null
+      val attrs = when (element.role) {
+        Role.NAME -> ClojureColors.DEFINITION
+        Role.ARG -> ClojureColors.FN_ARGUMENT
+        Role.BND -> ClojureColors.LET_BINDING
+        Role.FIELD -> ClojureColors.TYPE_FIELD
+        else -> {
+          val resolved = element.reference.resolve()
+          val target = resolved.asCTarget?.key
+          when {
+            element.getUserData(RESOLVE_SKIPPED) != null ->
+              if (element.name.let { it != "&" && it != "." }) ClojureColors.DYNAMIC else null
+            target != null -> when (target.type) {
+              "ns" -> ClojureColors.NAMESPACE.also { enforced = ClojureColors.NS_COLORS[target.name] }
+              "alias" -> ClojureColors.ALIAS
+              "field" -> ClojureColors.TYPE_FIELD
+              "argument" -> ClojureColors.FN_ARGUMENT
+              "let-binding" -> ClojureColors.LET_BINDING
+              else -> if (target.type.startsWith("#")) ClojureColors.DATA_READER else null
+            }
+            resolved != null -> when (JavaHelper.getJavaHelper(resolved.project).getElementType(resolved)) {
+              JavaHelper.ElementType.CLASS -> ClojureColors.JAVA_CLASS
+              JavaHelper.ElementType.STATIC_METHOD -> ClojureColors.JAVA_STATIC_METHOD
+              JavaHelper.ElementType.STATIC_FIELD -> ClojureColors.JAVA_STATIC_FIELD
+              JavaHelper.ElementType.INSTANCE_METHOD -> ClojureColors.JAVA_INSTANCE_METHOD
+              JavaHelper.ElementType.INSTANCE_FIELD -> ClojureColors.JAVA_INSTANCE_FIELD
               else -> null
             }
+            else -> null
           }
         }
-        if (attrs != null) {
-          holder.createInfoAnnotation(element.valueRange, null).run {
-            textAttributes = attrs
-            enforcedTextAttributes = enforced
-          }
+      }
+      if (attrs != null) {
+        holder.createInfoAnnotation(element.valueRange, null).run {
+          textAttributes = attrs
+          enforcedTextAttributes = enforced
         }
       }
     }

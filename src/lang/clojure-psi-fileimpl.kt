@@ -341,15 +341,10 @@ private class RoleHelper {
     }.traverse()
 
     if (firstTime) {
-      for (e in s.filter { it.elementType == ClojureTypes.C_SHARP_COMMENT }) {
-        setFlag(e.parent?.parent, FLAG_COMMENTED)
-      }
+      s.onEach(this::initFlags)
     }
     for (e in s) {
-      if ((e.firstChild as? CReaderMacro)?.firstChild.elementType == ClojureTypes.C_SHARP_COMMENT) {
-        setFlag(e, FLAG_COMMENTED)
-      }
-
+      e.iterate().takeWhile { it is CReaderMacro }.onEach(this::initFlags)
       if (e is CKeywordBase) {
         processKeyword(e)
       }
@@ -527,8 +522,18 @@ private class RoleHelper {
   }
 
   private fun processNSElement(e: CListBase) {
-    e.cljTraverser().filter(CKeywordBase::class.java).onEach { processKeyword(it) }
+    e.cljTraverser().onEach { initFlags(it); if (it is CKeywordBase) processKeyword(it) }
     nsReader.processElement(e)
+  }
+
+  private fun initFlags(e: PsiElement) {
+    val flag = when ((e as? CReaderMacro ?: return).firstChild.elementType) {
+      ClojureTypes.C_SHARP_COMMENT -> FLAG_COMMENTED
+      ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> FLAG_QUOTED
+      ClojureTypes.C_TILDE, ClojureTypes.C_TILDE_AT -> FLAG_UNQUOTED
+      else -> return
+    }
+    setFlag(e.parent, flag)
   }
 }
 
@@ -634,7 +639,7 @@ private class NSReader(val helper: RoleHelper) {
     val aliasSym = iterator.safeNext() as? CSymbol ?: return emptyList()
     val nsSym = iterator.safeNext() as? CSymbol
     val namespace = nsSym?.name ?: ""
-    setData(aliasSym, Role.NAME)
+    setResolveTo(aliasSym, SymKey(aliasSym.name, namespace, "alias"))
     setResolveTo(nsSym, SymKey(namespace, "", "ns"))
     return listOf(Import("alias", namespace, aliasSym.name, aliasSym))
   }
