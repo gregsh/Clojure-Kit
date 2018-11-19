@@ -80,3 +80,5 @@
 (def #_comment named-zero 0)
 {#_0 #_1 :a #_'(xxx)  'a :b #_:comm 'b #_2 #_3}
 # #_comment dbg 10
+
+::<warning>missing_alias</warning>/kwd

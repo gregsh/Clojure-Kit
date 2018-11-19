@@ -74,7 +74,8 @@ class ClojureResolveInspection : LocalInspectionTool() {
         if (valid != 0) return
         if (qualifier == null && !isCljS && ClojureConstants.TYPE_META_ALIASES.contains(o.name)) return
         if (qualifier == null && isCljS && ClojureConstants.CLJS_TYPES.contains(o.name)) return
-        if (o.parent is CSymbol && o.parent.parent is CKeyword) return
+        if (o.parent is CSymbol && o.parent.parent is CKeyword &&
+            o.parent.prevSibling?.elementType == ClojureTypes.C_COLON) return
         val quotesAndComments = o.parents().filter { it is CMetadata
             || it is CForm && it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null
             || it is CList && it.flags and FLAG_COMMENTED != 0
