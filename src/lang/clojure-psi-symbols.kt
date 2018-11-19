@@ -17,6 +17,7 @@
 
 package org.intellij.clojure.psi.impl
 
+import com.intellij.ide.scratch.ScratchFileType
 import com.intellij.ide.util.PsiNavigationSupport
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.ServiceManager
@@ -82,7 +83,7 @@ class ClojureDefinitionService(val project: Project) {
     @JvmStatic fun getInstance(project: Project) = ServiceManager.getService(project, ClojureDefinitionService::class.java)!!
 
     @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope =
-        GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType)
+        GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType, ScratchFileType.INSTANCE)
 
   }
 
@@ -212,9 +213,10 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
     return super.getContainingFile()
   }
 
-  override fun getUseScope(): SearchScope =
-      if (target.key.type == "keyword" || target.key.type == "ns") GlobalSearchScope.everythingScope(project)
-      else super.getUseScope()
+  override fun getUseScope(): SearchScope = when (target.key.type) {
+    "keyword", "ns" -> GlobalSearchScope.everythingScope(project)
+    else -> super.getUseScope()
+  }.intersectWith(ClojureDefinitionService.getClojureSearchScope(project))
 
   override fun toString() = target.key.toString()
 }
