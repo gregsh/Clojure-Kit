@@ -25,9 +25,7 @@
       2620: unable to resolve 'isArray'
 /clojure/edn.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/genclass.clj                    0 errors, 0 warnings, 2 dynamic
-/clojure/gvec.clj                        0 errors, 2 warnings, 50 dynamic
-      1810: unable to resolve 'internal-reduce'
-      3023: unable to resolve 'equiv'
+/clojure/gvec.clj                        0 errors, 0 warnings, 47 dynamic
 /clojure/inspector.clj                   0 errors, 0 warnings, 11 dynamic
 /clojure/instant.clj                     0 errors, 0 warnings, 5 dynamic
 /clojure/java/browse.clj                 0 errors, 0 warnings, 2 dynamic
@@ -109,10 +107,10 @@
       4331: unable to resolve 'aseq'
       4362: unable to resolve 'aseq'
       4478: unable to resolve 'aseq'
-/clojure/pprint/pprint_base.clj          0 errors, 2 warnings, 1 dynamic
+/clojure/pprint/pprint_base.clj          0 errors, 2 warnings, 0 dynamic
       15091: unable to resolve 'walk'
       15151: unable to resolve 'walk'
-/clojure/pprint/pretty_writer.clj        0 errors, 20 warnings, 1 dynamic
+/clojure/pprint/pretty_writer.clj        0 errors, 20 warnings, 0 dynamic
       7284: unable to resolve 'nl-t?'
       7642: unable to resolve 'nl-t?'
       8486: unable to resolve 'nl-t?'
@@ -151,4 +149,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 110 warnings in 43 files (729.74K chars)
+Total: 108 warnings in 43 files (729.74K chars)

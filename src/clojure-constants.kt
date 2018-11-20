@@ -144,7 +144,10 @@ fun getIconForType(type: String): Icon? = when {
   type == "ns" -> ClojureIcons.NAMESPACE
   type.startsWith("def") -> ClojureIcons.DEFN
   type == "defmacro" -> ClojureIcons.MACRO
+  type == "field" -> ClojureIcons.FIELD
   type == "method" -> ClojureIcons.METHOD
+  type == "defmulti" -> ClojureIcons.METHOD
+  type == "defmethod" -> ClojureIcons.METHOD
   ClojureConstants.NS_ALIKE_SYMBOLS.contains(type) -> ClojureIcons.NAMESPACE
   else -> ClojureIcons.SYMBOL
 }

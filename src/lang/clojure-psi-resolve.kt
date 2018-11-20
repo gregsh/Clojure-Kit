@@ -46,6 +46,7 @@ import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureScriptLanguage
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.CListStub
+import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.util.*
 
 val RENAMED_KEY: Key<String> = Key.create("RENAMED_KEY")
@@ -63,7 +64,7 @@ class ClojureTypeCache(service: ClojureDefinitionService) {
     val INSTANCE_KEY = ServiceManager.createLazyKey(ClojureTypeCache::class.java)!!
   }
 
-  val map = ContainerUtil.createConcurrentWeakMap<CForm, String>()
+  val map = ContainerUtil.createConcurrentWeakMap<CForm, Any>()
   init {
     service.project.messageBus.connect().subscribe(PsiManagerImpl.ANY_PSI_CHANGE_TOPIC, object : AnyPsiChangeListener.Adapter() {
       override fun beforePsiChanged(isPhysical: Boolean) {
@@ -73,20 +74,20 @@ class ClojureTypeCache(service: ClojureDefinitionService) {
   }
 }
 
-fun ClojureDefinitionService.javaType(form: CForm?): String? {
+fun ClojureDefinitionService.exprType(form: CForm?): Any? {
   if (form == null) return null
   val ourTypeCache = ClojureTypeCache.INSTANCE_KEY.getValue(project).map
   val cached = ourTypeCache[form] ?: CSymbolReference.ourTypeGuard.doPreventingRecursion(form, false) {
     val stamp = CSymbolReference.ourTypeGuard.markStack()
-    val type = javaTypeImpl(form) ?: CSymbolReference.NULL_TYPE
+    val type = exprTypeImpl(form) ?: CSymbolReference.NULL_TYPE
     if (!stamp.mayCacheNow()) type
     else ConcurrencyUtil.cacheOrGet(ourTypeCache, form, type)
   }
   return if (cached === CSymbolReference.NULL_TYPE) null else cached
 }
 
-private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
-  val formMeta = form.typeHintMeta()?.resolveQualifiedName()
+private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
+  val formMeta = form.typeHintMeta()?.resolveExprType()
   if (formMeta != null) return formMeta
   return when (form) {
     is CSymbol -> {
@@ -96,19 +97,23 @@ private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
         "*ns*" -> return ClojureConstants.C_NAMESPACE
       }
       val target = form.reference.resolve() ?: return null
+      val sourceDef = target.sourceDef
+      if (sourceDef != null) {
+        return SymKey(sourceDef)
+      }
       val navElement = target.navigationElement
       when {
         navElement === form ->
           form.parent.let {
             when {
-              it is CVec && navElement.parent?.parent is CList -> javaType(navElement.nextForm)
-              it is CList && it.first?.name == "catch" -> javaType(navElement.prevForm)
+              it is CVec && navElement.parent?.parent is CList -> exprType(navElement.nextForm)
+              it is CList && it.first?.name == "catch" -> exprType(navElement.prevForm)
               else -> null
             }
           }
-        navElement is CForm -> javaType(navElement)
-        navElement.asXTarget != null -> (navElement.asXTarget?.resolveStub() as? CListStub)?.run {
-          resolveName(this@javaTypeImpl, meta[TYPE_META])
+        navElement is CForm -> exprType(navElement)
+        navElement.asCTarget != null -> (navElement.forceXTarget?.resolveStub() as? CListStub)?.run {
+          resolveName(this@exprTypeImpl, meta[TYPE_META])
         }
         target is NavigatablePsiElement && target.asNonCPom() != null ->
           if (form.parent.let { it is CSymbol || it is CList && it.first?.name == "catch" }) (target as? PsiQualifiedNamedElement)?.qualifiedName
@@ -127,18 +132,17 @@ private fun ClojureDefinitionService.javaTypeImpl(form: CForm): String? {
         val first = form.firstForm
         when (first) {
           is CAccess -> when (first.lastChild.elementType) {
-            ClojureTypes.C_DOT -> first.symbol.resolveQualifiedName()
-            else -> javaType(first.symbol)
+            ClojureTypes.C_DOT -> first.symbol.resolveExprType()
+            else -> exprType(first.symbol)
           }
           is CSymbol -> when (first.name) {
-            "new" -> (first.nextForm as? CSymbol)?.resolveQualifiedName()
-            "." -> (first.nextForm as? CSymbol)?.resolveQualifiedName() ?:
-                javaType(first.nextForm?.nextForm) // method call
-            ".." -> javaType(first.nextForms.last())
+            "new" -> (first.nextForm as? CSymbol)?.resolveExprType()
+            "." -> (first.nextForm as? CSymbol)?.resolveExprType() as? String ?: exprType(first.nextForm?.nextForm)
+            ".." -> exprType(first.nextForms.last())
             "var" -> ClojureConstants.C_VAR
-            else -> javaType(first)
+            else -> exprType(first)
           }
-          else -> javaType(first)
+          else -> exprType(first)
         }
       }
     }
@@ -276,7 +280,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
   }
 
   override fun handleElementRename(newElementName: String): PsiElement? {
-    element.lastChild.replace(newLeafPsiElement(element.project, newElementName!!))
+    element.lastChild.replace(newLeafPsiElement(element.project, newElementName))
     return element
   }
 
@@ -488,28 +492,44 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else o.firstForm.nextForms.skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
 
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()
-          val className = if (isCljs) null
+          val exprType = if (isCljs) null
           else siblings.first()?.let { form ->
             if (form == element) return@let null
             if ((innerType == "." || innerType == "..") && form is CSymbol && form.qualifier == null) {
-              val resolvedName = form.resolveQualifiedName()
+              val resolvedName = form.resolveExprType() as? String // only class names
               if (resolvedName != null) {
                 scope = JavaHelper.Scope.STATIC
                 return@let resolvedName
               }
             }
             scope = JavaHelper.Scope.INSTANCE
-            service.javaType(form)
+            service.exprType(form)
           }
-          val javaClass = findClass(className, service)
+          if (innerType == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
+          val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
+          val processMethods = !isProp
+          if (exprType is SymKey) {
+            val def = service.getDefinition(exprType)
+            val stub = def.forceXTarget?.resolveStub() as? CListStub
+            if (processFields && scope == JavaHelper.Scope.INSTANCE) {
+              (stub?.childrenStubs?.find { it is CPrototypeStub } as? CPrototypeStub)?.args?.onEach {
+                val fieldKey = SymKey(it, stub.key.name.withPackage(stub.key.namespace), "field")
+                if (!processor.execute(service.getDefinition(fieldKey), if (isProp) state else state.put(RENAMED_KEY, "-$it"))) return false
+              }
+            }
+            if (processMethods && scope == JavaHelper.Scope.INSTANCE) {
+              stub?.childrenStubs?.onEach {
+                if (it is CListStub && !processor.execute(service.getDefinition(it.key), state)) return false
+              }
+            }
+          }
+
+          val javaClass = if (exprType is String) findClass(exprType, service) else null
           if (index == 0 && javaClass != null && (innerType == "." || innerType == "..")) {
             if (!processor.execute(javaClass, state)) return false
           }
           if (javaClass != null || !isCljs) {
-            val classNameAdjusted = (javaClass as? PsiQualifiedNamedElement)?.qualifiedName ?: className ?: ClojureConstants.J_OBJECT
-            if (innerType == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
-            val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
-            val processMethods = !isProp
+            val classNameAdjusted = (javaClass as? PsiQualifiedNamedElement)?.qualifiedName ?: exprType as? String ?: ClojureConstants.J_OBJECT
             if (processFields) {
               val fields = service.java.findClassFields(classNameAdjusted, scope, "*")
               fields.forEach { if (!processor.execute(it, if (isProp) state else state.put(RENAMED_KEY, "-${it.name}"))) return false }
@@ -653,7 +673,9 @@ private fun PsiElement?.asNonCPom() =
     if (this !is PomTargetPsiElement || target !is CTarget) this as? PsiNamedElement
     else null
 
-fun CSymbol.resolveQualifiedName() = (reference.resolve().asNonCPom() as? PsiQualifiedNamedElement)?.qualifiedName
+private fun CSymbol.resolveExprType() = reference.resolve()?.let {
+  it.asCTarget?.key ?: (it as? PsiQualifiedNamedElement)?.qualifiedName }
+
 fun CForm.typeHintMeta(): CSymbol? = formPrefix().filter(CMetadata::class)
       .map { it.form as? CSymbol }
       .notNulls().first()

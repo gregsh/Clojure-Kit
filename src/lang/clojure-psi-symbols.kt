@@ -25,6 +25,7 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.Ref
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.pom.Navigatable
 import com.intellij.pom.PomRenameableTarget
@@ -42,9 +43,7 @@ import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.containers.ConcurrentFactoryMap
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.indexing.FileBasedIndex
-import com.intellij.util.indexing.ID
 import com.intellij.util.ui.EmptyIcon
-import org.intellij.clojure.ClojureConstants.CORE_NAMESPACES
 import org.intellij.clojure.getIconForType
 import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureFileType
@@ -60,6 +59,7 @@ import kotlin.reflect.KClass
  */
 private val SOURCE_KEY: Key<Any> = Key.create("C_SOURCE_KEY")
 private val POM_MAP_KEY: Key<Map<SymKey, PsiElement>> = Key.create("C_POM_MAP_KEY")
+private val SOURCE_DEF_KEY: Key<IDef> = Key.create("C_SOURCE_DEF_KEY")
 
 private object NULL_TARGET : PomTarget {
   override fun canNavigate() = false
@@ -67,10 +67,6 @@ private object NULL_TARGET : PomTarget {
   override fun navigate(requestFocus: Boolean) = Unit
   override fun isValid() = true
 }
-
-fun IDef?.matches(info: IDef?) = this != null && info != null && name == info.name &&
-    (type == info.type && namespace == info.namespace ||
-        namespace.isIn(CORE_NAMESPACES) && info.namespace.isIn(CORE_NAMESPACES))
 
 fun CSymbol?.resolveInfo(): IDef? = this?.reference?.resolve().asCTarget?.key
 internal fun CSymbol?.resolveXTarget(): XTarget? = this?.reference?.resolve()?.let {
@@ -130,6 +126,11 @@ class ClojureDefinitionService(val project: Project) {
     return map[key]!!
   }
 
+  fun getSynthetic(key: SymKey, source: IDef): PsiElement {
+    return map[key]!!
+        .let { it.putUserData(SOURCE_DEF_KEY, source); it }
+  }
+
   fun getKeyword(o: CKeyword): PsiElement {
     return map[SymKey(o.name, o.namespace, "keyword")]!!
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
@@ -139,7 +140,10 @@ class ClojureDefinitionService(val project: Project) {
     val topVec = o.parentForms.filter(CVec::class).find { it.role == Role.ARG_VEC || it.role == Role.BND_VEC || it.role == Role.FIELD_VEC }
     var isLocal = true
     val symKey = when (topVec?.role) {
-      Role.FIELD_VEC -> SymKey(o.name, "", "field")
+      Role.FIELD_VEC -> topVec.parentForm?.def.let { def ->
+        isLocal = false
+        SymKey(o.name, def?.name?.withPackage(def.namespace) ?: "", "field")
+      }
       Role.ARG_VEC -> SymKey(o.name, "", "argument")
       Role.BND_VEC -> {
         isLocal = (topVec.parentForm as? CList)?.first?.name != "binding"
@@ -251,40 +255,45 @@ internal class YTarget(project: Project,
       if (userData is Long && userData == modificationCount) return null
       if (DumbService.getInstance(project).isDumb) return null
       if (key.namespace == "" && key.type != "ns") return null
-
-      fun <K, V> findFile(id: ID<K, V>, key: K): VirtualFile? = FileBasedIndex.getInstance().run {
-        val found = Ref.create<VirtualFile>()
-        val scope = ClojureDefinitionService.getClojureSearchScope(project)
-        processValues(id, key, null, { file, _:V -> found.set(file); false }, scope)
-        found.get()
-      }
-      val file = when (key.type) {
-        in "ns" -> findFile(NS_INDEX, key.name)
-        "keyword" -> findFile(KEYWORD_FQN_INDEX, key.qualifiedName)
-        else -> findFile(DEF_FQN_INDEX, key.qualifiedName)
-      }
-
-      val result: PsiElement? = wrapWithNavigationElement(project, key, file)
-
-      return result.apply {
-        map[key]?.putUserData(SOURCE_KEY, if (this == null) modificationCount else PsiAnchor.create(this))
+      return wrapWithNavigationElement(project, key).let {
+        map[key]?.putUserData(SOURCE_KEY, if (it == null) modificationCount else PsiAnchor.create(it)); it
       }
     }
+}
 
+private fun wrapWithNavigationElement(project: Project, key: SymKey): PsiElement? {
+  val fileRef = Ref.create<VirtualFile>()
+  val scope = ClojureDefinitionService.getClojureSearchScope(project)
+  val index = FileBasedIndex.getInstance()
+  val processor: (VirtualFile, Unit) -> Boolean = { file, _ -> fileRef.set(file); false }
+  val adjusted = if (key.type != "field") key
+  else SymKey(StringUtil.getShortName(key.namespace), StringUtil.getPackageName(key.namespace), "")
+  when (adjusted.type) {
+    "ns" -> index.processValues(NS_INDEX, adjusted.name, null, processor, scope)
+    "keyword" -> index.processValues(KEYWORD_FQN_INDEX, adjusted.qualifiedName, null, processor, scope)
+    else -> index.processValues(DEF_FQN_INDEX, adjusted.qualifiedName, null, processor, scope)
+  }
+  return wrapWithNavigationElement(project, key, fileRef.get())
 }
 
 internal fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?): NavigatablePsiElement {
+  val adjusted = if (key.type != "field") key
+  else SymKey(StringUtil.getShortName(key.namespace), StringUtil.getPackageName(key.namespace), "")
+
   fun <C : CForm> locate(k: SymKey, clazz: KClass<C>): (CFile) -> Navigatable? = { f ->
     f.cljTraverser().traverse().filter(clazz).find {
       if (k.type == "keyword") it is CKeyword && it.namespace == k.namespace
       else it is CList && it.def?.run { name == k.name && namespace == k.namespace } ?: false
+    }.let {
+      if (k == key) it
+      else it.findChild(Role.FIELD_VEC).iterate().find { it is CSymbol && it.name == key.name } as? CSymbol
     }
   }
 
   return when (key.type) {
     "ns" -> CPomTargetElement(project, XTarget(project, key, file) { it })
-    "keyword" -> CPomTargetElement(project, XTarget(project, key, file, locate(key, CKeywordBase::class)))
-    else -> CPomTargetElement(project, XTarget(project, key, file, locate(key, CListBase::class)))
+    "keyword" -> CPomTargetElement(project, XTarget(project, key, file, locate(adjusted, CKeywordBase::class)))
+    else -> CPomTargetElement(project, XTarget(project, key, file, locate(adjusted, CListBase::class)))
   }
 }
 
@@ -301,7 +310,7 @@ internal class XTarget(project: Project,
 
   override fun navigate(requestFocus: Boolean): Unit = (resolveForm() as? Navigatable ?: psiFile)?.navigate(requestFocus) ?: Unit
 
-  fun resolveForm(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as PsiElement else it }
+  fun resolveForm(): PsiElement? = psiFile?.let { if (it is CFile) resolver(it) as? PsiElement else it }
 
   fun resolveStub(): CStub? = (psiFile as? CFileImpl)?.fileStubForced?.findChildStub(key)
 
@@ -318,3 +327,11 @@ internal val PsiElement?.asCTarget: CTarget?
 
 internal val PsiElement?.asXTarget: XTarget?
   get() = (this as? PomTargetPsiElement)?.target as? XTarget
+
+internal val PsiElement?.forceXTarget: XTarget?
+  get() = asXTarget
+      ?: asCTarget?.let { wrapWithNavigationElement(it.project, it.key) }.asXTarget
+      ?: asDef?.let { wrapWithNavigationElement(it.project, SymKey(it.def!!), it.containingFile.virtualFile)}.asXTarget
+
+internal val PsiElement?.sourceDef: IDef?
+  get() = (this as? PomTargetPsiElement)?.getUserData(SOURCE_DEF_KEY)

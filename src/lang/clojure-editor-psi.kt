@@ -290,7 +290,7 @@ class ClojureCompletionContributor : CompletionContributor() {
                           .map { StringUtil.getShortName(it) }
                           .filter(EachNth(2))
                           .joinToString(", ", "$name(", ")"))
-                        else if (size == 1 && (it as? PsiPresentableMetaData)?.typeName == "Method") withPresentableText("$name()")
+                        else if (size == 1 && (it as? PsiPresentableMetaData)?.typeName == "method") withPresentableText("$name()")
                       else this }
                 }
                 else -> return true
@@ -541,10 +541,6 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
     val grandName = element.parentForm.parentForm.firstForm?.name
     val leaf = element.deepLast!!
     return when {
-      def?.type == "method" ->
-        if (!P1.isEnabled) null else
-        LineMarkerInfo(leaf, leaf.textRange, P1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
-          { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.LEFT)
       def?.type == "defmulti" ->
         if (!MM1.isEnabled) null else
         LineMarkerInfo(leaf, leaf.textRange, MM1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
@@ -552,19 +548,23 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
       def == null && parentName == "defmethod" ->
         if (!MM2.isEnabled) null else
         LineMarkerInfo(leaf, leaf.textRange, MM2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
-            { _, o -> navigate(o) },
-            GutterIconRenderer.Alignment.LEFT)
-      def == null && ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
-        if (!P2.isEnabled) null else
+            { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT)
+      def?.type == "method" && (grandName == "defprotocol" || grandName == "definterface") -> {
+        if (!P1.isEnabled) null
+        else LineMarkerInfo(leaf, leaf.textRange, P1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
+            { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.LEFT)
+      }
+      ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
+        if (!P1.isEnabled) null else
         LineMarkerInfo(leaf, leaf.textRange, P2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
-            { _, o -> navigate(o) },
-            GutterIconRenderer.Alignment.LEFT)
+            { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT)
       else -> null
     }
   }
 
   private fun navigate(e: PsiElement?) {
-    val target = e.findParent(CSymbol::class)?.reference?.resolve() as? Navigatable
+    val targetSym = e.parentForm.asDef?.prevForm as? CSymbol ?: e.findParent(CSymbol::class)
+    val target = targetSym?.reference?.resolve() as? Navigatable
     target?.navigate(true)
   }
 
@@ -765,8 +765,8 @@ class ClojureTypeInfoProvider : ExpressionTypeProvider<CForm>() {
   override fun getErrorHint() = "No form found"
 
   override fun getInformationHint(element: CForm): String {
-    val type = ClojureDefinitionService.getInstance(element.project).javaType(element)
-    return StringUtil.escapeXml(type ?: "unknown")
+    val type = ClojureDefinitionService.getInstance(element.project).exprType(element)
+    return StringUtil.escapeXml(type as? String ?: (type as? SymKey)?.run { "(${this.type} $qualifiedName)" } ?: "unknown")
   }
 
   override fun getExpressionsAt(elementAt: PsiElement): List<CForm> =

@@ -151,8 +151,14 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val langKind = state.get(DIALECT_KEY) ?: placeFile.placeLanguage(place)
     val checkPrivate = publicOnly && langKind != Dialect.CLJS
 
-    fun acceptDef(def: IDef, private: Boolean): Boolean {
-      return def.namespace == namespace && (!publicOnly || !private || refText == def.name)
+    fun processDef(defOrKey: Any, private: Boolean, processor: PsiScopeProcessor, state: ResolveState): Boolean {
+      val def = (defOrKey as? CElement)?.def ?: defOrKey as SymKey
+      if (def.namespace != namespace || publicOnly && private && refText != def.name) return true
+      if (!processor.execute(
+              defOrKey as? CElement ?: defService.getDefinition(defOrKey as SymKey),
+              if (private) state.put(PRIVATE_KEY, true) else state)) return false
+      if (!processSyntheticDeclarations(def, private, processor, state, refText, defService)) return false
+      return true
     }
 
     if (placeFile !== this) {
@@ -163,15 +169,13 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
             .filter(CListStub::class.java)
         s.forEach { stub ->
           val private = checkPrivate && (stub.key.type == "defn-" || stub.meta[PRIVATE_META] != null)
-          if (!acceptDef(stub.key, private)) return@forEach
-          if (!processor.execute(defService.getDefinition(stub.key), if (private) state.put(PRIVATE_KEY, true) else state)) return false
+          if (!processDef(stub.key, private, processor, state)) return false
         }
       }
       else {
         defs().forEach {
           val private = checkPrivate && (it.def!!.type == "defn-" || (it.def as? Def)?.meta?.containsKey(PRIVATE_META) ?: false)
-          if (!acceptDef(it.def!!, private)) return@forEach
-          if (!processor.execute(it, if (private) state.put(PRIVATE_KEY, true) else state)) return false
+          if (!processDef(it, private, processor, state)) return false
         }
       }
       return true
@@ -185,8 +189,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     defs().takeWhile { inMacro || it.textRange.startOffset < placeOffset }
         .forEach {
           val private = checkPrivate && (it.def!!.type == "defn-" || (it.def as? Def)?.meta?.containsKey(PRIVATE_META) ?: false)
-          if (!acceptDef(it.def!!, private)) return@forEach
-          if (!processor.execute(it, if (private) state.put(PRIVATE_KEY, true) else state)) return false
+          if (!processDef(it, private, processor, state)) return false
         }
 
     val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
@@ -313,6 +316,20 @@ internal fun processPrecomputedDeclarations(dialect: Dialect, refText: String?,
   return false
 }
 
+private fun processSyntheticDeclarations(def: IDef, private: Boolean,
+                                         processor: PsiScopeProcessor, state: ResolveState,
+                                         refText: String?, defService: ClojureDefinitionService): Boolean {
+  val type = if (private) "defn-" else "defn"
+  if (def.type == "deftype") {
+    if (!processor.execute(defService.getSynthetic(SymKey("->${def.name}", def.namespace, type), def), state)) return false
+  }
+  if (def.type == "defrecord") {
+    if (!processor.execute(defService.getSynthetic(SymKey("->${def.name}", def.namespace, type), def), state)) return false
+    if (!processor.execute(defService.getSynthetic(SymKey("map->${def.name}", def.namespace, type), def), state)) return false
+  }
+  return true
+}
+
 private class RoleHelper {
   val langStack = ArrayDeque<Dialect>()
   val nsReader = NSReader(this)
@@ -386,9 +403,11 @@ private class RoleHelper {
               if (firstName == "defrecord" || firstName == "deftype") {
                 setData(e.childForm(CVec::class), Role.FIELD_VEC)
               }
-              e.childForms(CList::class).filter { it.first?.name != null }.forEach {
-                setData(it.first, Role.NAME)
+              e.childForms(CListBase::class).forEach {
+                val first = it.first ?: return@forEach
+                setData(first, Role.NAME)
                 it.childForms(CVec::class).forEach { setData(it, Role.ARG_VEC) }
+                delayedDefs[it] = createDef(it, first, SymKey(first.name, key.namespace, "method"))
               }
             }
           }

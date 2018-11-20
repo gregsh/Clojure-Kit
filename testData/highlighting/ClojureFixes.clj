@@ -84,3 +84,14 @@
 ::<warning>missing_alias</warning>/kwd
 
 ' ^meta #_ comment quoted_sym
+
+(do
+  (deftype Type [x y])
+  (.equals (->Type 1 2) (<warning>map->Type</warning> {:x 1 :y 2}))
+  (.-x (->Type 1 2))
+
+  (defrecord Record [x y])
+  (.equals (user/->Record 1 2) (map->Record {:x 1 :y 2}))
+  (. (map->Record {:x 1 :y 2}) -x)
+  )
+
