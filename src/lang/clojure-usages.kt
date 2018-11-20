@@ -40,6 +40,8 @@ import com.intellij.psi.*
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.DefinitionsScopedSearch
 import com.intellij.psi.search.searches.ReferencesSearch
+import com.intellij.usageView.UsageViewLongNameLocation
+import com.intellij.usageView.UsageViewShortNameLocation
 import com.intellij.usageView.UsageViewTypeLocation
 import com.intellij.usages.UsageTarget
 import com.intellij.usages.UsageTargetProvider
@@ -91,11 +93,11 @@ class ClojureUsageTargetProvider : UsageTargetProvider {
 }
 
 class ClojureElementDescriptionProvider : ElementDescriptionProvider {
-  override fun getElementDescription(element: PsiElement, location: ElementDescriptionLocation): String? {
-    if (location == UsageViewTypeLocation.INSTANCE) {
-      return getTypeTextImpl(element)
-    }
-    return null
+  override fun getElementDescription(element: PsiElement, location: ElementDescriptionLocation): String? = when (location) {
+    UsageViewTypeLocation.INSTANCE -> getTypeTextImpl(element)
+    UsageViewShortNameLocation.INSTANCE -> element.asCTarget?.key?.name
+    UsageViewLongNameLocation.INSTANCE -> element.asCTarget?.key?.qualifiedName
+    else -> null
   }
 }
 
