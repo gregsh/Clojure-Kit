@@ -82,3 +82,5 @@
 # #_comment dbg 10
 
 ::<warning>missing_alias</warning>/kwd
+
+' ^meta #_ comment quoted_sym

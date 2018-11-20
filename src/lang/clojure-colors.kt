@@ -157,7 +157,7 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
           else -> addToken(baseLexer.tokenStart, C_SHARP)
         }
       }
-      C_QUOTE -> {
+      C_QUOTE, C_SYNTAX_QUOTE -> {
         advanceAs(baseLexer, tokenType0)
         skipWs(baseLexer)
         if (baseLexer.tokenType === C_SYM) advanceSymbolAs(baseLexer, QUOTED_SYM)

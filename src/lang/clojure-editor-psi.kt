@@ -92,6 +92,7 @@ import org.intellij.clojure.java.JavaHelper
 import org.intellij.clojure.lang.ClojureColors
 import org.intellij.clojure.lang.usages.ClojureGotoRenderer
 import org.intellij.clojure.psi.*
+import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.tools.findReplForFile
@@ -106,12 +107,17 @@ class ClojureAnnotator : Annotator {
 
   override fun annotate(element: PsiElement, holder: AnnotationHolder) {
     if (element is CSForm && (element.parentForm as? CList).firstForm == element
-        && element.firstChild.elementType != ClojureTypes.C_SYM
+        && element.firstChild.elementType != C_SYM
         && element.parentForm.iterate(CReaderMacro::class).isEmpty) {
       holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
     }
-    if (element.flags and FLAG_COMMENTED != 0) {
+    if (element is CCommented || element.flags and FLAG_COMMENTED != 0) {
       holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
+    }
+    if (element is CSymbol && element.flags and FLAG_QUOTED != 0 &&
+        !element.parentForm.iterate().find { it is CSymbol || it.elementType == C_SYM }
+            ?.prevSibling.let { it is CReaderMacro && it.firstChild.elementType.let { it == C_QUOTE || it == C_SYNTAX_QUOTE } }) {
+      holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.QUOTED_SYM
     }
     if (element is CSymbol && element.flags and FLAG_QUOTED == 0) {
       var enforced: TextAttributes? = null
@@ -334,7 +340,7 @@ class ClojureCompletionContributor : CompletionContributor() {
   }
 
   override fun beforeCompletion(context: CompletionInitializationContext) {
-    if (context.file.findElementAt(context.startOffset).elementType == ClojureTypes.C_SYM) {
+    if (context.file.findElementAt(context.startOffset).elementType == C_SYM) {
       context.dummyIdentifier = ""
     }
   }
@@ -384,7 +390,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
         if (def.type == "method") nameSymbol.nextForm(CLiteral::class)
         else nameSymbol.nextForm as? CLiteral
     if (docLiteral != null) {
-      if (docLiteral.literalType == ClojureTypes.C_STRING) {
+      if (docLiteral.literalType == C_STRING) {
         sb.append("<br>").append(docLiteral.literalText.sanitize()).append("<br>")
       }
     }
@@ -662,14 +668,14 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
           .parents()
           .filter(CList::class)
           .find {
-            it.findChild(ClojureTypes.C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset
+            it.findChild(C_PAREN1)?.textRange?.startOffset ?: context.offset < context.offset
           }?.
           let {
             context.itemsToShow = resolvePrototypes(it).toList().toTypedArray()
             it
           }
 
-  override fun getActualParametersRBraceType() = ClojureTypes.C_PAREN2!!
+  override fun getActualParametersRBraceType() = C_PAREN2!!
 
   override fun updateUI(proto: Any?, context: ParameterInfoUIContext) {
     val element = context.parameterOwner

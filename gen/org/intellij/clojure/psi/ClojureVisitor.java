@@ -10,6 +10,10 @@ public class ClojureVisitor extends PsiElementVisitor {
     visitSForm(o);
   }
 
+  public void visitCommented(@NotNull CCommented o) {
+    visitElement(o);
+  }
+
   public void visitConstructor(@NotNull CConstructor o) {
     visitPForm(o);
   }

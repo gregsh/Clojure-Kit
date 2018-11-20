@@ -74,7 +74,7 @@ class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testSimpleRecover2() = doCodeTest("(a))(b)")
   fun testSimpleFixes() = doCodeTest(".1 x .-;comment\n1;unclosed eof\n\"x")
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
-  fun testCommentedForms() = doCodeTest("(def #_cc n 0) {#_0 #_1 :a #_'(xxx)  'a :b 'b #_2 #_3} # #_asd dbg 10")
+  fun testCommentedForms() = doCodeTest("(def ^int #_cc n 0) {#_0 #_1 :a '#_'(xxx) a :b 'b #_2 #_3} # #_asd dbg 10")
 
   fun testParseClojureLang() = walkAndParse(::walkClojureLang)
 //  fun testParseWellKnownLibs() = walkAndParse(::walkKnownLibs)

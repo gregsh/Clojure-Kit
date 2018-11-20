@@ -134,9 +134,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     for (e in cljTraverser().traverse()) {
       setData(e, null)
       resetFlags(e)
-      if (e.elementType == ClojureTypes.C_SHARP_COMMENT) {
-        setFlag(e.parent?.parent, FLAG_COMMENTED)
-      }
+      setFlag((e as? CCommented)?.form, FLAG_COMMENTED)
     }
   }
 
@@ -344,7 +342,7 @@ private class RoleHelper {
       s.onEach(this::initFlags)
     }
     for (e in s) {
-      e.iterate().takeWhile { it is CReaderMacro }.onEach(this::initFlags)
+      initFlags(e)
       if (e is CKeywordBase) {
         processKeyword(e)
       }
@@ -527,13 +525,11 @@ private class RoleHelper {
   }
 
   private fun initFlags(e: PsiElement) {
-    val flag = when ((e as? CReaderMacro ?: return).firstChild.elementType) {
-      ClojureTypes.C_SHARP_COMMENT -> FLAG_COMMENTED
-      ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> FLAG_QUOTED
-      ClojureTypes.C_TILDE, ClojureTypes.C_TILDE_AT -> FLAG_UNQUOTED
-      else -> return
+    setFlag((e as? CCommented)?.form, FLAG_COMMENTED)
+    when ((e as? CReaderMacro)?.firstChild?.elementType) {
+      ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> setFlag(e.parent, FLAG_QUOTED)
+      ClojureTypes.C_TILDE, ClojureTypes.C_TILDE_AT -> setFlag(e.parent, FLAG_UNQUOTED)
     }
-    setFlag(e.parent, flag)
   }
 }
 

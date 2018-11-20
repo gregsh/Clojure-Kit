@@ -76,9 +76,9 @@ class ClojureResolveInspection : LocalInspectionTool() {
         if (qualifier == null && isCljS && ClojureConstants.CLJS_TYPES.contains(o.name)) return
         if (o.parent is CSymbol && o.parent.parent is CKeyword &&
             o.parent.prevSibling?.elementType == ClojureTypes.C_COLON) return
-        val quotesAndComments = o.parents().filter { it is CMetadata
-            || it is CForm && it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null
-            || it is CList && it.flags and FLAG_COMMENTED != 0
+        val quotesAndComments = o.parents().filter {
+          it is CMetadata || it is CForm && (it.flags and FLAG_COMMENTED != 0 ||
+              it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null)
         }.first()
         if (quotesAndComments != null) return
         holder.registerProblem(reference, "unable to resolve '${reference.referenceName}'", ProblemHighlightType.GENERIC_ERROR_OR_WARNING)
@@ -88,7 +88,6 @@ class ClojureResolveInspection : LocalInspectionTool() {
 }
 
 private fun suppressResolve(o: CReaderMacro, invalidResolve: Boolean) = when (o.firstChild.elementType) {
-  ClojureTypes.C_SHARP_COMMENT -> true
   ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> true
   ClojureTypes.C_SHARP_QUOTE -> invalidResolve
   ClojureTypes.C_SHARP_SYM -> SYMBOLIC_VALUES.contains((o.parent as? CSymbol)?.name)

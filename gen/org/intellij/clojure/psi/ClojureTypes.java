@@ -10,6 +10,7 @@ import com.intellij.psi.impl.source.tree.CompositePsiElement;
 public interface ClojureTypes {
 
   IElementType C_ACCESS = new ClojureNodeType("C_ACCESS");
+  IElementType C_COMMENTED = new ClojureNodeType("C_COMMENTED");
   IElementType C_CONSTRUCTOR = new ClojureNodeType("C_CONSTRUCTOR");
   IElementType C_FORM = new ClojureNodeType("C_FORM");
   IElementType C_FUN = new ClojureNodeType("C_FUN");
@@ -67,6 +68,9 @@ public interface ClojureTypes {
     public static CompositePsiElement createElement(IElementType type) {
        if (type == C_ACCESS) {
         return new CAccessImpl(type);
+      }
+      else if (type == C_COMMENTED) {
+        return new CCommentedImpl(type);
       }
       else if (type == C_CONSTRUCTOR) {
         return new CConstructorImpl(type);

@@ -28,6 +28,9 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (t == C_ACCESS) {
       r = access(b, 0);
     }
+    else if (t == C_COMMENTED) {
+      r = commented(b, 0);
+    }
     else if (t == C_CONSTRUCTOR) {
       r = constructor(b, 0);
     }
@@ -151,7 +154,21 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // '#' ignored symbol ignored form
+  // "#_" form
+  public static boolean commented(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "commented")) return false;
+    if (!nextTokenIsFast(b, C_SHARP_COMMENT)) return false;
+    boolean r, p;
+    Marker m = enter_section_(b, l, _NONE_, C_COMMENTED, null);
+    r = consumeTokenFast(b, C_SHARP_COMMENT);
+    p = r; // pin = 1
+    r = r && form(b, l + 1);
+    exit_section_(b, l, m, r, p, null);
+    return r || p;
+  }
+
+  /* ********************************************************** */
+  // '#' skip symbol skip form
   public static boolean constructor(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "constructor")) return false;
     if (!nextTokenIs(b, "<form>", C_SHARP)) return false;
@@ -159,9 +176,9 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     Marker m = enter_section_(b, l, _NONE_, C_CONSTRUCTOR, "<form>");
     r = consumeToken(b, C_SHARP);
     p = r; // pin = 1
-    r = r && report_error_(b, ignored(b, l + 1));
+    r = r && report_error_(b, skip(b, l + 1));
     r = p && report_error_(b, symbol(b, l + 1)) && r;
-    r = p && report_error_(b, ignored(b, l + 1)) && r;
+    r = p && report_error_(b, skip(b, l + 1)) && r;
     r = p && form(b, l + 1) && r;
     exit_section_(b, l, m, r, p, null);
     return r || p;
@@ -215,12 +232,13 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // metadata | reader_macro
+  // metadata | reader_macro | commented
   static boolean form_prefix(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "form_prefix")) return false;
     boolean r;
     r = metadata(b, l + 1);
     if (!r) r = reader_macro(b, l + 1);
+    if (!r) r = commented(b, l + 1);
     return r;
   }
 
@@ -253,40 +271,6 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // (&'#_' form) *
-  static boolean ignored(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "ignored")) return false;
-    while (true) {
-      int c = current_position_(b);
-      if (!ignored_0(b, l + 1)) break;
-      if (!empty_element_parsed_guard_(b, "ignored", c)) break;
-    }
-    return true;
-  }
-
-  // &'#_' form
-  private static boolean ignored_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "ignored_0")) return false;
-    boolean r, p;
-    Marker m = enter_section_(b, l, _NONE_);
-    r = ignored_0_0(b, l + 1);
-    p = r; // pin = 1
-    r = r && form(b, l + 1);
-    exit_section_(b, l, m, r, p, null);
-    return r || p;
-  }
-
-  // &'#_'
-  private static boolean ignored_0_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "ignored_0_0")) return false;
-    boolean r;
-    Marker m = enter_section_(b, l, _AND_);
-    r = consumeTokenFast(b, C_SHARP_COMMENT);
-    exit_section_(b, l, m, r, false, null);
-    return r;
-  }
-
-  /* ********************************************************** */
   // <<items_entry <<recover>> <<param>>>> *
   static boolean items(PsiBuilder b, int l, Parser _recover, Parser _param) {
     if (!recursion_guard_(b, l, "items")) return false;
@@ -301,14 +285,14 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // (not_eof <<recover>>) <<param>>
+  // (not_eof <<recover>>) (commented | <<param>>)
   static boolean items_entry(PsiBuilder b, int l, Parser _recover, Parser _param) {
     if (!recursion_guard_(b, l, "items_entry")) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_);
     r = items_entry_0(b, l + 1, _recover);
     p = r; // pin = 1
-    r = r && _param.parse(b, l);
+    r = r && items_entry_1(b, l + 1, _param);
     exit_section_(b, l, m, r, p, form_recover_parser_);
     return r || p;
   }
@@ -320,6 +304,17 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     Marker m = enter_section_(b);
     r = not_eof(b, l + 1);
     r = r && _recover.parse(b, l);
+    exit_section_(b, m, null, r);
+    return r;
+  }
+
+  // commented | <<param>>
+  private static boolean items_entry_1(PsiBuilder b, int l, Parser _param) {
+    if (!recursion_guard_(b, l, "items_entry_1")) return false;
+    boolean r;
+    Marker m = enter_section_(b);
+    r = commented(b, l + 1);
+    if (!r) r = _param.parse(b, l);
     exit_section_(b, m, null, r);
     return r;
   }
@@ -414,20 +409,14 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // ignored <<items !'}' map_entry>>
+  // <<items !'}' map_entry>>
   static boolean map_body(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "map_body")) return false;
-    boolean r;
-    Marker m = enter_section_(b);
-    r = ignored(b, l + 1);
-    r = r && items(b, l + 1, map_body_1_0_parser_, map_entry_parser_);
-    exit_section_(b, m, null, r);
-    return r;
+    return items(b, l + 1, map_body_0_0_parser_, map_entry_parser_);
   }
 
   // !'}'
-  private static boolean map_body_1_0(PsiBuilder b, int l) {
-    if (!recursion_guard_(b, l, "map_body_1_0")) return false;
+  private static boolean map_body_0_0(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "map_body_0_0")) return false;
     boolean r;
     Marker m = enter_section_(b, l, _NOT_);
     r = !consumeToken(b, C_BRACE2);
@@ -436,16 +425,15 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // form ignored form ignored
+  // form skip form
   static boolean map_entry(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "map_entry")) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_);
     r = form(b, l + 1);
-    r = r && ignored(b, l + 1);
+    r = r && skip(b, l + 1);
     p = r; // pin = 2
-    r = r && report_error_(b, form(b, l + 1));
-    r = p && ignored(b, l + 1) && r;
+    r = r && form(b, l + 1);
     exit_section_(b, l, m, r, p, null);
     return r || p;
   }
@@ -613,7 +601,7 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // "'" | "~" | "~@" | "@" | "`" |  "#_" | "#'" | "#=" | symbolic_value | reader_cond | map_ns_prefix
+  // "'" | "~" | "~@" | "@" | "`" | "#'" | "#=" | symbolic_value | reader_cond | map_ns_prefix
   public static boolean reader_macro(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "reader_macro")) return false;
     boolean r;
@@ -623,7 +611,6 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     if (!r) r = consumeToken(b, C_TILDE_AT);
     if (!r) r = consumeToken(b, C_AT);
     if (!r) r = consumeToken(b, C_SYNTAX_QUOTE);
-    if (!r) r = consumeToken(b, C_SHARP_COMMENT);
     if (!r) r = consumeToken(b, C_SHARP_QUOTE);
     if (!r) r = consumeToken(b, C_SHARP_EQ);
     if (!r) r = symbolic_value(b, l + 1);
@@ -664,16 +651,25 @@ public class ClojureParser implements PsiParser, LightPsiParser {
   }
 
   /* ********************************************************** */
-  // not_eof form
+  // not_eof (commented | form)
   static boolean root_entry(PsiBuilder b, int l) {
     if (!recursion_guard_(b, l, "root_entry")) return false;
     boolean r, p;
     Marker m = enter_section_(b, l, _NONE_);
     r = not_eof(b, l + 1);
     p = r; // pin = 1
-    r = r && form(b, l + 1);
+    r = r && root_entry_1(b, l + 1);
     exit_section_(b, l, m, r, p, root_entry_recover_parser_);
     return r || p;
+  }
+
+  // commented | form
+  private static boolean root_entry_1(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "root_entry_1")) return false;
+    boolean r;
+    r = commented(b, l + 1);
+    if (!r) r = form(b, l + 1);
+    return r;
   }
 
   /* ********************************************************** */
@@ -740,6 +736,18 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     r = !consumeToken(b, C_BRACE2);
     exit_section_(b, l, m, r, false, null);
     return r;
+  }
+
+  /* ********************************************************** */
+  // commented *
+  static boolean skip(PsiBuilder b, int l) {
+    if (!recursion_guard_(b, l, "skip")) return false;
+    while (true) {
+      int c = current_position_(b);
+      if (!commented(b, l + 1)) break;
+      if (!empty_element_parsed_guard_(b, "skip", c)) break;
+    }
+    return true;
   }
 
   /* ********************************************************** */
@@ -853,47 +861,47 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     return r;
   }
 
-  final static Parser form_parser_ = new Parser() {
+  static final Parser form_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return form(b, l + 1);
     }
   };
-  final static Parser form_recover_parser_ = new Parser() {
+  static final Parser form_recover_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return formRecover(b, l + 1);
     }
   };
-  final static Parser list_body_0_0_parser_ = new Parser() {
+  static final Parser list_body_0_0_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return list_body_0_0(b, l + 1);
     }
   };
-  final static Parser map_body_1_0_parser_ = new Parser() {
+  static final Parser map_body_0_0_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
-      return map_body_1_0(b, l + 1);
+      return map_body_0_0(b, l + 1);
     }
   };
-  final static Parser map_entry_parser_ = new Parser() {
+  static final Parser map_entry_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return map_entry(b, l + 1);
     }
   };
-  final static Parser root_0_0_parser_ = new Parser() {
+  static final Parser root_0_0_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return root_0_0(b, l + 1);
     }
   };
-  final static Parser root_entry_recover_parser_ = new Parser() {
+  static final Parser root_entry_recover_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return rootFormRecover(b, l + 1);
     }
   };
-  final static Parser set_body_0_0_parser_ = new Parser() {
+  static final Parser set_body_0_0_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return set_body_0_0(b, l + 1);
     }
   };
-  final static Parser vec_body_0_0_parser_ = new Parser() {
+  static final Parser vec_body_0_0_parser_ = new Parser() {
     public boolean parse(PsiBuilder b, int l) {
       return vec_body_0_0(b, l + 1);
     }
