@@ -50,7 +50,7 @@
       48652: unable to resolve '*alias-map*'
 /cljs/compiler/api.clj                   0 errors, 0 warnings, 0 dynamic
 /cljs/compiler/macros.clj                0 errors, 0 warnings, 0 dynamic
-/cljs/core.cljc                          0 errors, 7 warnings, 71 dynamic
+/cljs/core.cljc                          0 errors, 7 warnings, 66 dynamic
       555: unable to resolve 'assert-args'
       1982: unable to resolve 'unchecked-divide'
       2842: unable to resolve 'alias'
