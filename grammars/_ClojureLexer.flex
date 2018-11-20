@@ -27,7 +27,7 @@ import static org.intellij.clojure.lang.ClojureTokens.LINE_COMMENT;
 %type IElementType
 %unicode
 
-%state SYMBOL0, SYMBOL1, SYMBOL2
+%state SYMBOL0, SYMBOL1, SYMBOL2, SYMBOL3
 %state DISPATCH
 
 WHITE_SPACE=\s+
@@ -42,9 +42,11 @@ RATIO=[+-]? [0-9]+"/"[0-9]+
 CHARACTER=\\([btrnf]|u[0-9a-fA-F]{4}|backspace|tab|newline|formfeed|return|space|.)
 
 SYM_START=[[\w<>$%&=*+\-!?_|]--#\d] | ".."
-SYM_CHAR="."? [\w<>$%&=*+\-!?_|'#]
-SYM_TAIL={SYM_CHAR}+ (":" {SYM_CHAR}+)?
-SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
+SYM_PART=[.]? {SYM_CHAR} | ".."
+SYM_CHAR=[\w<>$%&=*+\-!?_|'#]
+SYM_ANY={SYM_CHAR} | [./]
+
+SYM_TAIL={SYM_PART}+ (":" {SYM_PART}+)?
 
 %%
 <YYINITIAL> {
@@ -84,7 +86,7 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   ".-"                   { return C_SYM; }
   "."   /  {SYM_CHAR}    { yybegin(SYMBOL0); return C_DOT; }
   "."                    { return C_SYM; }
-  "/" {SYM_CHAR2} +      { yybegin(YYINITIAL); return BAD_CHARACTER; }
+  "/" {SYM_ANY}+                { yybegin(YYINITIAL); return BAD_CHARACTER; }
   "/"                    { return C_SYM; }
 
   {SYM_START}{SYM_TAIL}? { yybegin(SYMBOL1); return C_SYM; }
@@ -102,13 +104,18 @@ SYM_CHAR2=[\w<>$%&=*+\-!?_|'#./]
   [^]                    { yybegin(YYINITIAL); yypushback(yylength()); }
 }
 
-<SYMBOL2>  {
+<SYMBOL2> {
+  {SYM_TAIL}             { yybegin(SYMBOL3); return C_SYM; }
+}
+
+<SYMBOL2, SYMBOL3> {
   ":"                    { yybegin(YYINITIAL); return BAD_CHARACTER; }
-  "/" {SYM_CHAR2} +      { yybegin(YYINITIAL); return BAD_CHARACTER; }
-  "/"                    { yybegin(YYINITIAL); return C_SYM; }
-  "."                    { yybegin(YYINITIAL); return C_SYM; }
-  {SYM_TAIL}             { yybegin(YYINITIAL); return C_SYM; }
+  "."                    { yybegin(YYINITIAL); return C_DOT; }
   [^]                    { yybegin(YYINITIAL); yypushback(yylength()); }
+}
+
+<YYINITIAL, SYMBOL2, SYMBOL3> {
+  "/" {SYM_ANY}+         { yybegin(YYINITIAL); return BAD_CHARACTER; }
 }
 
 <DISPATCH> {

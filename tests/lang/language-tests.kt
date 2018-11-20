@@ -41,7 +41,7 @@ class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
     |-2/3
     |+2.2 23.4 34. 34.e2 2e3 2e+3 2e-4 2.0e3 3.3e-3M 99.99M
     |22/7
-    |\c. \newline, \space, \tab, \formfeed, \backspace, and \return
+    |\c, \newline, \space, \tab, \formfeed, \backspace, and \return
     |\u89AF \u03A9 \o677
     |nil true false
   """.trimMargin())
@@ -49,10 +49,14 @@ class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
   fun testSymbolsAndKeywords() = doTest("""
     |a :a ::a :a: :a:a ::a:a :a:a:
     |$ % & # %2 a& -a +a *a* a#
-    |a.b :a.b a/b :a/b
-    |'a'b '. '/ a'''
+    |a.b :a.b a/b :a/b ::a/b a.b/c :a.b/c ::a.b/c
+    |'a'b '. '/ a''' / ('/) a// /a a/ a/b/c
     |:fred :person/name ::rect
     |:1 :- :* :| :& .1 a|b
+    |. .a a. a.b a/b. a.b/c.
+    |.- -a
+    |-. a- a-b .a/c .a.b/c
+    |.. ..a a.. ..a/b a..b
   """.trimMargin())
 
   fun testDispatchAndQuote() = doTest("""
@@ -75,6 +79,7 @@ class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testSimpleFixes() = doCodeTest(".1 x .-;comment\n1;unclosed eof\n\"x")
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
   fun testCommentedForms() = doCodeTest("(def ^int #_cc n 0) {#_0 #_1 :a '#_'(xxx) a :b 'b #_2 #_3} # #_asd dbg 10")
+  fun testInterOp() = doCodeTest("(a.) (a/b.)")
 
   fun testParseClojureLang() = walkAndParse(::walkClojureLang)
 //  fun testParseWellKnownLibs() = walkAndParse(::walkKnownLibs)
