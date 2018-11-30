@@ -32,6 +32,7 @@ class ClojureUsagesTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testKeywordUsages3a() = doTest("$NS_ALIAS (let [{:keys [foo.bar/x y]} {::bar/x| 42}] y)", 2)
   fun testKeywordUsages3b() = doTest("$NS_ALIAS (let [{:keys [x y]} {::bar/x| 42}] y)", 1)
   fun testDeftypeField1() = doTest("(deftype A [x| y]) (.-x (A.)) (. (A.) -x)", 3)
+  fun testDeftypeField2() = doTest("(deftype A [^A x|]) (.-x (. (A.) -x))", 3)
 
   private fun doTest(text: String, expectedCount: Int) = myFixture.run {
     configureByText("a.clj", text.replace("|", "<caret>"))

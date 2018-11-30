@@ -90,5 +90,7 @@ class Def(
     val meta: Map<String, String>
 ) : IDef by key
 
-class Prototype(val args: List<String>, val typeHint: String?)
+class Prototype(val args: List<Arg>, val typeHint: String?)
+
+class Arg(val name: String, val typeHint: String?)
 

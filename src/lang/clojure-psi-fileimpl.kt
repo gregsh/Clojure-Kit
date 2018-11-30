@@ -32,7 +32,6 @@ import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.JBTreeTraverser
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
-import org.intellij.clojure.editor.arguments
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.ClojureScriptLanguage
@@ -454,7 +453,10 @@ private class RoleHelper {
   private fun createDef(e: CListBase, nameSym: CSymbol, key: SymKey): IDef {
     val meta = HashMap<String, String>()
     val prototypes = processPrototypes(e)
-        .map { Prototype(arguments(it).toList(), it.typeHintMeta()?.qualifiedName) }
+        .map { vec ->
+          val args = vec.childForms.map { Arg((it as? CSymbol)?.name ?: it.text, it.typeHintMeta()?.qualifiedName) }.toList()
+          Prototype(args, vec.typeHintMeta()?.qualifiedName)
+        }
         .toList()
     var typeHint: String? = null
     var private = false

@@ -753,11 +753,10 @@ fun resolvePrototypes(call: CList): JBIterable<*> {
   return call.first?.resolveXTarget()?.resolveStub()?.childrenStubs?.jbIt() ?: JBIterable.empty<Any>()
 }
 
-fun arguments(proto: Any): JBIterable<String> {
-  if (proto is CVec) {
-    return proto.childForms.map { it.text }
-  }
-  if (proto is CPrototypeStub) return proto.args.jbIt()
+private fun arguments(proto: Any): JBIterable<String> {
+  if (proto is CVec) return proto.childForms.map { it.text }
+  if (proto is CPrototypeStub) return proto.args.jbIt().map {
+    (if (it.typeHint != null && !it.name.startsWith("^${it.typeHint} ")) "^${it.typeHint} " else "") + it.name }
   return JBIterable.empty()
 }
 

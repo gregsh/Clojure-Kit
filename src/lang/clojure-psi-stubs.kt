@@ -23,6 +23,7 @@ import com.intellij.psi.stubs.*
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.indexing.FileContent
+import com.intellij.util.text.nullize
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.psi.*
@@ -36,7 +37,7 @@ import kotlin.reflect.jvm.internal.impl.utils.SmartList
 /**
  * @author gregsh
  */
-private val VERSION: Int = 4
+private val VERSION: Int = 5
 
 class ClojureStubBuilder : BinaryFileStubBuilder {
   override fun getStubVersion() = VERSION
@@ -125,7 +126,7 @@ class CListStub(val key: SymKey,
   }
 }
 
-class CPrototypeStub(val args: List<String>, val typeHint: String?, parent: CStub?) : CStub(parent) {
+class CPrototypeStub(val args: List<Arg>, val typeHint: String?, parent: CStub?) : CStub(parent) {
 
   override fun getStubType() = SERIALIZER
   override fun toString() = args.toString()
@@ -136,13 +137,14 @@ class CPrototypeStub(val args: List<String>, val typeHint: String?, parent: CStu
       override fun indexStub(stub: CPrototypeStub, sink: IndexSink) = Unit
 
       override fun serialize(stub: CPrototypeStub, dataStream: StubOutputStream) {
-        dataStream.writeName(stub.args.joinToString(","))
+        val argText = stub.args.map { it.name.escBar() + "|" + (it.typeHint?.escBar() ?: "") }
+        dataStream.writeName(argText.joinToString("|"))
         dataStream.writeName(stub.typeHint)
       }
 
       override fun deserialize(dataStream: StubInputStream, parentStub: CStub?): CPrototypeStub {
         return CPrototypeStub(
-            dataStream.readName()?.string?.split(",") ?: emptyList(),
+            dataStream.readName()?.string?.split("|").jbIt().split(2, true).map { Arg(it[0]!!, it[1].nullize()) }.toList(),
             dataStream.readName()?.string,
             parentStub)
       }
@@ -303,3 +305,5 @@ fun StubInputStream.readSet(): Set<String> {
   return map
 }
 
+private fun String.escBar() = replace("|", "&bar;")
+private fun String.unescBar() = replace("&bar;", "|")

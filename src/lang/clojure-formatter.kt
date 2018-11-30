@@ -224,7 +224,7 @@ class ClojureFormattingBlock(node: ASTNode,
             name == "deftype" || name == "defmethod" ||
             try { target.resolveStub() } catch(e : IndexNotReadyException) { null }
                 ?.childrenStubs.jbIt().filter(CPrototypeStub::class).find {
-              val last = it.args.lastOrNull()
+              val last = it.args.lastOrNull()?.name
               last == "body" || last == "clauses" || last == "specs"
             } != null
       }

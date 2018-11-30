@@ -513,8 +513,8 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             val stub = def.forceXTarget?.resolveStub() as? CListStub
             if (processFields && scope == JavaHelper.Scope.INSTANCE) {
               (stub?.childrenStubs?.find { it is CPrototypeStub } as? CPrototypeStub)?.args?.onEach {
-                val fieldKey = SymKey(it, stub.key.name.withPackage(stub.key.namespace), "field")
-                if (!processor.execute(service.getDefinition(fieldKey), if (isProp) state else state.put(RENAMED_KEY, "-$it"))) return false
+                val fk = SymKey(it.name, stub.key.name.withPackage(stub.key.namespace), "field")
+                if (!processor.execute(service.getDefinition(fk), if (isProp) state else state.put(RENAMED_KEY, "-${fk.name}"))) return false
               }
             }
             if (processMethods && scope == JavaHelper.Scope.INSTANCE) {
