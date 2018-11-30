@@ -34,6 +34,8 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testKeyword1() = ":keyword".let { doPosTest("$it :<caret>", it) }
   fun testKeyword2() = ":keyword".let { doTest("$it :key<caret>", it, "$it $it") }
   fun testKeyword3() = ":keyword".let { doNegTest("$it <caret>", it) }
+  fun testKeyword4() = ":keyword".let { doNegTest("$it ${it}11 ${it}22 $it<caret>", it) }
+  fun testKeyword5() = ":namespace/keyword".let { doNegTest("$it ${it}11 ${it}22 $it<caret>", it) }
   fun testKeywordMeta1() = ":keyword".let { doPosTest("^meta $it ^meta :<caret>", it) }
   fun testKeywordMeta2() = ":keyword".let { doTest("^meta $it ^meta :key<caret>", it, "^meta $it ^meta $it") }
   fun testKeywordUser1() = "::keyword".let { doTest("$it :<caret>", it, "$it $it") }
@@ -97,14 +99,14 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   private fun doNegTest(text: String, vararg select: String) = myFixture.run {
     configureByText("a.clj", text)
     complete(CompletionType.BASIC, 1)
-    select.forEach { it -> assertFalse("'$it' unexpected", lookupElementStrings!!.contains(it)) }
+    select.forEach { it -> assertFalse("'$it' unexpected", lookupElementStrings?.contains(it) ?: false) }
     checkResult(text)
   }
 
   private fun doPosTest(text: String, vararg select: String) = myFixture.run {
     configureByText("a.clj", text)
     complete(CompletionType.BASIC, 1)
-    select.forEach { it -> assertTrue("'$it' expected", lookupElementStrings!!.contains(it)) }
+    select.forEach { it -> assertTrue("'$it' expected", lookupElementStrings?.contains(it) ?: false) }
     checkResult(text)
   }
 }

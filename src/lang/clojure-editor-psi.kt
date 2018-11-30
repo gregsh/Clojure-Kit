@@ -226,7 +226,7 @@ class ClojureCompletionContributor : CompletionContributor() {
                 .substring(originalFile.text))
 
         if (thisForm is CKeyword || thisForm == null) {
-          val visited = ContainerUtil.newTroveSet<String>()
+          val visited = ContainerUtil.newTroveSet<String>(qualifiedResult.prefixMatcher.prefix)
           val prefixNamespace = (thisForm as? CKeyword)?.namespace
           val consumer: (String, String, VirtualFile) -> Unit = consumer@ { name, ns, file ->
             if (!showAll && !noNsPrefix && ns != prefixNamespace) return@consumer
