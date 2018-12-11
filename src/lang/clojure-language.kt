@@ -53,7 +53,7 @@ import org.intellij.clojure.util.thisForm
  */
 class ClojureFileTypeFactory : FileTypeFactory() {
   override fun createFileTypes(consumer: FileTypeConsumer) {
-    consumer.consume(ClojureFileType, "${ClojureConstants.CLJ};${ClojureConstants.CLJS};${ClojureConstants.CLJC}")
+    consumer.consume(ClojureFileType, "${ClojureConstants.CLJ};${ClojureConstants.CLJS};${ClojureConstants.CLJC};${ClojureConstants.EDN}")
     consumer.consume(ClojureFileType, WildcardFileNameMatcher(ClojureConstants.BOOT_CONFIG))
   }
 }

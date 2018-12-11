@@ -46,6 +46,7 @@ import com.intellij.util.ObjectUtils
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.ContainerUtilRt
 import com.intellij.util.containers.JBIterable
+import com.intellij.util.containers.JBTreeTraverser
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
 import org.intellij.clojure.util.EachNth
@@ -142,30 +143,49 @@ abstract class JavaHelper {
     override fun findPackage(packageName: String?, withClass: String?): NavigatablePsiElement? =
         myFacade.findPackage(packageName!!) as? NavigatablePsiElement ?: asm.findPackage(packageName, withClass)
 
+    internal fun superclasses(className: String?) = JBTreeTraverser<PsiClass> { o ->
+      JBIterable.of(o.superClass).append(o.interfaces)
+    }
+        .withRoot(findClass(className) as? PsiClass)
+        .unique()
+        .traverse()
+
+
     override fun findClassMethods(className: String?,
                                   scope: Scope,
                                   name: String?,
                                   paramCount: Int,
-                                  vararg paramTypes: String): List<NavigatablePsiElement> {
-      val aClass = findClass(className) as? PsiClass ?: return asm.findClassMethods(className, scope, name, paramCount, *paramTypes)
-      val methods = if (scope == Scope.INIT) aClass.constructors.jbIt()
-      else JBIterable.generate(aClass) { it.superClass }.flatMap { it!!.methods.jbIt() }
-      return methods.map { o ->
-        if (acceptsName(name, o.name) &&
-            acceptsMethod(o, scope == Scope.STATIC) &&
-            acceptsMethod(myElementFactory, o, paramCount, *paramTypes)) o else null
-      }.notNulls().toList()
-    }
+                                  vararg paramTypes: String): List<NavigatablePsiElement> =
+        if (findClass(className) !is PsiClass) {
+          asm.findClassMethods(className, scope, name, paramCount, *paramTypes)
+        }
+        else {
+          superclasses(className)
+              .flatten {
+                if (scope == Scope.INIT) it.constructors.jbIt() else it.methods.jbIt()
+              }
+              .filter {
+                acceptsName(name, it.name) &&
+                    acceptsMethod(it, scope == Scope.STATIC) &&
+                    acceptsMethod(myElementFactory, it, paramCount, *paramTypes)
+              }
+              .notNulls()
+              .toList()
+        }
 
-    override fun findClassFields(className: String?, scope: Scope, name: String?): List<NavigatablePsiElement> {
-      val aClass = findClass(className) as? PsiClass ?: return asm.findClassFields(className, scope, name)
-      val fields = JBIterable.generate(aClass) { it.superClass }.flatMap { it!!.fields.jbIt() }
-      return fields.map { o ->
-        if (acceptsName(name, o.name) &&
-            acceptsMethod(o, scope == Scope.STATIC)) o
-        else null
-      }.notNulls().toList()
-    }
+    override fun findClassFields(className: String?, scope: Scope, name: String?): List<NavigatablePsiElement> =
+        if (findClass(className) !is PsiClass) {
+          asm.findClassFields(className, scope, name)
+        }
+        else superclasses(className)
+            .flatten {
+              it.fields.jbIt()
+            }
+            .filter {
+              acceptsName(name, it.name) &&
+                  acceptsMethod(it, scope == Scope.STATIC)
+            }
+            .notNulls().toList()
 
     override fun getSuperClassName(className: String?): String? {
       val aClass = findClass(className) as? PsiClass ?: return asm.getSuperClassName(className)
@@ -309,8 +329,15 @@ abstract class JavaHelper {
     internal fun cached(id: String, info: Any) =
         map[id] ?: ConcurrencyUtil.cacheOrGet(map, id, MyElement(project, info))
 
-    internal fun superclasses(name: String?) = JBIterable.generate(findClass(name)) {
-      findClass((it?.delegate as? ClassInfo)?.superClass)}.notNulls()
+    internal fun superclasses(name: String?) = JBTreeTraverser<MyElement<*>> { o ->
+      JBIterable.of((o.delegate as? ClassInfo)?.superClass)
+          .append((o.delegate as? ClassInfo)?.interfaces)
+          .map(this@AsmHelper::findClass)
+          .notNulls()
+    }
+        .withRoot(findClass(name))
+        .unique()
+        .traverse()
 
     override fun findClassMethods(className: String?,
                                   scope: Scope,

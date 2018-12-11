@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 8 warnings, 19 dynamic
+/clojure/core.clj                        0 errors, 8 warnings, 13 dynamic
       123975: unable to resolve 'setInt'
       124114: unable to resolve 'setLong'
       124261: unable to resolve 'setBoolean'
@@ -13,7 +13,7 @@
       2113: unable to resolve 'jsr166y.ForkJoinTask'
       2178: unable to resolve 'jsr166y.ForkJoinTask'
 /clojure/core/server.clj                 0 errors, 0 warnings, 4 dynamic
-/clojure/core_deftype.clj                0 errors, 0 warnings, 13 dynamic
+/clojure/core_deftype.clj                0 errors, 0 warnings, 11 dynamic
 /clojure/core_instant18.clj              0 errors, 0 warnings, 0 dynamic
 /clojure/core_print.clj                  0 errors, 0 warnings, 0 dynamic
 /clojure/core_proxy.clj                  0 errors, 3 warnings, 0 dynamic
@@ -25,7 +25,7 @@
       2620: unable to resolve 'isArray'
 /clojure/edn.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/genclass.clj                    0 errors, 0 warnings, 2 dynamic
-/clojure/gvec.clj                        0 errors, 0 warnings, 47 dynamic
+/clojure/gvec.clj                        0 errors, 0 warnings, 45 dynamic
 /clojure/inspector.clj                   0 errors, 0 warnings, 11 dynamic
 /clojure/instant.clj                     0 errors, 0 warnings, 5 dynamic
 /clojure/java/browse.clj                 0 errors, 0 warnings, 2 dynamic
