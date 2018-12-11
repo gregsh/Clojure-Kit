@@ -27,7 +27,7 @@
 /cljs/analyzer/macros.clj                0 errors, 0 warnings, 1 dynamic
 /cljs/analyzer/utils.clj                 0 errors, 0 warnings, 0 dynamic
 /cljs/build/api.clj                      0 errors, 0 warnings, 0 dynamic
-/cljs/closure.clj                        0 errors, 14 warnings, 53 dynamic
+/cljs/closure.clj                        0 errors, 14 warnings, 52 dynamic
       13343: unable to resolve 'setExtraAnnotationNames'
       55993: unable to resolve 'read-str'
       61410: unable to resolve 'write-str'

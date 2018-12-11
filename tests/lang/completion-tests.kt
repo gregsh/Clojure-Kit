@@ -82,6 +82,8 @@ class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
   fun testInsideImport3() = doTest("(require [clojure.string :refer [<caret>]])", "blank?")
   fun testInsideImport4() = doNegTest("(require [clojure.string :refer [<caret>]])", "def")
 
+  fun testJava1() = doPosTest("(defn a [^java.util.SortedSet a] (.<caret> a))", "comparator", "size", "contains", "add")
+
 
   private fun doTest(text: String, select: String,
                      expected: String = text.replace("<caret>", select),
