@@ -1,3 +1,15 @@
+0.7.5
+
+* Editor: semantic highlighting (rainbow symbols)
+* Resolve: resolve java methods from super-interfaces
+* Resolve: resolve defrecord, deftype methods and fields
+* Usages: search for keywords and namespaces in whole project
+* Dependencies: support *.edn files
+* Dependencies: show in Project | External Libraries
+* Parser: fix #_, (a.b/c.) and \uNNNN parsing
+* REPL: fix execution from editor
+* UI: new SVG icons
+
 0.7.4
 
 * Debugger: initial java debugger integration

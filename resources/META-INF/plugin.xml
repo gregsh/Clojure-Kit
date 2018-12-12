@@ -6,7 +6,7 @@
   <idea-version since-build="172"/>
 
   <name>Clojure-Kit</name>
-  <description>Clojure and ClojureScript</description>
+  <description>Clojure and ClojureScript plugin for IntelliJ-based tools</description>
 
   <depends>com.intellij.modules.lang</depends>
   <depends optional="true" config-file="plugin-copyright.xml">com.intellij.copyright</depends>
@@ -15,13 +15,15 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>Debugger: initial java debugger integration</li>
-      <li>QuickDoc: fix specs and show macroexpand from repl</li>
-      <li>QuickDoc: show info for syntax tokens, e.g. ~@, #^, etc.</li>
-      <li>Editor: Context Info and Move Left/Right actions</li>
-      <li>Editor: data-reader & name declaration colors</li>
-      <li>Editor: support custom folding regions</li>
-      <li>Clojure: better support for #_ forms</li>
+      <li>Editor: semantic highlighting (rainbow symbols)</li>
+      <li>Resolve: resolve java methods from super-interfaces</li>
+      <li>Resolve: resolve defrecord, deftype methods and fields</li>
+      <li>Usages: search for keywords and namespaces in whole project</li>
+      <li>Dependencies: support *.edn files</li>
+      <li>Dependencies: show in Project | External Libraries</li>
+      <li>Parser: fix #_, (a.b/c.) and \uNNNN parsing</li>
+      <li>REPL: fix execution from editor</li>
+      <li>UI: new SVG icons</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>
