@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.7.5-snapshot</version>
+  <version>0.7.6-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="172"/>
 
