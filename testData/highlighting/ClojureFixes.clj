@@ -95,3 +95,6 @@
   (. (map->Record {:x 1 :y 2}) -x)
   )
 
+(defn keys-destr [{:keys [clojure.core/abc missing_ns/edf ijk]
+                   :or {abc 1, edf 2, ijk 3, <warning>missing_key</warning> 4}}]
+  (print abc edf ijk))

@@ -62,6 +62,8 @@ fun <E: Any> E?.generate(f : (E)->E?) = JBIterable.generate<E>(this, f)
 fun <E: Any> E?.asListOrEmpty() = listOfNotNull(this)
 fun <T> Iterable<T>?.jbIt() = JBIterable.from(this)
 fun <T> Array<T>?.jbIt() = if (this == null) JBIterable.empty() else JBIterable.of(*this)
+inline fun <T> Iterable<T>?.forEachWithPrev(f: (T, T?)->Unit) = if (this == null) Unit
+else { var prev: T? = null; forEach { cur -> f(cur, prev); prev = cur; }}
 
 fun <T> readAction(block : () -> T) = ReadAction.compute<T, RuntimeException> { block.invoke() }
 

@@ -320,6 +320,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else null
         }
         if (targetNS != null) {
+          if (isKeysDestructuringVec(myElement.context)) {
+            return processor.execute(myElement, state)
+          }
           if (targetNS == CLOJURE_CORE && ClojureConstants.SPECIAL_FORMS.contains(refText)) {
             return processor.execute(element, state)
           }
@@ -365,12 +368,16 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val isCljs = dialect == Dialect.CLJS
     val parent = element.context
 
-    if (parent?.context is CKeyword) {
+    val grandParent = parent?.context
+    if (grandParent is CKeyword) {
       return when (parent.prevSibling.elementType) {
         ClojureTypes.C_COLON -> processor.execute(service.getNamespace(element), state)
         ClojureTypes.C_COLONCOLON -> containingFile.processDeclarations(processor, state.put(ALIAS_KEY, refText), element, element)
         else -> true
       }
+    }
+    else if (isKeysDestructuringVec(grandParent)) {
+      return processor.execute(service.getNamespace(element), state)
     }
     if (!containingFile.processDeclarations(processor, state, element, element)) return false
     if (refText != null) {
@@ -395,8 +402,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
                                  processor: PsiScopeProcessor): Boolean {
     val isCljs = dialect == Dialect.CLJS
     val element = place.thisForm!!
-    var prevO: CForm = element
-    for (o in prevO.contexts().filter(CForm::class)) {
+    element.contexts().filter(CForm::class).forEachWithPrev { o, prevO ->
       val type = formType(o)
       if (o !is CList || type == null) {
         if (refText == "&") {
@@ -405,10 +411,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (prevO == place) {
           if (o.role == Role.ARG_VEC || o.role == Role.FIELD_VEC) return processor.execute(place, state)
         }
-        prevO = o
-        continue
+        return@forEachWithPrev
       }
-      val innerType = if (type.endsWith("->") || type.endsWith("->>")) formType(prevO) ?: type else type
+      val innerType = if (prevO != null && (type.endsWith("->") || type.endsWith("->>"))) formType(prevO) else type
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(type)) {
         for (part in (prevO as? CVec ?: o.findChild(Role.FIELD_VEC) as? CVec).childForms(CSymbol::class)) {
@@ -445,6 +450,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         if (!processBindings(o, "fn", state, processor, myElement)) return false
       }
       else if (o.role == Role.DEF || isFnLike) {
+        if (o.first === prevO) return@forEachWithPrev
         if (isFnLike) {
           val nameSymbol = (if (isFnLike) o.first.nextForm else o.first) as? CSymbol
           if (nameSymbol != null) {
@@ -453,7 +459,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
         // def and fn bindings
         for (prototype in prototypes(o)) {
-          if (!prototype.isAncestorOf(prevO)) continue
+          if (prevO != null && !prototype.isAncestorOf(prevO)) continue
           if (!processBindings(prototype, "fn", state, processor, myElement)) return false
         }
       }
@@ -554,8 +560,6 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           if (!processor.execute(service.getLocalBinding(it, o), state)) return false
         }
       }
-
-      prevO = o
     }
     return true
   }
@@ -654,6 +658,9 @@ fun processBindings(element: CList, mode: String, state: ResolveState, processor
   }
   return true
 }
+
+private fun isKeysDestructuringVec(e : PsiElement?) =
+    e is CVec && e.prevForm?.let { it is CKeyword && it.name == "keys" } == true
 
 fun CFile.placeLanguage(place: PsiElement): Dialect =
     if (language == ClojureScriptLanguage) Dialect.CLJS
