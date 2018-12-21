@@ -166,6 +166,11 @@ class ClojureDefinitionService(val project: Project) {
         .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
   }
 
+  fun getImplicitField(o: CSymbol, parent: CForm): PsiElement {
+    return parent.map[SymKey(o.name, "", "field")]!!
+        .let { it.putUserData(SOURCE_KEY, PsiAnchor.create(o)); it }
+  }
+
   private fun createPomMap(owner : PsiElement? = null): Map<SymKey, PsiElement> {
     return object: ConcurrentFactoryMap<SymKey, PsiElement>() {
       override fun createMap(): ConcurrentMap<SymKey, PsiElement> {

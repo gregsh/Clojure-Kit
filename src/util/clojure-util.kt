@@ -90,6 +90,7 @@ val PsiElement?.deepLast: PsiElement? get() = if (this == null) null else PsiTre
 val PsiElement?.firstForm: CForm? get() = childForm(CForm::class)
 val PsiElement?.nextForm: CForm? get() = nextForm(CForm::class)
 val PsiElement?.prevForm: CForm? get() = prevForm(CForm::class)
+val PsiElement?.prevForms: JBIterable<CForm> get() = JBIterable.generate(prevForm(CForm::class)) { it.prevForm }
 val PsiElement?.thisForm: CForm? get() = (this as? CForm ?: findParent(CForm::class)).let {
   ((it as? CSymbol)?.parent as? CSymbol ?: it).let { it?.parent as? CSForm ?: it } }
 val PsiElement?.parentForm: CForm? get() = thisForm.findParent(CForm::class)

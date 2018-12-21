@@ -103,14 +103,41 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
       }
       val navElement = target.navigationElement
       when {
-        navElement === form ->
-          form.parent.let {
-            when {
-              it is CVec && navElement.parent?.parent is CList -> exprType(navElement.nextForm)
-              it is CList && it.first?.name == "catch" -> exprType(navElement.prevForm)
-              else -> null
+        navElement === form -> {
+          val p = form.parent
+          when {
+            p is CVec && p.role == Role.BND_VEC -> exprType(navElement.nextForm)
+            p is CVec && p.role == Role.ARG_VEC && p.firstForm == form ||
+                target.asCTarget?.key?.run { type == "field" && name == "this" } == true -> {
+              var result: Any? = null
+              form.parentForms.filter(CList::class).forEachWithPrev { grandP, prev ->
+                when (grandP.first?.name) {
+                  "extend-protocol" -> {
+                    result = (prev.prevForms.filter(CSymbol::class).first())?.resolveExprType()
+                    return@forEachWithPrev
+                  }
+                  "extend" -> {
+                    result = grandP.childForms.filter(CSymbol::class).skip(1).first()?.resolveExprType()
+                    return@forEachWithPrev
+                  }
+                  "reify" -> {
+                    result = grandP.childForms.filter(CSymbol::class).skip(1)
+                        .map(CSymbol::resolveExprType).toList()
+                    return@forEachWithPrev
+                  }
+                  "proxy" -> {
+                    result = grandP.childForms.filter(CVec::class).first().childForms
+                        .filter(CSymbol::class).map(CSymbol::resolveExprType).toList()
+                    return@forEachWithPrev
+                  }
+                }
+              }
+              result
             }
+            p is CList && p.first?.name == "catch" -> exprType(navElement.prevForm)
+            else -> null
           }
+        }
         navElement is CForm -> exprType(navElement)
         navElement.asCTarget != null -> (navElement.forceXTarget?.resolveStub() as? CListStub)?.run {
           resolveName(this@exprTypeImpl, meta[TYPE_META])
@@ -416,7 +443,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       val innerType = if (prevO != null && (type.endsWith("->") || type.endsWith("->>"))) formType(prevO) else type
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(type)) {
-        for (part in (prevO as? CVec ?: o.findChild(Role.FIELD_VEC) as? CVec).childForms(CSymbol::class)) {
+        for (part in (if (prevO.role == Role.FIELD_VEC) prevO else o.findChild(Role.FIELD_VEC) as? CVec).childForms(CSymbol::class)) {
           if (!processor.execute(part, state)) return false
         }
         if (prevO is CList) {
@@ -441,6 +468,11 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               for (prototype in prototypes(prevO)) {
                 if (!prototype.isAncestorOf(myElement)) continue
                 if (!processBindings(prototype, "fn", state, processor, myElement)) return false
+              }
+              if (type == "proxy" || type == "reify") {
+                if (refText == "this" && place is CSymbol) {
+                  if (!processor.execute(service.getImplicitField(place, o), state)) return false
+                }
               }
             }
           }
@@ -498,7 +530,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else o.firstForm.nextForms.skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
 
           val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()
-          val exprType = if (isCljs) null
+          val exprTypes = (if (isCljs) null
           else siblings.first()?.let { form ->
             if (form == element) return@let null
             if ((innerType == "." || innerType == "..") && form is CSymbol && form.qualifier == null) {
@@ -510,39 +542,45 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             }
             scope = JavaHelper.Scope.INSTANCE
             service.exprType(form)
-          }
+          })
+              .let {
+                (if (it is Iterable<*>) JBIterable.from(it)
+                else JBIterable.of(it)).run { if (!isCljs) append(ClojureConstants.J_OBJECT) else this }.unique() }
           if (innerType == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
           val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
           val processMethods = !isProp
-          if (exprType is SymKey) {
-            val def = service.getDefinition(exprType)
-            val stub = def.forceXTarget?.resolveStub() as? CListStub
-            if (processFields && scope == JavaHelper.Scope.INSTANCE) {
-              (stub?.childrenStubs?.find { it is CPrototypeStub } as? CPrototypeStub)?.args?.onEach {
-                val fk = SymKey(it.name, stub.key.name.withPackage(stub.key.namespace), "field")
-                if (!processor.execute(service.getDefinition(fk), if (isProp) state else state.put(RENAMED_KEY, "-${fk.name}"))) return false
+          for (exprType in exprTypes) when (exprType) {
+            is SymKey -> {
+              val def = service.getDefinition(exprType)
+              val stub = def.forceXTarget?.resolveStub() as? CListStub
+              if (processFields && scope == JavaHelper.Scope.INSTANCE) {
+                (stub?.childrenStubs?.find { it is CPrototypeStub } as? CPrototypeStub)?.args?.onEach {
+                  val fk = SymKey(it.name, stub.key.name.withPackage(stub.key.namespace), "field")
+                  if (!processor.execute(service.getDefinition(fk), if (isProp) state else state.put(RENAMED_KEY, "-${fk.name}"))) return false
+                }
+              }
+              if (processMethods && scope == JavaHelper.Scope.INSTANCE) {
+                stub?.childrenStubs?.onEach {
+                  if (it is CListStub && !processor.execute(service.getDefinition(it.key), state)) return false
+                }
               }
             }
-            if (processMethods && scope == JavaHelper.Scope.INSTANCE) {
-              stub?.childrenStubs?.onEach {
-                if (it is CListStub && !processor.execute(service.getDefinition(it.key), state)) return false
+            is String -> {
+              val javaClass = findClass(exprType, service)
+              if (index == 0 && javaClass != null && (innerType == "." || innerType == "..")) {
+                if (!processor.execute(javaClass, state)) return false
               }
-            }
-          }
-
-          val javaClass = if (exprType is String) findClass(exprType, service) else null
-          if (index == 0 && javaClass != null && (innerType == "." || innerType == "..")) {
-            if (!processor.execute(javaClass, state)) return false
-          }
-          if (javaClass != null || !isCljs) {
-            val classNameAdjusted = (javaClass as? PsiQualifiedNamedElement)?.qualifiedName ?: exprType as? String ?: ClojureConstants.J_OBJECT
-            if (processFields) {
-              val fields = service.java.findClassFields(classNameAdjusted, scope, "*")
-              fields.forEach { if (!processor.execute(it, if (isProp) state else state.put(RENAMED_KEY, "-${it.name}"))) return false }
-            }
-            if (processMethods) {
-              val methods = service.java.findClassMethods(classNameAdjusted, scope, StringUtil.notNullize(refText, "*"), -1)
-              methods.forEach { if (!processor.execute(it, state)) return false }
+              if (javaClass != null || !isCljs) {
+                val classNameAdjusted = (javaClass as? PsiQualifiedNamedElement)?.qualifiedName ?: exprType
+                if (processFields) {
+                  val fields = service.java.findClassFields(classNameAdjusted, scope, "*")
+                  fields.forEach { if (!processor.execute(it, if (isProp) state else state.put(RENAMED_KEY, "-${it.name}"))) return false }
+                }
+                if (processMethods) {
+                  val methods = service.java.findClassMethods(classNameAdjusted, scope, StringUtil.notNullize(refText, "*"), -1)
+                  methods.forEach { if (!processor.execute(it, state)) return false }
+                }
+              }
             }
           }
           // stop processing in certain cases
@@ -550,7 +588,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               (isProp2 || isCljs) && (innerType == "." || innerType == ".." && index >= 1)) {
             return processor.skipResolve()
           }
-          if (javaClass != null && (isProp || isMethod) && refText == null) {
+          if ((isProp || isMethod) && refText == null) {
             return true
           }
         }

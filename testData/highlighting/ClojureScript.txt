@@ -27,7 +27,7 @@
 /cljs/analyzer/macros.clj                0 errors, 0 warnings, 1 dynamic
 /cljs/analyzer/utils.clj                 0 errors, 0 warnings, 0 dynamic
 /cljs/build/api.clj                      0 errors, 0 warnings, 0 dynamic
-/cljs/closure.clj                        0 errors, 14 warnings, 52 dynamic
+/cljs/closure.clj                        0 errors, 11 warnings, 47 dynamic
       13343: unable to resolve 'setExtraAnnotationNames'
       55993: unable to resolve 'read-str'
       61410: unable to resolve 'write-str'
@@ -39,9 +39,6 @@
       101381: unable to resolve 'read'
       102385: unable to resolve 'getResources'
       117537: unable to resolve 'poll'
-      118490: unable to resolve 'endsWith'
-      118584: unable to resolve 'endsWith'
-      118679: unable to resolve 'startsWith'
 /cljs/compiler.cljc                      0 errors, 5 warnings, 26 dynamic
       604: unable to resolve 'ensure'
       46822: unable to resolve 'write-str'
@@ -393,4 +390,4 @@
 /clojure/zip.cljs                        0 errors, 0 warnings, 0 dynamic
 /process/env.cljs                        0 errors, 1 warnings, 0 dynamic
       541: unable to resolve 'NODE_ENV'
-Total: 330 warnings in 65 files (1.46M chars)
+Total: 327 warnings in 65 files (1.46M chars)

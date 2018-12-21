@@ -98,3 +98,22 @@
 (defn keys-destr [{:keys [clojure.core/abc missing_ns/edf ijk]
                    :or {abc 1, edf 2, ijk 3, <warning>missing_key</warning> 4}}]
   (print abc edf ijk))
+
+(do
+  (defprotocol Named (name [this]))
+  (extend-protocol Named
+    java.lang.Class
+    (name [c] ((. c getName))))
+  (extend Runnable
+    Named
+    {:name (fn [c] (.run c))})
+
+  (import [java.io Writer])
+  (proxy [Writer Runnable] []
+         (close [] (do (.run this) (.flush this))))
+  (reify
+     Writer
+     (close [] (do (.run this) (.flush this)))
+     Runnable
+     (run [])
+   ))

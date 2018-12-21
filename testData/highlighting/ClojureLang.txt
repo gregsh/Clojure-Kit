@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 8 warnings, 13 dynamic
+/clojure/core.clj                        0 errors, 8 warnings, 12 dynamic
       123975: unable to resolve 'setInt'
       124114: unable to resolve 'setLong'
       124261: unable to resolve 'setBoolean'
@@ -7,8 +7,8 @@
       124704: unable to resolve 'setShort'
       124847: unable to resolve 'setByte'
       124988: unable to resolve 'setChar'
-/clojure/core/protocols.clj              0 errors, 0 warnings, 5 dynamic
-/clojure/core/reducers.clj               0 errors, 3 warnings, 5 dynamic
+/clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
+/clojure/core/reducers.clj               0 errors, 3 warnings, 4 dynamic
       2051: unable to resolve 'jsr166y.ForkJoinPool'
       2113: unable to resolve 'jsr166y.ForkJoinTask'
       2178: unable to resolve 'jsr166y.ForkJoinTask'
@@ -30,13 +30,20 @@
 /clojure/instant.clj                     0 errors, 0 warnings, 5 dynamic
 /clojure/java/browse.clj                 0 errors, 0 warnings, 2 dynamic
 /clojure/java/browse_ui.clj              0 errors, 0 warnings, 4 dynamic
-/clojure/java/io.clj                     0 errors, 2 warnings, 8 dynamic
+/clojure/java/io.clj                     0 errors, 2 warnings, 2 dynamic
       12621: unable to resolve 'getChannel'
       12681: unable to resolve 'getChannel'
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
 /clojure/main.clj                        0 errors, 0 warnings, 8 dynamic
-/clojure/parallel.clj                    0 errors, 22 warnings, 5 dynamic
+/clojure/parallel.clj                    0 errors, 29 warnings, 5 dynamic
+      2317: unable to resolve 'Ops$Op'
+      2381: unable to resolve 'Ops$BinaryOp'
+      2470: unable to resolve 'Ops$IntAndObjectToObject'
+      2554: unable to resolve 'Ops$Reducer'
+      2627: unable to resolve 'Ops$Predicate'
+      2715: unable to resolve 'Ops$BinaryPredicate'
+      2821: unable to resolve 'Ops$IntAndObjectPredicate'
       4270: unable to resolve 'ParallelArrayWithMapping'
       4323: unable to resolve 'ParallelArray'
       4337: unable to resolve 'createUsingHandoff'
@@ -85,16 +92,7 @@
       62153: unable to resolve 'params'
       62220: unable to resolve 'params'
       62290: unable to resolve 'params'
-/clojure/pprint/column_writer.clj        0 errors, 9 warnings, 0 dynamic
-      1989: unable to resolve 'this'
-      2286: unable to resolve 'this'
-      2310: unable to resolve 'this'
-      2404: unable to resolve 'this'
-      2474: unable to resolve 'this'
-      2499: unable to resolve 'this'
-      2649: unable to resolve 'this'
-      2718: unable to resolve 'this'
-      2775: unable to resolve 'this'
+/clojure/pprint/column_writer.clj        0 errors, 0 warnings, 0 dynamic
 /clojure/pprint/dispatch.clj             0 errors, 11 warnings, 4 dynamic
       3405: unable to resolve 'aseq'
       3434: unable to resolve 'aseq'
@@ -110,23 +108,13 @@
 /clojure/pprint/pprint_base.clj          0 errors, 2 warnings, 0 dynamic
       15091: unable to resolve 'walk'
       15151: unable to resolve 'walk'
-/clojure/pprint/pretty_writer.clj        0 errors, 20 warnings, 0 dynamic
+/clojure/pprint/pretty_writer.clj        0 errors, 10 warnings, 0 dynamic
       7284: unable to resolve 'nl-t?'
       7642: unable to resolve 'nl-t?'
       8486: unable to resolve 'nl-t?'
       12016: unable to resolve 'make-buffer-blob'
       12819: unable to resolve 'make-buffer-blob'
-      13876: unable to resolve 'this'
-      14153: unable to resolve 'this'
-      14424: unable to resolve 'this'
       14430: unable to resolve 'make-buffer-blob'
-      14528: unable to resolve 'this'
-      14579: unable to resolve 'this'
-      14637: unable to resolve 'this'
-      14793: unable to resolve 'this'
-      14888: unable to resolve 'this'
-      14949: unable to resolve 'this'
-      15072: unable to resolve 'this'
       16041: unable to resolve 'make-start-block-t'
       16553: unable to resolve 'make-end-block-t'
       16756: unable to resolve 'make-nl-t'
@@ -134,7 +122,7 @@
 /clojure/pprint/print_table.clj          0 errors, 0 warnings, 0 dynamic
 /clojure/pprint/utilities.clj            0 errors, 0 warnings, 0 dynamic
 /clojure/reflect.clj                     0 errors, 0 warnings, 0 dynamic
-/clojure/reflect/java.clj                0 errors, 0 warnings, 2 dynamic
+/clojure/reflect/java.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/repl.clj                        0 errors, 0 warnings, 4 dynamic
 /clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/stacktrace.clj                  0 errors, 0 warnings, 7 dynamic
@@ -149,4 +137,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 108 warnings in 43 files (729.74K chars)
+Total: 96 warnings in 43 files (729.74K chars)
