@@ -141,7 +141,14 @@ private fun readProcessOutput(commandLine: GeneralCommandLine, workingDirectory:
   val stdout = mutableListOf<String>()
   val stderr = mutableListOf<String>()
   var exitCode: Int? = null
-  val process = OSProcessHandler(commandLine.withWorkDirectory(workingDirectory).withCharset(CharsetToolkit.UTF8_CHARSET))
+  val process = try {
+    OSProcessHandler(commandLine.withWorkDirectory(workingDirectory).withCharset(CharsetToolkit.UTF8_CHARSET))
+  }
+  catch (e: Exception) {
+    val message = e.message ?: e.toString()
+    Notifications.Bus.notify(Notification(DEPS_NOTIFICATION, "", message, NotificationType.ERROR))
+    throw e
+  }
   process.addProcessListener(object : ProcessAdapter() {
     override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
       when (outputType) {
