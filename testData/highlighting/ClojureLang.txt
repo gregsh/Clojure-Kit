@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 8 warnings, 12 dynamic
+/clojure/core.clj                        0 errors, 8 warnings, 11 dynamic
       123975: unable to resolve 'setInt'
       124114: unable to resolve 'setLong'
       124261: unable to resolve 'setBoolean'
@@ -8,35 +8,28 @@
       124847: unable to resolve 'setByte'
       124988: unable to resolve 'setChar'
 /clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
-/clojure/core/reducers.clj               0 errors, 3 warnings, 4 dynamic
+/clojure/core/reducers.clj               0 errors, 3 warnings, 2 dynamic
       2051: unable to resolve 'jsr166y.ForkJoinPool'
       2113: unable to resolve 'jsr166y.ForkJoinTask'
       2178: unable to resolve 'jsr166y.ForkJoinTask'
-/clojure/core/server.clj                 0 errors, 0 warnings, 4 dynamic
-/clojure/core_deftype.clj                0 errors, 0 warnings, 11 dynamic
+/clojure/core/server.clj                 0 errors, 0 warnings, 1 dynamic
+/clojure/core_deftype.clj                0 errors, 0 warnings, 5 dynamic
 /clojure/core_instant18.clj              0 errors, 0 warnings, 0 dynamic
 /clojure/core_print.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/core_proxy.clj                  0 errors, 3 warnings, 0 dynamic
-      3583: unable to resolve 'isInterface'
-      11517: unable to resolve 'getModifiers'
-      19418: unable to resolve 'getPropertyDescriptors'
-/clojure/data.clj                        0 errors, 2 warnings, 0 dynamic
-      2495: unable to resolve 'isArray'
-      2620: unable to resolve 'isArray'
+/clojure/core_proxy.clj                  0 errors, 0 warnings, 1 dynamic
+/clojure/data.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/edn.clj                         0 errors, 0 warnings, 0 dynamic
-/clojure/genclass.clj                    0 errors, 0 warnings, 2 dynamic
-/clojure/gvec.clj                        0 errors, 0 warnings, 45 dynamic
-/clojure/inspector.clj                   0 errors, 0 warnings, 11 dynamic
-/clojure/instant.clj                     0 errors, 0 warnings, 5 dynamic
-/clojure/java/browse.clj                 0 errors, 0 warnings, 2 dynamic
-/clojure/java/browse_ui.clj              0 errors, 0 warnings, 4 dynamic
-/clojure/java/io.clj                     0 errors, 2 warnings, 2 dynamic
-      12621: unable to resolve 'getChannel'
-      12681: unable to resolve 'getChannel'
+/clojure/genclass.clj                    0 errors, 0 warnings, 1 dynamic
+/clojure/gvec.clj                        0 errors, 0 warnings, 0 dynamic
+/clojure/inspector.clj                   0 errors, 0 warnings, 0 dynamic
+/clojure/instant.clj                     0 errors, 0 warnings, 0 dynamic
+/clojure/java/browse.clj                 0 errors, 0 warnings, 1 dynamic
+/clojure/java/browse_ui.clj              0 errors, 0 warnings, 1 dynamic
+/clojure/java/io.clj                     0 errors, 0 warnings, 1 dynamic
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/main.clj                        0 errors, 0 warnings, 8 dynamic
-/clojure/parallel.clj                    0 errors, 29 warnings, 5 dynamic
+/clojure/main.clj                        0 errors, 0 warnings, 5 dynamic
+/clojure/parallel.clj                    0 errors, 11 warnings, 20 dynamic
       2317: unable to resolve 'Ops$Op'
       2381: unable to resolve 'Ops$BinaryOp'
       2470: unable to resolve 'Ops$IntAndObjectToObject'
@@ -46,26 +39,8 @@
       2821: unable to resolve 'Ops$IntAndObjectPredicate'
       4270: unable to resolve 'ParallelArrayWithMapping'
       4323: unable to resolve 'ParallelArray'
-      4337: unable to resolve 'createUsingHandoff'
       4394: unable to resolve 'ParallelArray'
-      4408: unable to resolve 'defaultExecutor'
-      4538: unable to resolve 'withBounds'
-      4607: unable to resolve 'withFilter'
-      4680: unable to resolve 'withFilter'
-      4780: unable to resolve 'withIndexedFilter'
-      4867: unable to resolve 'withMapping'
-      4940: unable to resolve 'withMapping'
-      5031: unable to resolve 'withIndexedMapping'
-      5408: unable to resolve 'any'
-      6117: unable to resolve 'summary'
-      6170: unable to resolve 'summary'
-      6671: unable to resolve 'getArray'
       6812: unable to resolve 'ParallelArrayWithMapping'
-      6855: unable to resolve 'all'
-      7115: unable to resolve 'allUniqueElements'
-      7231: unable to resolve 'precumulate'
-      7651: unable to resolve 'removeNulls'
-      7828: unable to resolve 'removeConsecutiveDuplicates'
 /clojure/pprint.clj                      0 errors, 0 warnings, 0 dynamic
 /clojure/pprint/cl_format.clj            0 errors, 24 warnings, 0 dynamic
       56082: unable to resolve 'params'
@@ -123,18 +98,16 @@
 /clojure/pprint/utilities.clj            0 errors, 0 warnings, 0 dynamic
 /clojure/reflect.clj                     0 errors, 0 warnings, 0 dynamic
 /clojure/reflect/java.clj                0 errors, 0 warnings, 0 dynamic
-/clojure/repl.clj                        0 errors, 0 warnings, 4 dynamic
+/clojure/repl.clj                        0 errors, 0 warnings, 6 dynamic
 /clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/stacktrace.clj                  0 errors, 0 warnings, 7 dynamic
-/clojure/string.clj                      0 errors, 2 warnings, 2 dynamic
-      7599: unable to resolve 'toUpperCase'
-      7732: unable to resolve 'toLowerCase'
+/clojure/string.clj                      0 errors, 0 warnings, 0 dynamic
 /clojure/template.clj                    0 errors, 0 warnings, 0 dynamic
 /clojure/test.clj                        0 errors, 0 warnings, 1 dynamic
-/clojure/test/junit.clj                  0 errors, 0 warnings, 3 dynamic
+/clojure/test/junit.clj                  0 errors, 0 warnings, 2 dynamic
 /clojure/test/tap.clj                    0 errors, 0 warnings, 0 dynamic
 /clojure/uuid.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 96 warnings in 43 files (729.74K chars)
+Total: 69 warnings in 43 files (729.74K chars)

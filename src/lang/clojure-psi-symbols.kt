@@ -227,6 +227,8 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
     else -> super.getUseScope()
   }.intersectWith(ClojureDefinitionService.getClojureSearchScope(project))
 
+  override fun isValid() = target.isValid
+
   override fun toString() = target.key.toString()
 }
 

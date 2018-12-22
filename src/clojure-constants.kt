@@ -127,6 +127,16 @@ object ClojureConstants {
   @JvmStatic val C_VAR = "clojure.lang.Var"
   @JvmStatic val C_NAMESPACE = "clojure.lang.Namespace"
 
+  @JvmStatic val J_BOXED_TYPES = mapOf(
+    "boolean" to "java.lang.Boolean",
+    "byte" to "java.lang.Byte",
+    "char" to "java.lang.Character",
+    "short" to "java.lang.Short",
+    "int" to "java.lang.Integer",
+    "long" to "java.lang.Long",
+    "float" to "java.lang.Float",
+    "double" to "java.lang.Double")
+
 }
 
 object ClojureIcons {

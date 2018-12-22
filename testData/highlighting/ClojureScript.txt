@@ -1,4 +1,4 @@
-/cljs/analyzer.cljc                      0 errors, 24 warnings, 29 dynamic
+/cljs/analyzer.cljc                      0 errors, 24 warnings, 18 dynamic
       604: unable to resolve 'ensure'
       2075: unable to resolve 'cljs.tagged_literals'
       2096: unable to resolve 'JSValue'
@@ -27,19 +27,15 @@
 /cljs/analyzer/macros.clj                0 errors, 0 warnings, 1 dynamic
 /cljs/analyzer/utils.clj                 0 errors, 0 warnings, 0 dynamic
 /cljs/build/api.clj                      0 errors, 0 warnings, 0 dynamic
-/cljs/closure.clj                        0 errors, 11 warnings, 47 dynamic
-      13343: unable to resolve 'setExtraAnnotationNames'
+/cljs/closure.clj                        0 errors, 7 warnings, 35 dynamic
       55993: unable to resolve 'read-str'
       61410: unable to resolve 'write-str'
       65273: unable to resolve 'read-str'
-      76369: unable to resolve 'getResources'
       90926: unable to resolve 'read-str'
       93213: unable to resolve 'read-str'
       101261: unable to resolve 'input-stream-push-back-reader'
       101381: unable to resolve 'read'
-      102385: unable to resolve 'getResources'
-      117537: unable to resolve 'poll'
-/cljs/compiler.cljc                      0 errors, 5 warnings, 26 dynamic
+/cljs/compiler.cljc                      0 errors, 5 warnings, 23 dynamic
       604: unable to resolve 'ensure'
       46822: unable to resolve 'write-str'
       46869: unable to resolve 'read-str'
@@ -47,7 +43,7 @@
       48652: unable to resolve '*alias-map*'
 /cljs/compiler/api.clj                   0 errors, 0 warnings, 0 dynamic
 /cljs/compiler/macros.clj                0 errors, 0 warnings, 0 dynamic
-/cljs/core.cljc                          0 errors, 7 warnings, 66 dynamic
+/cljs/core.cljc                          0 errors, 7 warnings, 47 dynamic
       555: unable to resolve 'assert-args'
       1982: unable to resolve 'unchecked-divide'
       2842: unable to resolve 'alias'
@@ -55,7 +51,7 @@
       89892: unable to resolve 'IllegalArgumentException'
       136083: unable to resolve 't'
       136102: unable to resolve 'e'
-/cljs/core.cljs                          0 errors, 22 warnings, 1028 dynamic
+/cljs/core.cljs                          0 errors, 19 warnings, 600 dynamic
       34883: unable to resolve 'cljs.core.Var'
       61210: unable to resolve 'goog.math.Integer'
       61248: unable to resolve 'goog.math.Long'
@@ -74,9 +70,6 @@
       253782: unable to resolve 'res'
       253828: unable to resolve 'res'
       253842: unable to resolve 'i'
-      274710: unable to resolve 'constructor'
-      274724: unable to resolve 'cljs$lang$ctorStr'
-      274936: unable to resolve 'constructor'
       321940: unable to resolve 'goog.Uri'
 /cljs/core/macros.clj                    0 errors, 3 warnings, 0 dynamic
       1132: unable to resolve 'source-logging-push-back-reader'
@@ -84,9 +77,9 @@
       1260: unable to resolve 'read'
 /cljs/env.cljc                           0 errors, 0 warnings, 0 dynamic
 /cljs/env/macros.clj                     0 errors, 0 warnings, 0 dynamic
-/cljs/externs.clj                        0 errors, 0 warnings, 20 dynamic
+/cljs/externs.clj                        0 errors, 0 warnings, 22 dynamic
 /cljs/js.clj                             0 errors, 0 warnings, 0 dynamic
-/cljs/js.cljs                            0 errors, 29 warnings, 45 dynamic
+/cljs/js.cljs                            0 errors, 29 warnings, 42 dynamic
       1996: unable to resolve 'read'
       4407: unable to resolve 'default-compiler-env'
       6221: unable to resolve '*compiler*'
@@ -116,13 +109,13 @@
       47814: unable to resolve 'resolve-symbol'
       50783: unable to resolve '*compiler*'
       51272: unable to resolve '*compiler*'
-/cljs/js_deps.cljc                       0 errors, 0 warnings, 2 dynamic
-/cljs/loader.cljs                        0 errors, 0 warnings, 16 dynamic
+/cljs/js_deps.cljc                       0 errors, 0 warnings, 0 dynamic
+/cljs/loader.cljs                        0 errors, 0 warnings, 15 dynamic
 /cljs/module_graph.cljc                  0 errors, 0 warnings, 0 dynamic
-/cljs/nodejs.cljs                        0 errors, 0 warnings, 8 dynamic
+/cljs/nodejs.cljs                        0 errors, 0 warnings, 6 dynamic
 /cljs/nodejscli.cljs                     0 errors, 0 warnings, 5 dynamic
 /cljs/pprint.cljc                        0 errors, 0 warnings, 0 dynamic
-/cljs/pprint.cljs                        0 errors, 44 warnings, 148 dynamic
+/cljs/pprint.cljs                        0 errors, 44 warnings, 138 dynamic
       11673: unable to resolve 'nl-t?'
       12028: unable to resolve 'nl-t?'
       12820: unable to resolve 'nl-t?'
@@ -168,14 +161,14 @@
       109889: unable to resolve 'aseq'
       109989: unable to resolve 'aseq'
 /cljs/reader.clj                         0 errors, 0 warnings, 0 dynamic
-/cljs/reader.cljs                        0 errors, 6 warnings, 19 dynamic
+/cljs/reader.cljs                        0 errors, 6 warnings, 18 dynamic
       3859: unable to resolve 'PersistentQueue.EMPTY'
       5679: unable to resolve 'read'
       5826: unable to resolve 'read'
       5992: unable to resolve 'read'
       6383: unable to resolve 'read-string'
       6504: unable to resolve 'read-string'
-/cljs/repl.cljc                          0 errors, 20 warnings, 12 dynamic
+/cljs/repl.cljc                          0 errors, 20 warnings, 11 dynamic
       2480: unable to resolve 'read-char'
       2574: unable to resolve 'unread'
       3167: unable to resolve 'read-char'
@@ -198,16 +191,13 @@
       50415: unable to resolve 'read'
 /cljs/repl.cljs                          0 errors, 0 warnings, 0 dynamic
 /cljs/repl/browser.clj                   0 errors, 0 warnings, 5 dynamic
-/cljs/repl/nashorn.clj                   0 errors, 0 warnings, 8 dynamic
-/cljs/repl/node.clj                      0 errors, 1 warnings, 17 dynamic
+/cljs/repl/nashorn.clj                   0 errors, 0 warnings, 6 dynamic
+/cljs/repl/node.clj                      0 errors, 1 warnings, 13 dynamic
       1955: unable to resolve 'read-str'
 /cljs/repl/reflect.clj                   0 errors, 0 warnings, 1 dynamic
-/cljs/repl/rhino.clj                     0 errors, 1 warnings, 9 dynamic
-      6839: unable to resolve 'unwrap'
-/cljs/repl/server.clj                    0 errors, 0 warnings, 19 dynamic
-/cljs/source_map.clj                     0 errors, 4 warnings, 1 dynamic
-      8469: unable to resolve 'getParentFile'
-      8484: unable to resolve 'toURI'
+/cljs/repl/rhino.clj                     0 errors, 0 warnings, 8 dynamic
+/cljs/repl/server.clj                    0 errors, 0 warnings, 17 dynamic
+/cljs/source_map.clj                     0 errors, 2 warnings, 1 dynamic
       11816: unable to resolve 'pprint'
       11900: unable to resolve 'write-str'
 /cljs/source_map.cljs                    0 errors, 0 warnings, 11 dynamic
@@ -220,7 +210,7 @@
       16081: unable to resolve '_speced_vars'
       16131: unable to resolve '_speced_vars'
       17490: unable to resolve '_speced_vars'
-/cljs/spec/alpha.cljs                    0 errors, 37 warnings, 16 dynamic
+/cljs/spec/alpha.cljs                    0 errors, 37 warnings, 15 dynamic
       8178: unable to resolve 'such-that'
       9760: unable to resolve 'map-spec'
       14645: unable to resolve 'bind'
@@ -369,25 +359,25 @@
       4849: unable to resolve 'elements'
 /cljs/spec/test/alpha.cljc               0 errors, 0 warnings, 0 dynamic
 /cljs/spec/test/alpha.cljs               0 errors, 0 warnings, 15 dynamic
-/cljs/stacktrace.cljc                    0 errors, 0 warnings, 13 dynamic
+/cljs/stacktrace.cljc                    0 errors, 0 warnings, 8 dynamic
 /cljs/support.cljc                       0 errors, 0 warnings, 0 dynamic
-/cljs/tagged_literals.cljc               0 errors, 0 warnings, 11 dynamic
+/cljs/tagged_literals.cljc               0 errors, 0 warnings, 9 dynamic
 /cljs/test.cljc                          0 errors, 0 warnings, 5 dynamic
 /cljs/test.cljs                          0 errors, 0 warnings, 10 dynamic
 /cljs/util.cljc                          0 errors, 0 warnings, 3 dynamic
-/clojure/browser/dom.cljs                0 errors, 0 warnings, 22 dynamic
+/clojure/browser/dom.cljs                0 errors, 0 warnings, 20 dynamic
 /clojure/browser/event.cljs              0 errors, 0 warnings, 14 dynamic
-/clojure/browser/net.cljs                0 errors, 1 warnings, 34 dynamic
+/clojure/browser/net.cljs                0 errors, 1 warnings, 29 dynamic
       4870: unable to resolve 'WebSocket.EventType'
-/clojure/browser/repl.cljs               0 errors, 0 warnings, 60 dynamic
+/clojure/browser/repl.cljs               0 errors, 0 warnings, 58 dynamic
 /clojure/browser/repl/preload.cljs       0 errors, 0 warnings, 0 dynamic
-/clojure/core/reducers.cljs              0 errors, 0 warnings, 2 dynamic
+/clojure/core/reducers.cljs              0 errors, 0 warnings, 1 dynamic
 /clojure/data.cljs                       0 errors, 0 warnings, 0 dynamic
 /clojure/reflect.cljs                    0 errors, 0 warnings, 6 dynamic
 /clojure/set.cljs                        0 errors, 0 warnings, 0 dynamic
-/clojure/string.cljs                     0 errors, 0 warnings, 52 dynamic
+/clojure/string.cljs                     0 errors, 0 warnings, 32 dynamic
 /clojure/walk.cljs                       0 errors, 0 warnings, 0 dynamic
 /clojure/zip.cljs                        0 errors, 0 warnings, 0 dynamic
 /process/env.cljs                        0 errors, 1 warnings, 0 dynamic
       541: unable to resolve 'NODE_ENV'
-Total: 327 warnings in 65 files (1.46M chars)
+Total: 317 warnings in 65 files (1.46M chars)

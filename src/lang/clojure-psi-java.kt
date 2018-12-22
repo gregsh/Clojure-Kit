@@ -224,15 +224,17 @@ abstract class JavaHelper {
     }
 
     override fun getMemberTypes(member: NavigatablePsiElement?): List<String> {
+      fun String.genAware(generic: Boolean) = if (!generic) this else "<$this>"
       if (member is PsiField) return listOf(member.type.canonicalText)
       if (member !is PsiMethod) return asm.getMemberTypes(member)
       val returnType = member.returnType
+      val genericReturn = returnType is PsiClassType && returnType.resolve() is PsiTypeParameter
       val strings = ArrayList<String>()
-      strings.add(if (returnType == null) "" else returnType.canonicalText)
+      strings.add(returnType?.getCanonicalText(false)?.genAware(genericReturn) ?: "")
       for (parameter in member.parameterList.parameters) {
         val type = parameter.type
         val generic = type is PsiClassType && type.resolve() is PsiTypeParameter
-        strings.add((if (generic) "<" else "") + type.getCanonicalText(false) + if (generic) ">" else "")
+        strings.add(type.getCanonicalText(false).genAware(generic))
         strings.add(parameter.name ?: "_")
       }
       return strings
@@ -322,12 +324,16 @@ abstract class JavaHelper {
     internal fun lazyCached(id: String?, nulls: ConcurrentMap<String, Boolean>, info: () -> Any?): MyElement<*>? {
       return map[id ?: return null] ?: run { if (nulls[id] == true) null else info().let {
         if (it == null) { nulls.put(id, true); null } else
-          ConcurrencyUtil.cacheOrGet(map, id, MyElement(project, it))
+          ConcurrencyUtil.cacheOrGet(map, id, wrap(it))
       } }
     }
 
     internal fun cached(id: String, info: Any) =
-        map[id] ?: ConcurrencyUtil.cacheOrGet(map, id, MyElement(project, info))
+        map[id] ?: ConcurrencyUtil.cacheOrGet(map, id, wrap(info))
+
+    private fun wrap(info: Any) =
+        if (info is ClassInfo || info is PackageInfo) MyQualifiedElement(project, info)
+        else MyElement(project, info)
 
     internal fun superclasses(name: String?) = JBTreeTraverser<MyElement<*>> { o ->
       JBIterable.of((o.delegate as? ClassInfo)?.superClass)
@@ -670,8 +676,10 @@ abstract class JavaHelper {
     }
   }
 
-  private class MyElement<out T>(private val project: Project, val delegate: T) :
-      FakePsiElement(), NavigatablePsiElement, PsiQualifiedNamedElement, PsiMetaOwner, PsiPresentableMetaData {
+  private class MyQualifiedElement<out T>(project: Project, delegate: T) : MyElement<T>(project, delegate), PsiQualifiedNamedElement
+
+  private open class MyElement<out T>(private val project: Project, val delegate: T) :
+      FakePsiElement(), NavigatablePsiElement, PsiMetaOwner, PsiPresentableMetaData {
     override fun getParent() = null
     override fun getProject() = project
     override fun getManager() = PsiManager.getInstance(project)
@@ -688,7 +696,7 @@ abstract class JavaHelper {
       else -> null
     }
 
-    override fun getQualifiedName() = when (delegate) {
+    fun getQualifiedName() = when (delegate) {
       is PackageInfo -> delegate.name
       is ClassInfo -> delegate.name
       else -> name

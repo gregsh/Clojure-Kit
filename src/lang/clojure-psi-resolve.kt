@@ -120,14 +120,8 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
                     result = grandP.childForms.filter(CSymbol::class).skip(1).first()?.resolveExprType()
                     return@forEachWithPrev
                   }
-                  "reify" -> {
-                    result = grandP.childForms.filter(CSymbol::class).skip(1)
-                        .map(CSymbol::resolveExprType).toList()
-                    return@forEachWithPrev
-                  }
-                  "proxy" -> {
-                    result = grandP.childForms.filter(CVec::class).first().childForms
-                        .filter(CSymbol::class).map(CSymbol::resolveExprType).toList()
+                  "reify", "proxy" -> {
+                    result = exprType(grandP)
                     return@forEachWithPrev
                   }
                 }
@@ -138,7 +132,9 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
             else -> null
           }
         }
-        navElement is CForm -> exprType(navElement)
+        navElement is CForm ->
+          if (navElement.def?.type == "def") exprType(navElement.findChild(Role.NAME)?.nextForm)
+          else exprType(navElement)
         navElement.asCTarget != null -> (navElement.forceXTarget?.resolveStub() as? CListStub)?.run {
           resolveName(this@exprTypeImpl, meta[TYPE_META])
         }
@@ -150,6 +146,12 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
         else -> null
       }
     }
+    is CAccess -> {
+      when (form.lastChild.elementType) {
+        ClojureTypes.C_DOT -> form.symbol.resolveExprType()
+        else -> exprType(form.symbol)
+      }
+    }
     is CList -> {
       val def = form.asDef?.def
       if (def != null) {
@@ -158,15 +160,14 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
       else {
         val first = form.firstForm
         when (first) {
-          is CAccess -> when (first.lastChild.elementType) {
-            ClojureTypes.C_DOT -> first.symbol.resolveExprType()
-            else -> exprType(first.symbol)
-          }
           is CSymbol -> when (first.name) {
             "new" -> (first.nextForm as? CSymbol)?.resolveExprType()
             "." -> (first.nextForm as? CSymbol)?.resolveExprType() as? String ?: exprType(first.nextForm?.nextForm)
             ".." -> exprType(first.nextForms.last())
             "var" -> ClojureConstants.C_VAR
+            "doto" -> exprType(first.nextForm)
+            "reify" -> form.childForms.filter(CSymbol::class).skip(1).map(CSymbol::resolveExprType).toList()
+            "proxy" -> form.childForms.filter(CVec::class).first().childForms.filter(CSymbol::class).map(CSymbol::resolveExprType).toList()
             else -> exprType(first)
           }
           else -> exprType(first)
@@ -440,7 +441,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
         }
         return@forEachWithPrev
       }
-      val innerType = if (prevO != null && (type.endsWith("->") || type.endsWith("->>"))) formType(prevO) else type
+      val innerType = if (prevO != null && (type.endsWith("->") || type.endsWith("->>") || type == "doto")) formType(prevO) else type
       val isFnLike = ClojureConstants.FN_ALIKE_SYMBOLS.contains(type)
       if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(type)) {
         for (part in (if (prevO.role == Role.FIELD_VEC) prevO else o.findChild(Role.FIELD_VEC) as? CVec).childForms(CSymbol::class)) {
@@ -521,33 +522,77 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       else if (innerType == "." || innerType == ".." || innerType == ".-" || innerType == ". id") {
         if (prevO == element && prevO.context == o || prevO is CList && prevO.firstForm == element) {
           val isProp = innerType == ".-"
-          val isProp2 = refText != null && refText.startsWith("-")
           val isMethod = innerType == ". id"
           var scope = if (isProp) JavaHelper.Scope.INSTANCE else JavaHelper.Scope.STATIC
           val isInFirst = o.firstForm.isAncestorOf(element)
+          val isDots = innerType == "." || innerType == ".."
+          val isDotId = isProp || isMethod
+          var isInFirstAdjusted = isInFirst
 
-          val siblings = if (type.endsWith("->") || type.endsWith("->>")) JBIterable.of(prevO.prevForm)
-          else o.firstForm.nextForms.skip(if (innerType == "." || innerType == ".." || isInFirst) 1 else 0)
+          val siblings = if (type.endsWith("->") || type.endsWith("->>") || type == "..") {
+            val first = o.firstForm
+            prevO.prevForms.takeWhile { it != first }
+          }
+          else if (type == "doto") {
+            JBIterable.of(o.childForms[1])
+          }
+          else if (isInFirst) {
+            val p = o.parentForm
+            val type = if (p != null && p.firstForm.nextForm != o) formType(p) ?: "" else ""
+            if (type.endsWith("->") || type.endsWith("->>") || type == "..") {
+              isInFirstAdjusted = false
+              val first = p.firstForm
+              o.prevForms.takeWhile { it != first }
+            }
+            else if (type == "doto") {
+              isInFirstAdjusted = false
+              JBIterable.of(p.childForms[1])
+            }
+            else {
+              o.firstForm.nextForms.skip(1).takeWhile { it != prevO }
+            }
+          }
+          else {
+            o.firstForm.nextForms.skip(if (isDots) 1 else 0).takeWhile { it != prevO }
+          }
 
-          val index = if (isInFirst) 0 else siblings.takeWhile { !it.isAncestorOf(element) }.size()
+          val index = if (isInFirstAdjusted) 0 else siblings.size()
           val exprTypes = (if (isCljs) null
-          else siblings.first()?.let { form ->
-            if (form == element) return@let null
-            if ((innerType == "." || innerType == "..") && form is CSymbol && form.qualifier == null) {
-              val resolvedName = form.resolveExprType() as? String // only class names
+          else siblings.first()?.let expr@ { form ->
+            if (form == element) return@expr null
+            val sym = form as? CSymbol ?: (form as? CAccess)?.symbol
+            if (sym != null && sym.qualifier == null && form.lastChild.elementType != ClojureTypes.C_DOT &&
+                (isDotId || isDots)) {
+              if (!isDots || index > 1) {
+                val target = sym.reference.resolve() as? NavigatablePsiElement
+                if (target != null && target !is PsiQualifiedNamedElement) {
+                  val ret = service.java.getMemberTypes(target).firstOrNull()
+                  if (ret != null) {
+                    scope = JavaHelper.Scope.INSTANCE
+                    val idx = ret.indexOf('<')
+                    return@expr if (idx > 0) ret.substring(0, idx) else ret
+                  }
+                  return@expr null
+                }
+              }
+              val resolvedName = sym.resolveExprType() as? String // only class names
               if (resolvedName != null) {
                 scope = JavaHelper.Scope.STATIC
-                return@let resolvedName
+                return@expr resolvedName
               }
             }
             scope = JavaHelper.Scope.INSTANCE
             service.exprType(form)
           })
               .let {
-                (if (it is Iterable<*>) JBIterable.from(it)
-                else JBIterable.of(it)).run { if (!isCljs) append(ClojureConstants.J_OBJECT) else this }.unique() }
+                val iterable = if (it is Iterable<*>) JBIterable.from(it) else JBIterable.of(it)
+                if (isCljs) iterable
+                else iterable.append(ClojureConstants.J_OBJECT)
+                    .map { ClojureConstants.J_BOXED_TYPES[it]
+                        ?: if (it is String && it.startsWith("<")) ClojureConstants.J_OBJECT else it } }
+              .unique()
           if (innerType == ".." && index >= 2) scope = JavaHelper.Scope.INSTANCE
-          val processFields = isProp || isMethod || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
+          val processFields = isDotId || isInFirst && siblings.size() == 1 || !isInFirst && element.nextForm == null
           val processMethods = !isProp
           for (exprType in exprTypes) when (exprType) {
             is SymKey -> {
@@ -567,7 +612,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             }
             is String -> {
               val javaClass = findClass(exprType, service)
-              if (index == 0 && javaClass != null && (innerType == "." || innerType == "..")) {
+              if (isDots && index == 0 && javaClass != null) {
                 if (!processor.execute(javaClass, state)) return false
               }
               if (javaClass != null || !isCljs) {
@@ -583,12 +628,10 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               }
             }
           }
-          // stop processing in certain cases
-          if (index == 0 && (isMethod || isProp) ||
-              (isProp2 || isCljs) && (innerType == "." || innerType == ".." && index >= 1)) {
-            return processor.skipResolve()
+          if (prevO is CAccess || isDots && o.firstForm != prevO.prevForm) {
+            processor.skipResolve()
           }
-          if ((isProp || isMethod) && refText == null) {
+          if (isDotId && refText == null) {
             return true
           }
         }

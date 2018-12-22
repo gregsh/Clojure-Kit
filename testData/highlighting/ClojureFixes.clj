@@ -117,3 +117,14 @@
      Runnable
      (run [])
    ))
+
+(do
+  (.. Integer (parseInt "12") floatValue)
+
+  (.. (Object.) getClass isArray)
+
+  (doto (Object.) (.getClass) (.getClass))
+  (doto (Object.) .getClass .getClass)
+
+  (-> (Object.) (.getClass) (.getName))
+  (-> (Object.) .getClass .getName))
