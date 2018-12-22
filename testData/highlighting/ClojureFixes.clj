@@ -39,6 +39,8 @@
   (require [clojure.string :refer [blank?]])
   (blank?)
   (<warning>trim-newline</warning>)
+  (when-let [nsname 'foo.core']
+    (require (symbol nsname)))
   )
 
 (do

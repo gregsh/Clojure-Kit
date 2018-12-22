@@ -715,7 +715,7 @@ private class NSReader(val helper: RoleHelper) {
         is CKeyword -> if (item.name == "as") iterator.safeNext()  // ignore the next form to get it highlighted
         is CSymbol -> addImport(item, "")
         is CVec -> addImport(item, "")
-        is CList -> {
+        is CList -> if (item.fastFlags and FLAG_QUOTED != 0) {
           traverser.iterate(item).iterator().apply {
             val prefixSym = safeNext() as? CSymbol ?: return@apply
             val nsPrefix = prefixSym.name
