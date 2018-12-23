@@ -206,7 +206,9 @@ class ClojureExpressionEvaluator(val codeFragment: PsiElement, val position: Sou
     val frameProxyImpl = context.frameProxy as StackFrameProxyImpl
     val frameVariables = frameProxyImpl.visibleVariables().asSequence().map { it.name() }
     val thisFields = (frameProxyImpl.thisObject()?.type() as? ClassType)?.fields()?.asSequence()?.map { it.name() } ?: emptySequence<String>()
-    val args = sequenceOf(frameVariables, thisFields).flatten().filter { symbols.contains(it) }.distinct().joinToString(", ")
+    val args = sequenceOf(frameVariables, thisFields)
+        .flatten().map { listOf(demunge(it), it) }
+        .flatten().distinct().filter(symbols::contains).toList()
 
     //language=Java prefix="class A {{" suffix="}}"
     val text = """
@@ -217,8 +219,8 @@ class ClojureExpressionEvaluator(val codeFragment: PsiElement, val position: Sou
         clojure.lang.RT.var("clojure.core", "eval")
           .invoke(clojure.lang.RT.var("clojure.core", "read-string")
           .invoke("(do ${requires.joinToString("") { "(require '$it)" }}" +
-                  "(fn [$args] ${StringUtil.escapeStringCharacters(fragmentText)}))"))
-          .invoke($args);
+                  "(fn [${args.joinToString(", ")}] ${StringUtil.escapeStringCharacters(fragmentText)}))"))
+          .invoke(${args.map { munge(it) }.joinToString(", ")});
       }
       finally {
         clojure.lang.Var.popThreadBindings();
