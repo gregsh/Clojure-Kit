@@ -57,6 +57,7 @@ import com.intellij.xdebugger.frame.XStackFrame
 import com.intellij.xdebugger.impl.breakpoints.XExpressionImpl
 import com.sun.jdi.*
 import com.sun.jdi.request.ClassPrepareRequest
+import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.lang.CCodeFragmentImpl
 import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
@@ -203,9 +204,11 @@ class ClojureExpressionEvaluator(val codeFragment: PsiElement, val position: Sou
     val fragmentText = readAction {
       codeFragment.qualifiedText(symbols::add, requires::add)
     }
+    val castMap = HashMap<String, String>()
+    val checkCast = { name: String, type: String -> ClojureConstants.J_BOXED_TYPES[type]?.let { castMap[name] = type }; name }
     val frameProxyImpl = context.frameProxy as StackFrameProxyImpl
-    val frameVariables = frameProxyImpl.visibleVariables().asSequence().map { it.name() }
-    val thisFields = (frameProxyImpl.thisObject()?.type() as? ClassType)?.fields()?.asSequence()?.map { it.name() } ?: emptySequence<String>()
+    val frameVariables = frameProxyImpl.visibleVariables().jbIt().map { checkCast(it.name(), it.typeName()) }
+    val thisFields = (frameProxyImpl.thisObject()?.type() as? ClassType)?.fields().jbIt().map { checkCast(it.name(), it.typeName()) }
     val args = sequenceOf(frameVariables, thisFields)
         .flatten().map { listOf(demunge(it), it) }
         .flatten().distinct().filter(symbols::contains).toList()
@@ -216,11 +219,11 @@ class ClojureExpressionEvaluator(val codeFragment: PsiElement, val position: Sou
         clojure.lang.Compiler.LINE, 1, clojure.lang.Compiler.COLUMN, 1));
       try {
         return
-        clojure.lang.RT.var("clojure.core", "eval")
+        ((clojure.lang.IFn)clojure.lang.RT.var("clojure.core", "eval")
           .invoke(clojure.lang.RT.var("clojure.core", "read-string")
           .invoke("(do ${requires.joinToString("") { "(require '$it)" }}" +
-                  "(fn [${args.joinToString(", ")}] ${StringUtil.escapeStringCharacters(fragmentText)}))"))
-          .invoke(${args.map { munge(it) }.joinToString(", ")});
+                  "(fn [${args.joinToString(", ")}] ${StringUtil.escapeStringCharacters(fragmentText)}))")))
+          .invoke(${args.map { munge(it) }.map { name  -> castMap[name]?.let { "($it)$name"} ?: name }.joinToString(", ")});
       }
       finally {
         clojure.lang.Var.popThreadBindings();
