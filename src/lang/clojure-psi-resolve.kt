@@ -626,7 +626,9 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               }
             }
           }
-          if (prevO is CAccess || isDots && o.firstForm != prevO.prevForm) {
+          if (prevO is CAccess ||
+              innerType == ".." && o.firstForm != prevO.prevForm ||
+              innerType == "." && o.firstForm == prevO.prevForm.prevForm) {
             processor.skipResolve()
           }
           if (isDotId && refText == null) {

@@ -155,23 +155,27 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
 //    walkAndHighlight { block -> walkFs(CLJ_LIB_FS, file, block) } }
 
   private fun walkAndHighlight(walker: ((Path, String) -> Unit) -> Unit) {
+    val ignoreInCljs = arrayOf("goog", "gobj", "gstring", "garray", "gdom", "gjson")
     val stat = object {
       var duration = System.currentTimeMillis()
       var files: Int = 0
       var chars: Long = 0
       var warnings: Long = 0
+      var dynamic: Long = 0
     }
     val report = StringBuilder()
     walker { path: Path, text: String ->
       stat.files++
       stat.chars += text.length
       val lightVirtualFile = LightVirtualFile(path.toString(), ClojureLanguage, text)
+      val isCljs = lightVirtualFile.name.run { endsWith(".cljc") || endsWith(".cljs") }
       myFixture.configureFromExistingVirtualFile(lightVirtualFile)
       val infos = myFixture.doHighlighting().jbIt()
       val errors = infos.filter { it.severity == HighlightSeverity.ERROR }.size()
       val warnings = infos.filter { it.severity == HighlightSeverity.WARNING }.size()
       val dynamic = infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }.size()
       stat.warnings += warnings
+      stat.dynamic += dynamic
       "${path.toString().run { this + StringUtil.repeat(" ", Math.max(0, 40 - length)) }} $errors errors, $warnings warnings, $dynamic dynamic".run {
         report.append(this).append("\n")
         println(this)
@@ -179,9 +183,14 @@ class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
       for (info in infos.filter { it.severity == HighlightSeverity.ERROR || it.severity == HighlightSeverity.WARNING }) {
         report.append("      ${info.startOffset}: ${info.description}").append("\n")
       }
+      for (info in infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }) {
+        val sym = text.subSequence(info.startOffset, info.endOffset)
+        if (isCljs && (sym == "js" || ignoreInCljs.find { sym.startsWith(it) } != null)) continue
+        report.append("      ${info.startOffset}: dynamic '$sym'").append("\n")
+      }
     }
     stat.duration = System.currentTimeMillis() - stat.duration
-    stat.run { "Total: $warnings warnings in $files files (${StringUtil.formatFileSize(chars)} chars)".run {
+    stat.run { "Total: $warnings warnings, $dynamic dynamic in $files files (${StringUtil.formatFileSize(chars)})".run {
       report.append(this).append("\n")
       println("${getTestName(false)}\n${this}")
     } }
