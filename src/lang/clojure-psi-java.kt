@@ -137,8 +137,9 @@ abstract class JavaHelper {
       return provider
     }
 
-    override fun findClass(className: String?) : NavigatablePsiElement? =
-        className?.let { myFacade.findClass(it, GlobalSearchScope.allScope(myFacade.project)) ?: asm.findClass(it) }
+    override fun findClass(className: String?): NavigatablePsiElement? = className?.let {
+      myFacade.findClass(it.replace('$', '.'), GlobalSearchScope.allScope(myFacade.project))
+          ?: asm.findClass(it) }
 
     override fun findPackage(packageName: String?, withClass: String?): NavigatablePsiElement? =
         myFacade.findPackage(packageName!!) as? NavigatablePsiElement ?: asm.findPackage(packageName, withClass)
@@ -225,6 +226,7 @@ abstract class JavaHelper {
 
     override fun getMemberTypes(member: NavigatablePsiElement?): List<String> {
       fun String.genAware(generic: Boolean) = if (!generic) this else "<$this>"
+      if (member is PsiClass) return listOf(ClojureConstants.J_CLASS)
       if (member is PsiField) return listOf(member.type.canonicalText)
       if (member !is PsiMethod) return asm.getMemberTypes(member)
       val returnType = member.returnType
@@ -598,26 +600,23 @@ abstract class JavaHelper {
     private fun findClassSafe(className: String?): ClassInfo? {
       if (className == null) return null
       try {
-        var lastDot = className.lastIndexOf('.')
         var url: String? = null
         var stream: InputStream? = null
-        while (stream == null && lastDot > 0) {
-          val pkgName = className.substring(0, lastDot).replace('.', '/')
-          val clzName = className.substring(lastDot + 1).replace('.', '$') + ".class"
+        val lastDot = className.lastIndexOf('.')
+        val pkgName = className.substring(0, lastDot).replace('.', '/')
+        val clzName = className.substring(lastDot + 1) + ".class"
+        for (psiFile in FilenameIndex.getFilesByName(project, clzName, GlobalSearchScope.allScope(project))) {
+          url = "jar:file://" + psiFile.virtualFile.presentableUrl
+          if (url.endsWith("!/$pkgName/$clzName")) {
+            stream = try { psiFile.virtualFile.inputStream } catch (e: Exception) { null }
+            break
+          }
+        }
+        if (stream == null) {
           val bundledUrl = JavaHelper::class.java.classLoader.getResource("$pkgName/$clzName")
           stream = try { bundledUrl?.openStream() } catch (e: Exception) { null }
           url = bundledUrl?.toExternalForm()
-          if (stream != null) break
-          for (psiFile in FilenameIndex.getFilesByName(project, clzName, GlobalSearchScope.allScope(project))) {
-            url = "jar:file://" + psiFile.virtualFile.presentableUrl
-            if (url.endsWith("!/$pkgName/$clzName")) {
-              stream = try { psiFile.virtualFile.inputStream } catch (e: Exception) { null }
-              break
-            }
-          }
-          lastDot = className.lastIndexOf('.', lastDot - 1)
         }
-
         if (url == null || stream == null) return null
         val bytes = FileUtil.loadBytes(stream)
         stream.close()

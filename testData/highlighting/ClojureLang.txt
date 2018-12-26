@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 8 warnings, 11 dynamic
+/clojure/core.clj                        0 errors, 8 warnings, 10 dynamic
       123975: unable to resolve 'setInt'
       124114: unable to resolve 'setLong'
       124261: unable to resolve 'setBoolean'

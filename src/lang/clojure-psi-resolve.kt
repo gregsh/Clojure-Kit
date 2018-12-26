@@ -280,10 +280,8 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               validResult = o.asCTarget?.key?.namespace == namespace
             }
             if (refText == state.get(RENAMED_KEY) || refText == o.name ||
-                o is PsiQualifiedNamedElement && refText == o.qualifiedName ||
-                o.asCTarget?.key?.run {
-                  type == JS_OBJ && refText == "$namespace.$name"
-                } == true) o
+                o.asCTarget?.key?.run { type == JS_OBJ && refText == "$namespace.$name" } == true ||
+                o is PsiQualifiedNamedElement && getJvmName(o)?.run { this == refText || endsWith(".$refText") } == true) o
             else null
           }
           else -> null
@@ -557,12 +555,12 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           }
 
           val index = if (isInFirstAdjusted) 0 else siblings.size()
-          val exprTypes = (if (isCljs) null
+          val exprTypes = (if (isCljs || isDotId && prevO !is CAccess) null
           else siblings.first()?.let expr@ { form ->
             if (form == element) return@expr null
             val sym = form as? CSymbol ?: (form as? CAccess)?.symbol
             if (sym != null && sym.qualifier == null && form.lastChild.elementType != ClojureTypes.C_DOT &&
-                (isDotId || isDots)) {
+                (isDotId && prevO !is CAccess|| isDots)) {
               if (!isDots || index > 1) {
                 val target = sym.reference.resolve() as? NavigatablePsiElement
                 if (target != null && target !is PsiQualifiedNamedElement) {
@@ -770,6 +768,18 @@ fun CForm.typeHintMeta(): CSymbol? = formPrefix().filter(CMetadata::class)
 fun CForm.keyMetas(): JBIterable<CKeyword> = formPrefix().filter(CMetadata::class)
       .map { it.form as? CKeyword }
       .notNulls()
+
+fun getJvmName(o: PsiQualifiedNamedElement): String? {
+  if (o.context !is PsiQualifiedNamedElement || o.containingFile == null) return o.qualifiedName
+  val sb = StringBuilder()
+  o.contexts().forEachWithPrev { cur, prev ->
+    if (prev == null) return@forEachWithPrev
+    else if (!sb.isEmpty()) sb.insert(0, '$')
+    if (cur is PsiQualifiedNamedElement) sb.insert(0, (prev as PsiQualifiedNamedElement).name)
+    else { sb.insert(0, (prev as PsiQualifiedNamedElement).qualifiedName); return sb.toString() }
+  }
+  throw AssertionError(o.javaClass.name)
+}
 
 private val SKIP_RESOLVE = object : PsiScopeProcessor.Event {}
 private val DESTRUCTURING = JBTreeTraverser<CForm> f@ {

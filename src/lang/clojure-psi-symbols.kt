@@ -229,6 +229,8 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
 
   override fun isValid() = target.isValid
 
+  override fun getContext(): PsiElement? = null
+
   override fun toString() = target.key.toString()
 }
 
