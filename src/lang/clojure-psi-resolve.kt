@@ -251,18 +251,20 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val result = arrayListOf<PsiElementResolveResult>()
     val nsQualifier = myElement.nextSibling.elementType == ClojureTypes.C_SLASH
     val namespace = (element.containingFile.originalFile as CFileImpl).namespace
+    var skipResolve = false
     processDeclarations(service, refText, ResolveState.initial(), object : BaseScopeProcessor(), NameHint {
       override fun handleEvent(event: PsiScopeProcessor.Event, associated: Any?) {
         if (event == SKIP_RESOLVE) {
-          myElement.putUserData(RESOLVE_SKIPPED, true)
+          skipResolve = true
         }
       }
 
       @Suppress("UNCHECKED_CAST")
       override fun <T : Any?> getHint(hintKey: Key<T>) = when (hintKey) {
-        NAME_HINT -> this
+        NAME_HINT -> this as T?
+        RESOLVE_SKIPPED -> skipResolve as T?
         else -> null
-      } as T?
+      }
 
       override fun getName(state: ResolveState) = refText
 
@@ -287,13 +289,13 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           else -> null
         }
         if (target != null) {
-          myElement.putUserData(RESOLVE_SKIPPED, null)
           result.add(PsiElementResolveResult(target, validResult))
           return false
         }
         return true
       }
     })
+    myElement.putUserData(RESOLVE_SKIPPED, if (skipResolve && result.isEmpty()) true else null)
     return if (result.isEmpty()) PsiElementResolveResult.EMPTY_ARRAY else result.toTypedArray()
   }
 
