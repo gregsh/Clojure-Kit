@@ -56,10 +56,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.util.ProgressIndicatorUtils
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Comparing
-import com.intellij.openapi.util.Disposer
-import com.intellij.openapi.util.TextRange
-import com.intellij.openapi.util.UserDataHolderEx
+import com.intellij.openapi.util.*
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.patterns.PlatformPatterns.psiElement
@@ -71,15 +68,21 @@ import com.intellij.pom.references.PomService
 import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.BaseScopeProcessor
+import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiElementProcessor
+import com.intellij.psi.search.SearchScope
 import com.intellij.psi.search.searches.DefinitionsScopedSearch
 import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.PsiUtilCore
+import com.intellij.refactoring.rename.RenamePsiElementProcessor
+import com.intellij.refactoring.rename.UnresolvableCollisionUsageInfo
 import com.intellij.refactoring.rename.inplace.MemberInplaceRenamer
 import com.intellij.refactoring.rename.inplace.VariableInplaceRenameHandler
+import com.intellij.usageView.UsageInfo
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.ProcessingContext
 import com.intellij.util.SingleAlarm
+import com.intellij.util.SmartList
 import com.intellij.util.concurrency.AppExecutorUtil
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.JBIterable
@@ -643,7 +646,69 @@ class ClojureInplaceRenameHandler : VariableInplaceRenameHandler() {
 
     override fun createInplaceRenamerToRestart(variable: PsiNamedElement, editor: Editor, initialName: String?) =
         MyRenamer(variable, editor, initialName, initialName)
+
+    override fun collectRefs(referencesSearchScope: SearchScope): MutableCollection<PsiReference> {
+      val (result, more) = doFindReferences(myElementToRename, referencesSearchScope)
+      if (result == null) return SmartList()
+      if (more != null) result.addAll(more)
+      return result
+    }
   }
+}
+
+class ClojureRenamePsiElementProcessor : RenamePsiElementProcessor() {
+  override fun canProcessElement(element: PsiElement): Boolean = element.asCTarget != null
+
+  override fun findReferences(element: PsiElement): MutableCollection<PsiReference> {
+    val scope = GlobalSearchScope.projectScope(element.project)
+    val (result, more) = doFindReferences(element, scope)
+    if (result == null) return SmartList()
+    if (more == null || more.isEmpty()) return result
+    element.putUserData(MORE_OFFSET_KEY, result.size)
+    result.addAll(more)
+    return result
+  }
+
+  override fun findCollisions(element: PsiElement,
+                              newName: String,
+                              allRenames: MutableMap<out PsiElement, String>,
+                              result: MutableList<UsageInfo>) {
+    val offset = MORE_OFFSET_KEY.get(element) ?: return
+    element.putUserData(MORE_OFFSET_KEY, null)
+    val more = SmartList<UsageInfo>()
+    val vecCond: (PsiElement) -> Boolean = { o -> o.role.let { it == Role.BND_VEC || it == Role.ARG_VEC } }
+    for (usage in result.subList(offset, result.size)) {
+      val usageElement = usage.element ?: continue
+      val defVec = usage.reference?.resolve()?.navigationElement.parentForms.find(vecCond)
+      val defScope = defVec.parentForm ?: continue
+      val conflicts = SyntaxTraverser.psiTraverser(defScope)
+          .expand { it is CPForm }
+          .filter { it is CSymbol && it.name == newName && it.qualifier == null }
+      for (conflict in conflicts) {
+        val t = (conflict as CSymbol).resolveInfo() ?: continue
+        more.add(object : UnresolvableCollisionUsageInfo(conflict, usageElement) {
+          override fun getDescription() = "Renamed destructuring binding will hide ${t.type} '${t.qualifiedName}'"
+        })
+      }
+    }
+    result.addAll(more)
+  }
+}
+
+private val MORE_OFFSET_KEY = Key.create<Int>("MORE_OFFSET_KEY")
+private fun doFindReferences(element: PsiElement, scope: SearchScope): Array<MutableCollection<PsiReference>?> {
+  val symKey = element.asCTarget?.key
+  val result = ReferencesSearch.search(element, scope).findAll()
+  if (symKey?.type != "keyword") return arrayOf(result, null)
+  val more = SmartList<PsiReference>()
+  for (ref in result) {
+    val target = ref.resolve()
+    val type = target?.asCTarget?.key?.type
+    if (type != "argument" && type != "binding") continue
+    val refElement = ref.element
+    ReferencesSearch.search(target, scope).filter { it.element != refElement }.toCollection(more)
+  }
+  return arrayOf(result, more)
 }
 
 class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList, Any, CForm> {

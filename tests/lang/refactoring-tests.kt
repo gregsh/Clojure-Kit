@@ -17,6 +17,7 @@
 
 package org.intellij.clojure.lang
 
+import com.intellij.refactoring.BaseRefactoringProcessor
 import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 
 /**
@@ -26,12 +27,20 @@ import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
  */
 class ClojureRenameTest : LightCodeInsightFixtureTestCase() {
   fun testRename1() = doTest("Bar", "(defrecord Foo| [a b]) (Foo. 1 2)")
+  fun testRenameKey1() = doTest("foo", "::bar|\n\n(defn A [{::keys [bar]}] (print bar some/foo)))")
+  fun testRenameKey2() = doFailTest("foo", "::bar| (defn A [{::keys [bar]}] (let [foo 12] (print bar))))")
 
   private fun doTest(newName: String, before: String,
                      after: String = defaultRename(newName, before)) {
     myFixture.configureByText("a.clj", before.replace("|", "<caret>"))
     myFixture.renameElementAtCaret(newName)
     myFixture.checkResult(after)
+  }
+
+  private fun doFailTest(newName: String, before: String) {
+    try { doTest(newName, before, before) }
+    catch (e : BaseRefactoringProcessor.ConflictsInTestsException) { return }
+    fail("should fail")
   }
 
   private fun defaultRename(newName: String, str: String): String {

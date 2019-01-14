@@ -51,6 +51,7 @@
 
     <spellchecker.support language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureSpellCheckingStrategy"/>
     <renameHandler implementation="org.intellij.clojure.editor.ClojureInplaceRenameHandler"/>
+    <renamePsiElementProcessor implementation="org.intellij.clojure.editor.ClojureRenamePsiElementProcessor" order="first"/>
     <moveLeftRightHandler language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureMoveLeftRightHandler"/>
     <lang.namesValidator language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureNamesValidator"/>
     <renameInputValidator implementation="org.intellij.clojure.editor.ClojureNamesValidator"/>
