@@ -68,7 +68,7 @@ abstract class ClojureParserDefinitionBase : ParserDefinition {
     if (rt == C_COMMA || ClojureTokens.MACROS.contains(lt) || ClojureTokens.SHARPS.contains(lt)) {
       return ParserDefinition.SpaceRequirements.MUST_NOT
     }
-    if (lt == C_DOT || lt == C_DOTDASH ||
+    if (lt == C_DOT || rt == C_DOT || lt == C_DOTDASH ||
         lt == C_SLASH && rt == C_SYM ||
         lt == C_SYM && rt == C_SLASH) {
       return ParserDefinition.SpaceRequirements.MUST_NOT
