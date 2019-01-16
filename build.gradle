@@ -49,8 +49,8 @@ repositories {
   maven { url "http://clojars.org/repo" }
 }
 dependencies {
-  testRuntime "org.clojure:clojure:1.9.0"
-  testRuntime "org.clojure:clojurescript:1.9.946"
+  testRuntime "org.clojure:clojure:1.10.0"
+  testRuntime "org.clojure:clojurescript:1.10.439"
   compile files("${System.properties['java.home']}/../lib/tools.jar")
 }
 

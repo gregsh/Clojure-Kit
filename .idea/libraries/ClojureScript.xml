@@ -1,17 +1,20 @@
 <component name="libraryTable">
   <library name="ClojureScript" type="repository">
-    <properties maven-id="org.clojure:clojurescript:1.9.946">
+    <properties maven-id="org.clojure:clojurescript:1.10.439">
       <exclude>
         <dependency maven-id="org.clojure:clojure" />
       </exclude>
     </properties>
     <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.9.946/clojurescript-1.9.946.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-unshaded/v20170910/closure-compiler-unshaded-v20170910.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-externs/v20170910/closure-compiler-externs-v20170910.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/args4j/args4j/2.33/args4j-2.33.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.10.439/clojurescript-1.10.439.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-unshaded/v20180805/closure-compiler-unshaded-v20180805.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-externs/v20180805/closure-compiler-externs-v20180805.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/args4j/args4j/2.0.26/args4j-2.0.26.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/google/errorprone/error_prone_annotations/2.0.18/error_prone_annotations-2.0.18.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/com/google/guava/guava/20.0/guava-20.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/guava/guava/25.1-jre/guava-25.1-jre.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/checkerframework/checker-qual/2.0.0/checker-qual-2.0.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/j2objc/j2objc-annotations/1.1/j2objc-annotations-1.1.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/codehaus/mojo/animal-sniffer-annotations/1.14/animal-sniffer-annotations-1.14.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/google/protobuf/protobuf-java/3.0.2/protobuf-java-3.0.2.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/google/code/gson/gson/2.7/gson-2.7.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/google/code/findbugs/jsr305/3.0.1/jsr305-3.0.1.jar!/" />
@@ -20,7 +23,14 @@
       <root url="jar://$MAVEN_REPOSITORY$/org/clojure/google-closure-library-third-party/0.0-20170809-b9c14c6b/google-closure-library-third-party-0.0-20170809-b9c14c6b.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/org/clojure/data.json/0.2.6/data.json-0.2.6.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/org/mozilla/rhino/1.7R5/rhino-1.7R5.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/tools.reader/1.1.0/tools.reader-1.1.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/tools.reader/1.3.0/tools.reader-1.3.0.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/cognitect/transit-clj/0.8.309/transit-clj-0.8.309.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/cognitect/transit-java/0.8.332/transit-java-0.8.332.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/fasterxml/jackson/core/jackson-core/2.8.7/jackson-core-2.8.7.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/msgpack/msgpack/0.6.12/msgpack-0.6.12.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/googlecode/json-simple/json-simple/1.1.1/json-simple-1.1.1.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/javassist/javassist/3.18.1-GA/javassist-3.18.1-GA.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/commons-codec/commons-codec/1.10/commons-codec-1.10.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

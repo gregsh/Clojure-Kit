@@ -1,45 +1,46 @@
 /clojure/core.clj                        0 errors, 8 warnings, 10 dynamic
-      123975: unable to resolve 'setInt'
-      124114: unable to resolve 'setLong'
-      124261: unable to resolve 'setBoolean'
-      124410: unable to resolve 'setFloat'
-      124557: unable to resolve 'setDouble'
-      124704: unable to resolve 'setShort'
-      124847: unable to resolve 'setByte'
-      124988: unable to resolve 'setChar'
-      54613: dynamic 'hasRoot'
-      55008: dynamic 'addMethod'
-      80953: dynamic 'reset'
-      120870: dynamic 'close'
-      174208: dynamic 'offer'
-      177415: dynamic 'visitParameterAnnotation'
-      177571: dynamic 'visitAnnotation'
-      177741: dynamic 'visitEnd'
-      190056: dynamic 'hasRoot'
-      232675: dynamic 'getProperty'
+      125252: unable to resolve 'setInt'
+      125391: unable to resolve 'setLong'
+      125538: unable to resolve 'setBoolean'
+      125687: unable to resolve 'setFloat'
+      125834: unable to resolve 'setDouble'
+      125981: unable to resolve 'setShort'
+      126124: unable to resolve 'setByte'
+      126265: unable to resolve 'setChar'
+      54932: dynamic 'hasRoot'
+      55327: dynamic 'addMethod'
+      81272: dynamic 'reset'
+      122147: dynamic 'close'
+      176220: dynamic 'offer'
+      179427: dynamic 'visitParameterAnnotation'
+      179583: dynamic 'visitAnnotation'
+      179753: dynamic 'visitEnd'
+      192068: dynamic 'hasRoot'
+      235377: dynamic 'getProperty'
 /clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
-/clojure/core/reducers.clj               0 errors, 3 warnings, 2 dynamic
-      2051: unable to resolve 'jsr166y.ForkJoinPool'
-      2113: unable to resolve 'jsr166y.ForkJoinTask'
-      2178: unable to resolve 'jsr166y.ForkJoinTask'
-      2333: dynamic 'fork'
-      2394: dynamic 'join'
-/clojure/core/server.clj                 0 errors, 0 warnings, 1 dynamic
-      1159: dynamic 'unlock'
-/clojure/core_deftype.clj                0 errors, 0 warnings, 5 dynamic
-      26724: dynamic '__methodImplCache'
-      26787: dynamic 'fnFor'
-      27683: dynamic 'sym'
-      27708: dynamic 'sym'
-      27756: dynamic 'sym'
-/clojure/core_instant18.clj              0 errors, 0 warnings, 0 dynamic
+/clojure/core/reducers.clj               0 errors, 0 warnings, 0 dynamic
+/clojure/core/server.clj                 0 errors, 0 warnings, 4 dynamic
+      1306: dynamic 'unlock'
+      12296: dynamic 'close'
+      12459: dynamic 'write'
+      12568: dynamic 'close'
+/clojure/core_deftype.clj                0 errors, 0 warnings, 8 dynamic
+      26836: dynamic '__methodImplCache'
+      26901: dynamic 'fnFor'
+      27136: dynamic 'sym'
+      27483: dynamic '__methodImplCache'
+      27548: dynamic 'fnFor'
+      28461: dynamic 'sym'
+      28486: dynamic 'sym'
+      28534: dynamic 'sym'
 /clojure/core_print.clj                  0 errors, 0 warnings, 0 dynamic
 /clojure/core_proxy.clj                  0 errors, 0 warnings, 1 dynamic
       11517: dynamic 'getModifiers'
 /clojure/data.clj                        0 errors, 0 warnings, 0 dynamic
+/clojure/datafy.clj                      0 errors, 0 warnings, 0 dynamic
 /clojure/edn.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/genclass.clj                    0 errors, 0 warnings, 1 dynamic
-      33030: dynamic 'defineClass'
+      33015: dynamic 'defineClass'
 /clojure/gvec.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/inspector.clj                   0 errors, 0 warnings, 0 dynamic
 /clojure/instant.clj                     0 errors, 0 warnings, 0 dynamic
@@ -51,12 +52,10 @@
       12769: dynamic 'transferTo'
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/main.clj                        0 errors, 0 warnings, 5 dynamic
-      4148: dynamic 'unread'
-      4843: dynamic 'readLine'
-      4962: dynamic 'unread'
-      5952: dynamic 'getStackTrace'
-      6126: dynamic 'getMessage'
+/clojure/main.clj                        0 errors, 0 warnings, 3 dynamic
+      4768: dynamic 'unread'
+      5463: dynamic 'readLine'
+      5582: dynamic 'unread'
 /clojure/parallel.clj                    0 errors, 11 warnings, 20 dynamic
       2317: unable to resolve 'Ops$Op'
       2381: unable to resolve 'Ops$BinaryOp'
@@ -155,8 +154,8 @@
       960: dynamic 'instanceMember'
       2986: dynamic 'instanceFieldName-symbol'
       3061: dynamic 'staticFieldName-symbol'
-      10700: dynamic 'getClassName'
-      11358: dynamic 'stop'
+      10970: dynamic 'getClassName'
+      11628: dynamic 'stop'
 /clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/stacktrace.clj                  0 errors, 0 warnings, 7 dynamic
       808: dynamic 'getCause'
@@ -164,12 +163,12 @@
       1009: dynamic 'getMethodName'
       1245: dynamic 'getFileName'
       1266: dynamic 'getLineNumber'
-      1424: dynamic 'getMessage'
-      2275: dynamic 'getCause'
+      1461: dynamic 'getMessage'
+      2373: dynamic 'getCause'
 /clojure/string.clj                      0 errors, 0 warnings, 0 dynamic
 /clojure/template.clj                    0 errors, 0 warnings, 0 dynamic
 /clojure/test.clj                        0 errors, 0 warnings, 1 dynamic
-      18118: dynamic 'getMessage'
+      18220: dynamic 'getMessage'
 /clojure/test/junit.clj                  0 errors, 0 warnings, 2 dynamic
       2426: dynamic 'substring'
       2448: dynamic 'substring'
@@ -178,4 +177,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 69 warnings, 68 dynamic in 43 files (729.74K)
+Total: 66 warnings, 70 dynamic in 43 files (752.49K)
