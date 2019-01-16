@@ -130,3 +130,8 @@
 
   (-> (Object.) (.getClass) (.getName))
   (-> (Object.) .getClass .getName))
+
+(do
+  (alias buz 'clojure.set)
+  (alias bar.buz 'clojure.core)
+  (buz/union))

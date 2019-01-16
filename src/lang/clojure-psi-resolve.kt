@@ -281,10 +281,19 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             if (state.get(PRIVATE_KEY) == true) {
               validResult = o.asCTarget?.key?.namespace == namespace
             }
-            if (refText == state.get(RENAMED_KEY) || refText == o.name ||
-                o.asCTarget?.key?.run { type == JS_OBJ && refText == "$namespace.$name" } == true ||
-                o is PsiQualifiedNamedElement && getJvmName(o)?.run { this == refText || endsWith(".$refText") } == true) o
-            else null
+            when {
+              refText == state.get(RENAMED_KEY) -> o
+              refText == o.name -> o
+              o.asCTarget != null -> {
+                val key = o.asCTarget!!.key
+                if (key.type == JS_OBJ && refText == "$namespace.${key.name}") o else null
+              }
+              o is PsiQualifiedNamedElement -> {
+                val jvmName = getJvmName(o) ?: ""
+                if (jvmName == refText || jvmName.endsWith(".$refText")) o else null
+              }
+              else -> null
+            }
           }
           else -> null
         }
