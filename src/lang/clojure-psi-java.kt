@@ -49,10 +49,7 @@ import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.JBTreeTraverser
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.psi.impl.ClojureDefinitionService
-import org.intellij.clojure.util.EachNth
-import org.intellij.clojure.util.jbIt
-import org.intellij.clojure.util.notNulls
-import org.intellij.clojure.util.withPackage
+import org.intellij.clojure.util.*
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.signature.SignatureReader
 import org.jetbrains.org.objectweb.asm.signature.SignatureVisitor
@@ -106,7 +103,6 @@ abstract class JavaHelper {
                            scope: Scope,
                            name: String?): List<NavigatablePsiElement> = emptyList()
 
-  open fun getSuperClassName(className: String?): String? = null
   open fun getMemberTypes(member: NavigatablePsiElement?): List<String> = emptyList()
   open fun getDeclaringClass(member: NavigatablePsiElement?): String = ""
   open fun getAnnotations(element: NavigatablePsiElement?): List<String> = emptyList()
@@ -144,54 +140,75 @@ abstract class JavaHelper {
     override fun findPackage(packageName: String?, withClass: String?): NavigatablePsiElement? =
         myFacade.findPackage(packageName!!) as? NavigatablePsiElement ?: asm.findPackage(packageName, withClass)
 
-    internal fun superclasses(className: String?) = JBTreeTraverser<PsiClass> { o ->
-      JBIterable.of(o.superClass).append(o.interfaces)
-    }
-        .withRoot(findClass(className) as? PsiClass)
+    internal fun superclasses(className: String?) = JBTreeTraverser(this::getDeclaredSupers)
+        .withRoot(findClass(className))
         .unique()
         .traverse()
 
+    fun getDeclaredSupers(o: NavigatablePsiElement): Iterable<NavigatablePsiElement> = when (o) {
+      is PsiClass -> {
+        fun Array<PsiClassType>.toClasses() = this.jbIt().map(PsiClassType::getCanonicalText)
+            .map(this@PsiHelper::findClass).notNulls()
+        when {
+          o.isEnum -> {
+            JBIterable.of(findClass(CommonClassNames.JAVA_LANG_ENUM))
+                .append(o.implementsListTypes.toClasses())
+          }
+          o.isInterface -> {
+            JBIterable.of(findClass(CommonClassNames.JAVA_LANG_OBJECT))
+                .append(o.extendsListTypes.toClasses())
+          }
+          o is PsiAnonymousClass -> {
+            JBIterable.of(findClass(o.baseClassType.canonicalText))
+          }
+          else -> {
+            o.extendsListTypes.toClasses().take(1).append(o.implementsListTypes.toClasses())
+          }
+        }
+      }
+      else -> asm.getDeclaredSupers(o as MyElement<*>)
+    }
 
     override fun findClassMethods(className: String?,
                                   scope: Scope,
                                   name: String?,
                                   paramCount: Int,
                                   vararg paramTypes: String): List<NavigatablePsiElement> =
-        if (findClass(className) !is PsiClass) {
-          asm.findClassMethods(className, scope, name, paramCount, *paramTypes)
-        }
-        else {
-          superclasses(className)
-              .flatten {
-                if (scope == Scope.INIT) it.constructors.jbIt() else it.methods.jbIt()
+        superclasses(className)
+            .flatten {
+              when (it) {
+                is PsiClass -> findDeclaredClassMethods(it, scope, name, paramCount, paramTypes)
+                else -> asm.findDeclaredClassMethods(it as MyElement<*>, scope, name, paramCount, paramTypes, className)
               }
-              .filter {
-                acceptsName(name, it.name) &&
-                    acceptsMethod(it, scope == Scope.STATIC) &&
-                    acceptsMethod(myElementFactory, it, paramCount, *paramTypes)
-              }
-              .notNulls()
-              .toList()
-        }
+            }
+            .filter(NavigatablePsiElement::class)
+            .toList()
 
     override fun findClassFields(className: String?, scope: Scope, name: String?): List<NavigatablePsiElement> =
-        if (findClass(className) !is PsiClass) {
-          asm.findClassFields(className, scope, name)
-        }
-        else superclasses(className)
+        superclasses(className)
             .flatten {
-              it.fields.jbIt()
+              when (it) {
+                is PsiClass -> findDeclaredClassFields(it, scope, name)
+                else -> asm.findDeclaredClassFields(it as MyElement<*>, scope, name, className)
+              }
             }
+            .filter(NavigatablePsiElement::class)
+            .toList()
+
+    fun findDeclaredClassMethods(it: PsiClass, scope: Scope, name: String?, paramCount: Int, paramTypes: Array<out String>): JBIterable<PsiMethod> =
+        (if (scope == Scope.INIT) it.constructors.jbIt() else it.methods.jbIt())
+            .filter {
+              acceptsName(name, it.name) &&
+                  acceptsMethod(it, scope == Scope.STATIC) &&
+                  acceptsMethod(myElementFactory, it, paramCount, *paramTypes)
+            }
+
+    fun findDeclaredClassFields(it: PsiClass, scope: Scope, name: String?): JBIterable<PsiField> =
+        it.fields.jbIt()
             .filter {
               acceptsName(name, it.name) &&
                   acceptsMethod(it, scope == Scope.STATIC)
             }
-            .notNulls().toList()
-
-    override fun getSuperClassName(className: String?): String? {
-      val aClass = findClass(className) as? PsiClass ?: return asm.getSuperClassName(className)
-      return aClass.superClass?.qualifiedName
-    }
 
     private fun acceptsMethod(elementFactory: PsiElementFactory,
                               method: PsiMethod,
@@ -199,7 +216,7 @@ abstract class JavaHelper {
                               vararg paramTypes: String): Boolean {
       val parameterList = method.parameterList
       if (paramCount >= 0 && paramCount != parameterList.parametersCount) return false
-      if (paramTypes.size == 0) return true
+      if (paramTypes.isEmpty()) return true
       if (parameterList.parametersCount < paramTypes.size) return false
       val psiParameters = parameterList.parameters
       for (i in paramTypes.indices) {
@@ -337,43 +354,63 @@ abstract class JavaHelper {
         if (info is ClassInfo || info is PackageInfo) MyQualifiedElement(project, info)
         else MyElement(project, info)
 
-    internal fun superclasses(name: String?) = JBTreeTraverser<MyElement<*>> { o ->
-      JBIterable.of((o.delegate as? ClassInfo)?.superClass)
+    fun superclasses(name: String?) = JBTreeTraverser(this::getDeclaredSupers)
+        .withRoot(findClass(name))
+        .unique()
+        .traverse()
+
+    fun getDeclaredSupers(o: MyElement<*>): JBIterable<MyElement<*>> {
+      return JBIterable.of((o.delegate as? ClassInfo)?.superClass)
           .append((o.delegate as? ClassInfo)?.interfaces)
           .map(this@AsmHelper::findClass)
           .notNulls()
     }
-        .withRoot(findClass(name))
-        .unique()
-        .traverse()
 
     override fun findClassMethods(className: String?,
                                   scope: Scope,
                                   name: String?,
                                   paramCount: Int,
                                   vararg paramTypes: String): List<NavigatablePsiElement> {
-      return superclasses(className).flatten {
-        (it.delegate as ClassInfo).methods.jbIt().transform { o ->
-          if (acceptsName(name, o.name) &&
-              acceptsMethod(o, scope) &&
-              acceptsMethod(o, paramCount, *paramTypes)) cached(o.name + o.signature + className, o) else null
-        }
-      }.notNulls().toList()
+      return superclasses(className)
+          .flatten {
+            findDeclaredClassMethods(it, scope, name, paramCount, paramTypes, className)
+          }
+          .toList()
     }
 
     override fun findClassFields(className: String?,
                                  scope: Scope,
                                  name: String?): List<NavigatablePsiElement> {
-      return superclasses(className).flatten {
-        (it.delegate as ClassInfo).fields.jbIt().transform { o ->
-          if (acceptsName(name, o.name) &&
-              acceptsField(o, scope)) cached(o.name + o.signature + className, o)
-          else null
-        }
-      }.notNulls().toList()
+      return superclasses(className)
+          .flatten {
+            findDeclaredClassFields(it, scope, name, className)
+          }
+          .toList()
     }
 
-    override fun getSuperClassName(className: String?) = (findClass(className)?.delegate as? ClassInfo)?.superClass
+    fun findDeclaredClassMethods(it: MyElement<*>,
+                                 scope: Scope,
+                                 name: String?,
+                                 paramCount: Int,
+                                 paramTypes: Array<out String>,
+                                 className: String?): JBIterable<MyElement<*>> =
+        (it.delegate as ClassInfo).methods.jbIt()
+            .filter {
+              acceptsName(name, it.name) &&
+                  acceptsMethod(it, scope) &&
+                  acceptsMethod(it, paramCount, *paramTypes)
+            }
+            .map { cached(it.name + it.signature + className, it) }
+
+    fun findDeclaredClassFields(it: MyElement<*>, scope: Scope, name: String?, className: String?): JBIterable<MyElement<*>> =
+        (it.delegate as ClassInfo).fields.jbIt()
+            .filter {
+              acceptsName(name, it.name) &&
+                  acceptsField(it, scope)
+            }
+            .map {
+              cached(it.name + it.signature + className, it)
+            }
 
     override fun getMemberTypes(member: NavigatablePsiElement?): List<String> = (member as? MyElement<*>)?.delegate.let { when(it) {
       is ClassInfo -> Collections.singletonList(ClojureConstants.J_CLASS)
