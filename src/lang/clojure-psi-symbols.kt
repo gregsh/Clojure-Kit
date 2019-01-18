@@ -25,7 +25,6 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.Ref
-import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.pom.Navigatable
 import com.intellij.pom.PomRenameableTarget
@@ -142,7 +141,7 @@ class ClojureDefinitionService(val project: Project) {
     val symKey = when (topVec?.role) {
       Role.FIELD_VEC -> topVec.parentForm?.def.let { def ->
         isLocal = false
-        SymKey(o.name, def?.name?.withPackage(def.namespace) ?: "", "field")
+        SymKey(o.name, def?.qualifiedName ?: "", "field")
       }
       Role.ARG_VEC -> SymKey(o.name, "", "argument")
       Role.BND_VEC -> {
@@ -275,8 +274,7 @@ private fun wrapWithNavigationElement(project: Project, key: SymKey): PsiElement
   val scope = ClojureDefinitionService.getClojureSearchScope(project)
   val index = FileBasedIndex.getInstance()
   val processor: (VirtualFile, Unit) -> Boolean = { file, _ -> fileRef.set(file); false }
-  val adjusted = if (key.type != "field") key
-  else SymKey(StringUtil.getShortName(key.namespace), StringUtil.getPackageName(key.namespace), "")
+  val adjusted = key.adjustKeyForNavigation()
   when (adjusted.type) {
     "ns" -> index.processValues(NS_INDEX, adjusted.name, null, processor, scope)
     "keyword" -> index.processValues(KEYWORD_FQN_INDEX, adjusted.qualifiedName, null, processor, scope)
@@ -286,16 +284,22 @@ private fun wrapWithNavigationElement(project: Project, key: SymKey): PsiElement
 }
 
 internal fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?): NavigatablePsiElement {
-  val adjusted = if (key.type != "field") key
-  else SymKey(StringUtil.getShortName(key.namespace), StringUtil.getPackageName(key.namespace), "")
-
+  val adjusted = key.adjustKeyForNavigation()
   fun <C : CForm> locate(k: SymKey, clazz: KClass<C>): (CFile) -> Navigatable? = { f ->
     f.cljTraverser().traverse().filter(clazz).find {
       if (k.type == "keyword") it is CKeyword && it.namespace == k.namespace
       else it is CList && it.def?.run { name == k.name && namespace == k.namespace } ?: false
     }.let {
-      if (k == key) it
-      else it.findChild(Role.FIELD_VEC).iterate().find { it is CSymbol && it.name == key.name } as? CSymbol
+      when {
+        k == key -> it
+        key.type == "field" -> {
+          it.findChild(Role.FIELD_VEC).iterate().find { it is CSymbol && it.name == key.name } as? CSymbol
+        }
+        key.type == "method" -> {
+          it.childForms(CList::class).find { it?.def?.let { it.name == key.name && it.type == key.type} == true }
+        }
+        else -> it
+      }
     }
   }
 
@@ -304,6 +308,12 @@ internal fun wrapWithNavigationElement(project: Project, key: SymKey, file: Virt
     "keyword" -> CPomTargetElement(project, XTarget(project, key, file, locate(adjusted, CKeywordBase::class)))
     else -> CPomTargetElement(project, XTarget(project, key, file, locate(adjusted, CListBase::class)))
   }
+}
+
+private fun SymKey.adjustKeyForNavigation(): SymKey {
+  val idx = namespace.indexOf('/')
+  if (idx < 0) return this
+  return SymKey(namespace.substring(idx + 1), namespace.substring(0, idx), "")
 }
 
 internal class XTarget(project: Project,

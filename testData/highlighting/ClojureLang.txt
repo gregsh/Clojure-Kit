@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 8 warnings, 10 dynamic
+/clojure/core.clj                        0 errors, 8 warnings, 13 dynamic
       125252: unable to resolve 'setInt'
       125391: unable to resolve 'setLong'
       125538: unable to resolve 'setBoolean'
@@ -10,6 +10,8 @@
       54932: dynamic 'hasRoot'
       55327: dynamic 'addMethod'
       81272: dynamic 'reset'
+      81287: dynamic 'deref'
+      103904: dynamic 'nth'
       122147: dynamic 'close'
       176220: dynamic 'offer'
       179427: dynamic 'visitParameterAnnotation'
@@ -17,14 +19,19 @@
       179753: dynamic 'visitEnd'
       192068: dynamic 'hasRoot'
       235377: dynamic 'getProperty'
+      235909: dynamic 'contains'
 /clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
 /clojure/core/reducers.clj               0 errors, 0 warnings, 0 dynamic
-/clojure/core/server.clj                 0 errors, 0 warnings, 4 dynamic
+/clojure/core/server.clj                 0 errors, 0 warnings, 2 dynamic
+      1241: dynamic 'lock'
       1306: dynamic 'unlock'
-      12296: dynamic 'close'
-      12459: dynamic 'write'
-      12568: dynamic 'close'
-/clojure/core_deftype.clj                0 errors, 0 warnings, 8 dynamic
+/clojure/core_deftype.clj                0 errors, 0 warnings, 14 dynamic
+      7714: dynamic 'valAt'
+      9670: dynamic 'valAt'
+      9746: dynamic 'valAt'
+      11202: dynamic 'count'
+      11264: dynamic 'count'
+      11408: dynamic 'valAt'
       26836: dynamic '__methodImplCache'
       26901: dynamic 'fnFor'
       27136: dynamic 'sym'
@@ -39,7 +46,8 @@
 /clojure/data.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/datafy.clj                      0 errors, 0 warnings, 0 dynamic
 /clojure/edn.clj                         0 errors, 0 warnings, 0 dynamic
-/clojure/genclass.clj                    0 errors, 0 warnings, 1 dynamic
+/clojure/genclass.clj                    0 errors, 0 warnings, 2 dynamic
+      29531: dynamic 'replace'
       33015: dynamic 'defineClass'
 /clojure/gvec.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/inspector.clj                   0 errors, 0 warnings, 0 dynamic
@@ -48,15 +56,17 @@
       1956: dynamic 'browse'
 /clojure/java/browse_ui.clj              0 errors, 0 warnings, 1 dynamic
       1134: dynamic 'processHTMLFrameHyperlinkEvent'
-/clojure/java/io.clj                     0 errors, 0 warnings, 1 dynamic
-      12769: dynamic 'transferTo'
+/clojure/java/io.clj                     0 errors, 0 warnings, 0 dynamic
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/main.clj                        0 errors, 0 warnings, 3 dynamic
+/clojure/main.clj                        0 errors, 0 warnings, 6 dynamic
+      4668: dynamic 'read'
       4768: dynamic 'unread'
+      5354: dynamic 'read'
       5463: dynamic 'readLine'
+      5556: dynamic 'read'
       5582: dynamic 'unread'
-/clojure/parallel.clj                    0 errors, 11 warnings, 20 dynamic
+/clojure/parallel.clj                    0 errors, 11 warnings, 23 dynamic
       2317: unable to resolve 'Ops$Op'
       2381: unable to resolve 'Ops$BinaryOp'
       2470: unable to resolve 'Ops$IntAndObjectToObject'
@@ -78,6 +88,9 @@
       4940: dynamic 'withMapping'
       5031: dynamic 'withIndexedMapping'
       5408: dynamic 'any'
+      5820: dynamic 'min'
+      5834: dynamic 'max'
+      5849: dynamic 'size'
       5870: dynamic 'indexOfMin'
       5897: dynamic 'indexOfMax'
       6117: dynamic 'summary'
@@ -169,7 +182,8 @@
 /clojure/template.clj                    0 errors, 0 warnings, 0 dynamic
 /clojure/test.clj                        0 errors, 0 warnings, 1 dynamic
       18220: dynamic 'getMessage'
-/clojure/test/junit.clj                  0 errors, 0 warnings, 2 dynamic
+/clojure/test/junit.clj                  0 errors, 0 warnings, 3 dynamic
+      2361: dynamic 'lastIndexOf'
       2426: dynamic 'substring'
       2448: dynamic 'substring'
 /clojure/test/tap.clj                    0 errors, 0 warnings, 0 dynamic
@@ -177,4 +191,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 66 warnings, 70 dynamic in 43 files (752.49K)
+Total: 66 warnings, 84 dynamic in 43 files (752.49K)

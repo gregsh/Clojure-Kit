@@ -161,6 +161,7 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
         val first = form.firstForm
         when (first) {
           is CSymbol -> when (first.name) {
+            "->", "->>" -> exprType(first.nextForms.last())
             "new" -> (first.nextForm as? CSymbol)?.resolveExprType()
             "." -> (first.nextForm as? CSymbol)?.resolveExprType() as? String ?: exprType(first.nextForm?.nextForm)
             ".." -> exprType(first.nextForms.last())
@@ -367,7 +368,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
           if (targetNS == containingFile.namespace) {
             if (!containingFile.processDeclarations(processor, state, element, element)) return false
           }
-          if (!processNamespace(targetNS, langKind, state, processor, containingFile)) return false
+          if (!processNamespace(targetNS, langKind, state, processor, containingFile, element)) return false
         }
       }
       else if (resolve is PsiQualifiedNamedElement && !service.java.getMemberTypes(target).isEmpty()) {
@@ -393,7 +394,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     if (!processParentForms(langKind, refText, element, service, state, processor)) return false
     if (!containingFile.processDeclarations(processor, state, element, element)) return false
 
-    if (!processNamespace(containingFile.namespace, langKind, state, processor, containingFile)) return false
+    if (!processNamespace(containingFile.namespace, langKind, state, processor, containingFile, element)) return false
     if (!processSpecialForms(langKind, refText, element, service, state, processor)) return false
     if (!isCljs) findClass(refText, service)?.let { if (!processor.execute(it, state)) return false }
     else if (refText == "Object") return processor.execute(service.getDefinition(refText, "", JS_OBJ), state)
@@ -609,7 +610,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
               val stub = def.forceXTarget?.resolveStub() as? CListStub
               if (processFields && scope == JavaHelper.Scope.INSTANCE) {
                 (stub?.childrenStubs?.find { it is CPrototypeStub } as? CPrototypeStub)?.args?.onEach {
-                  val fk = SymKey(it.name, stub.key.name.withPackage(stub.key.namespace), "field")
+                  val fk = SymKey(it.name, stub.key.qualifiedName, "field")
                   if (!processor.execute(service.getDefinition(fk), if (isProp) state else state.put(RENAMED_KEY, "-${fk.name}"))) return false
                 }
               }
@@ -697,7 +698,12 @@ fun findBindingsVec(o: CList, mode: String): CVec? {
 
 fun destruct(o: CForm?) = DESTRUCTURING.withRoot(o).traverse()
 
-fun processNamespace(namespace: String, dialect: Dialect, state: ResolveState, processor: PsiScopeProcessor, lastParent: CFile): Boolean {
+fun processNamespace(namespace: String,
+                     dialect: Dialect,
+                     state: ResolveState,
+                     processor: PsiScopeProcessor,
+                     lastParent: CFile,
+                     place: PsiElement): Boolean {
   if (state.get(ALIAS_KEY) != null) return true
   val lastFile = PsiUtilCore.getVirtualFile(lastParent)
   val scope = ClojureDefinitionService.getClojureSearchScope(lastParent.project)
@@ -705,7 +711,7 @@ fun processNamespace(namespace: String, dialect: Dialect, state: ResolveState, p
   for (file in nsFiles) {
     if (lastFile == file) continue
     val psiFile = lastParent.manager.findFile(file) as? CFile
-    if (psiFile != null && !psiFile.processDeclarations(processor, state.put(DIALECT_KEY, dialect), lastParent, lastParent)) return false
+    if (psiFile != null && !psiFile.processDeclarations(processor, state.put(DIALECT_KEY, dialect), lastParent, place)) return false
   }
   return true
 }

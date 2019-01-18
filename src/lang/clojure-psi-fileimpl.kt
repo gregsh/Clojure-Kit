@@ -139,8 +139,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
 
   override fun processDeclarations(processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
     val context = context
-    val placeInFile = lastParent ?: place
-    val placeCF = placeInFile.containingFile.originalFile
+    val placeCF = (lastParent ?: place).containingFile.originalFile
     val placeFile = ((placeCF as? DummyHolder)?.context?.containingFile ?: placeCF) as? CFileImpl ?: return true
     val placeNs = placeFile.namespace
     val namespace = namespace
@@ -149,10 +148,14 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
     val refText = processor.getHint(NAME_HINT)?.getName(state)
     val langKind = state.get(DIALECT_KEY) ?: placeFile.placeLanguage(place)
     val checkPrivate = publicOnly && langKind != Dialect.CLJS
+    val placeParent = (place as? CElement)?.parent
+    val isAccess = placeParent is CAccess && place.nextSibling.elementType != ClojureTypes.C_DOT
 
-    fun processDef(defOrKey: Any, private: Boolean, processor: PsiScopeProcessor, state: ResolveState): Boolean {
+    fun processDef(defOrKey: Any, private: Boolean, parentDef: IDef?, processor: PsiScopeProcessor, state: ResolveState): Boolean {
+      if (isAccess && (parentDef == null || parentDef.type == "defprotocol")) return true
       val def = (defOrKey as? CElement)?.def ?: defOrKey as SymKey
-      if (def.namespace != namespace || publicOnly && private && refText != def.name) return true
+      if (!isAccess && def.namespace != namespace || publicOnly && private && refText != def.name) return true
+      if (!isAccess && def.type == "method" && parentDef?.type != "defprotocol") return true
       if (!processor.execute(
               defOrKey as? CElement ?: defService.getDefinition(defOrKey as SymKey),
               if (private) state.put(PRIVATE_KEY, true) else state)) return false
@@ -168,36 +171,45 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
             .filter(CListStub::class.java)
         s.forEach { stub ->
           val private = checkPrivate && (stub.key.type == "defn-" || stub.meta[PRIVATE_META] != null)
-          if (!processDef(stub.key, private, processor, state)) return false
+          val parentKey = (stub.parentStub as? CListStub)?.key
+          val skip = stub.key.type == "method" && parentKey?.type != "defprotocol"
+          if (!skip && !processDef(stub.key, private, parentKey, processor, state)) return false
         }
       }
       else {
         defs().forEach {
           val private = checkPrivate && (it.def!!.type == "defn-" || (it.def as? Def)?.meta?.containsKey(PRIVATE_META) ?: false)
-          if (!processDef(it, private, processor, state)) return false
+          val def = it.def!!
+          val parentDef = it.parentForm?.def
+          val skip = def.type == "method" && parentDef?.type != "defprotocol"
+          if (!skip && !processDef(it, private, parentDef, processor, state)) return false
         }
       }
       return true
     }
 
-    val placeOffset = placeInFile.textRange.startOffset
-    val inMacro = (place.parent as? CList)?.first?.let {
+    val placeOffset = place.textRange.startOffset
+    val inMacro = (placeParent as? CList)?.first?.let {
       !it.textRange.containsOffset(placeOffset) && it.resolveInfo()?.type == "defmacro"
     } ?: false
 
-    defs().takeWhile { inMacro || it.textRange.startOffset < placeOffset }
+    defs().takeWhile { inMacro ||
+        (if (it.def!!.type == "method") it.parentForm!! else it).textRange.startOffset < placeOffset }
         .forEach {
           val private = checkPrivate && (it.def!!.type == "defn-" || (it.def as? Def)?.meta?.containsKey(PRIVATE_META) ?: false)
-          if (!processDef(it, private, processor, state)) return false
+          val def = it.def!!
+          val parentDef = it.parentForm?.def
+          val skip = def.type == "method" && !it.parentForm!!.textRange.contains(placeOffset)
+          if (!skip && !processDef(it, private, parentDef, processor, state)) return false
         }
 
     val isQualifier = place.parent is CSymbol && place.nextSibling.elementType == ClojureTypes.C_SLASH
-    if (!processImports(processor, state, refText, placeOffset, langKind, isQualifier, defService)) return false
+    if (!processImports(processor, state, place, refText, placeOffset, langKind, isQualifier, defService)) return false
     val contextCFile = context?.containingFile as? CFileImpl
     return contextCFile == null || contextCFile.processDeclarations(processor, state, context, place)
   }
 
-  internal fun processImports(processor: PsiScopeProcessor, state: ResolveState,
+  internal fun processImports(processor: PsiScopeProcessor, state: ResolveState, place: PsiElement,
                               refText: String?, placeOffset: Int, dialect: Dialect, isQualifier: Boolean,
                               defService: ClojureDefinitionService): Boolean {
     val namespace = namespace
@@ -245,11 +257,11 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
                 }
                 return true
               }
-            }, this)) return false
+            }, this, place)) return false
       }
     }
     if (!isQualifier && !langKindNSVisited) {
-      return processNamespace(dialect.coreNs, dialect, state, processor, this)
+      return processNamespace(dialect.coreNs, dialect, state, processor, this, place)
     }
     return true
   }
@@ -298,7 +310,7 @@ internal fun processPrecomputedDeclarations(dialect: Dialect, refText: String?,
   }
   if (target != null) {
     if (key.type == "def") {
-      if (!processNamespace(key.namespace, dialect, state, processor, containingFile)) return false
+      if (!processNamespace(key.namespace, dialect, state, processor, containingFile, place)) return false
       if (key.namespace == dialect.coreNs) {
         if (!processSpecialForms(dialect, refText, place, service, state, processor)) return false
       }
@@ -399,19 +411,19 @@ private class RoleHelper {
             seenDefs.add(key.qualifiedName)
 
             if (ClojureConstants.OO_ALIKE_SYMBOLS.contains(firstName)) {
-              if (firstName == "defrecord" || firstName == "deftype") {
+              if (firstName == "defrecord" || firstName == "deftype" || firstName == "definterface") {
                 setData(e.childForm(CVec::class), Role.FIELD_VEC)
               }
               e.childForms(CListBase::class).forEach {
                 val first = it.first ?: return@forEach
                 setData(first, Role.NAME)
                 it.childForms(CVec::class).forEach { setData(it, Role.ARG_VEC) }
-                delayedDefs[it] = createDef(it, first, SymKey(first.name, key.namespace, "method"))
+                delayedDefs[it] = createDef(it, first, SymKey(first.name, key.qualifiedName, "method"))
               }
             }
           }
         }
-        else if (delayedDefs[e.parentForm]?.type.let { t -> t == "defprotocol" || t == "definterface" }) {
+        else if (delayedDefs[e.parentForm]?.type == "defprotocol") {
           val key = SymKey(firstName, fileNS, "method")
           setData(first, Role.NAME)
           delayedDefs[e] = createDef(e, first, key)
@@ -793,7 +805,7 @@ fun CList.resolveName(defService: ClojureDefinitionService, refText: String?): S
       }
       return true
     }
-  }, ResolveState.initial(), refText, textRange.startOffset, file.placeLanguage(this), false, defService)
+  }, ResolveState.initial(), this, refText, textRange.startOffset, file.placeLanguage(this), false, defService)
   return result
 }
 

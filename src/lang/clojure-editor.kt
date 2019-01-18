@@ -215,7 +215,8 @@ class ClojureStructureViewFactory : PsiStructureViewFactory {
       val element = element as? CForm ?: return ""
       val def = element.asDef?.def
       if (def != null) {
-        if (def.namespace != (element.containingFile as? CFile)?.namespace) {
+        if (def.type != "method" && def.type != "field" &&
+            def.namespace != (element.containingFile as? CFile)?.namespace) {
           return def.qualifiedName
         }
         return def.name

@@ -37,7 +37,7 @@ import kotlin.reflect.jvm.internal.impl.utils.SmartList
 /**
  * @author gregsh
  */
-private val VERSION: Int = 5
+private val VERSION: Int = 6
 
 class ClojureStubBuilder : BinaryFileStubBuilder {
   override fun getStubVersion() = VERSION
@@ -74,7 +74,7 @@ class CFileStub(val namespace: String) : CStub(null) {
 
   private val childMap = linkedMapOf<SymKey, CListStub>()
 
-  fun registerListStub(child: CListStub) { childMap.put(child.key, child) }
+  fun registerListStub(child: CListStub) { childMap[child.key] = child }
   fun findChildStub(key: SymKey) = childMap[key]
 
   override fun getStubType() = SERIALIZER
@@ -101,7 +101,7 @@ class CListStub(val key: SymKey,
   val meta: Map<String, String> get() = (childrenStubs.firstOrNull() as? CMetaStub)?.map ?: emptyMap()
 
   init {
-    JBIterable.generate(parent, { it -> it.parentStub })
+    JBIterable.generate(parent) { it.parentStub }
         .filter(CFileStub::class)
         .first()
         ?.registerListStub(this)
@@ -144,7 +144,8 @@ class CPrototypeStub(val args: List<Arg>, val typeHint: String?, parent: CStub?)
 
       override fun deserialize(dataStream: StubInputStream, parentStub: CStub?): CPrototypeStub {
         return CPrototypeStub(
-            dataStream.readName()?.string?.split("|").jbIt().split(2, true).map { Arg(it[0]!!, it[1].nullize()) }.toList(),
+            dataStream.readName()?.string?.split("|").jbIt().split(2, true).map {
+              Arg(it[0]!!.unescBar(), it[1].nullize()?.unescBar()) }.toList(),
             dataStream.readName()?.string,
             parentStub)
       }
@@ -271,8 +272,8 @@ private fun buildNSStub(e: CComposite, parentStub: CStub) {
   val imports = (def as? NSDef)?.imports ?: JBIterable.of(e.data as? Imports)
   imports.forEach { o -> o.imports.forEach { o1 -> CImportStub(Import(
       o1.nsType, o1.namespace, o1.alias, null, o1.refer, o1.only, o1.exclude,
-      o1.rename.entries.jbIt().reduce(HashMap(), { map, e ->
-        map.put((e.value as CSymbol).name, e.key); map})), o.dialect, parentStub) } }
+      o1.rename.entries.jbIt().reduce(HashMap()) { map, e ->
+        map[(e.value as CSymbol).name] = e.key; map}), o.dialect, parentStub) } }
 }
 
 fun StubOutputStream.writeMap(o: Map<String, String>) {
@@ -285,7 +286,7 @@ fun StubInputStream.readMap(): Map<String, String> {
   if (size == 0) return emptyMap()
   val o = HashMap<String, String>()
   for (i in 1..size) {
-    o.put(readName()?.string ?: "", readName()?.string ?: "")
+    o[readName()?.string ?: ""] = readName()?.string ?: ""
   }
   return o
 }
