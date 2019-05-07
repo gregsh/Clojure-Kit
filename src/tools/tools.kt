@@ -79,7 +79,7 @@ object Lein : Tool {
 
 
   override fun getRepl() = GeneralCommandLine(command, *mutableListOf(
-      "update-in", ":dependencies", "conj", "[org.clojure/tools.nrepl \"RELEASE\"]", "--",
+      "update-in", ":dependencies", "conj", "[nrepl \"RELEASE\"]", "--",
       "update-in", ":plugins", "conj", "[cider/cider-nrepl \"RELEASE\"]", "--",
       "update-in", ":nrepl-middleware", "conj ", "[cider-nrepl.plugin/middleware \"RELEASE\"]", "--")
       .apply {
@@ -109,7 +109,7 @@ object Boot : Tool {
 
   override fun getRepl() = GeneralCommandLine(command,
       "--no-colors",
-      "-d", "org.clojure/tools.nrepl",
+      "-d", "nrepl",
       "-d", "cider/cider-nrepl",
       "repl", "-m", "cider.nrepl/cider-middleware", "-s", "wait")
 }
@@ -128,9 +128,9 @@ object Deps : Tool {
       }
 
   override fun getRepl() = GeneralCommandLine(command,
-      "-Sdeps", "{:deps { org.clojure/tools.nrepl {:mvn/version \"RELEASE\"}" +
+      "-Sdeps", "{:deps { nrepl                   {:mvn/version \"RELEASE\"}" +
       "                   cider/cider-nrepl       {:mvn/version \"RELEASE\"}}}",
-      "--eval", "(do (use '[clojure.tools.nrepl.server :only (start-server stop-server)])" +
+      "--eval", "(do (use '[nrepl.server :only (start-server stop-server)])" +
       "              (use '[cider.nrepl :only (cider-nrepl-handler)])" +
       "              (println (str \"nREPL server started on port \" (:port (start-server :handler cider-nrepl-handler)) \" host localhost\")))")
 
