@@ -1,3 +1,25 @@
+0.7.6
+
+* resolve: fix qualified :keys destructuring
+* resolve: support this in (reify), (proxy) and (extend)
+* resolve: support (..), (->) and (doto) w/ and w/o parens
+* resolve: skip not quoted lists in ns elements
+* deps: notify if tool process failed to start
+* debugger: handle munged names in evaluator
+* debugger: workaround missing autoboxing for primitives eval
+* resolve: force JVM name for inner classes; fix (.method class)
+* resolve: better dynamic condition in . and ..
+* resolve: avoid resetting RESOLVE_SKIPPED in parallel
+* rename: fix extra space on rename (sym.)
+* rename: handle ::keys destructuring bindings
+* resolve: fix alias and some.alias confusion
+* resolve: clarify (.call obj) vs (call obj) in various cases
+* resolve: support mixed PSI/ASM class hierarchies
+* lexer: fix BigInteger numbers and octal chars literals
+* lexer: improve bad literals handling
+* resolve: improve qualified tags handling
+* tools: update nREPL dependencies #30
+
 0.7.5
 
 * Editor: semantic highlighting (rainbow symbols)

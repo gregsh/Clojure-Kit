@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.7.6-snapshot</version>
+  <version>0.7.7-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="172"/>
 
@@ -15,15 +15,25 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>Editor: semantic highlighting (rainbow symbols)</li>
-      <li>Resolve: resolve java methods from super-interfaces</li>
-      <li>Resolve: resolve defrecord, deftype methods and fields</li>
-      <li>Usages: search for keywords and namespaces in whole project</li>
-      <li>Dependencies: support *.edn files</li>
-      <li>Dependencies: show in Project | External Libraries</li>
-      <li>Parser: fix #_, (a.b/c.) and \uNNNN parsing</li>
-      <li>REPL: fix execution from editor</li>
-      <li>UI: new SVG icons</li>
+      <li>resolve: fix qualified :keys destructuring</li>
+      <li>resolve: support this in (reify), (proxy) and (extend)</li>
+      <li>resolve: support (..), (->) and (doto) w/ and w/o parens</li>
+      <li>resolve: skip not quoted lists in ns elements</li>
+      <li>deps: notify if tool process failed to start</li>
+      <li>debugger: handle munged names in evaluator</li>
+      <li>debugger: workaround missing autoboxing for primitives eval</li>
+      <li>resolve: force JVM name for inner classes; fix (.method class)</li>
+      <li>resolve: better dynamic condition in . and ..</li>
+      <li>resolve: avoid resetting RESOLVE_SKIPPED in parallel</li>
+      <li>rename: fix extra space on rename (sym.)</li>
+      <li>rename: handle ::keys destructuring bindings</li>
+      <li>resolve: fix alias and some.alias confusion</li>
+      <li>resolve: clarify (.call obj) vs (call obj) in various cases</li>
+      <li>resolve: support mixed PSI/ASM class hierarchies</li>
+      <li>lexer: fix BigInteger numbers and octal chars literals</li>
+      <li>lexer: improve bad literals handling</li>
+      <li>resolve: improve qualified tags handling</li>
+      <li>tools: update nREPL dependencies #30</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
     ]]>
