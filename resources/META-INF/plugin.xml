@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>0.7.7-snapshot</version>
+  <version>2019.1-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="172"/>
+  <idea-version since-build="191.7141"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript plugin for IntelliJ-based tools</description>
