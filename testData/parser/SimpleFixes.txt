@@ -16,4 +16,4 @@ CFileImpl:a.clj
   PsiComment(C_LINE_COMMENT)(';unclosed eof')
   PsiWhiteSpace('\n')
   PsiErrorElement:'"x' unexpected
-    PsiElement(string_unclosed)('"x')
+    PsiElement(BAD_CHARACTER)('"x')

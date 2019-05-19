@@ -25,7 +25,6 @@
     whitespace='regexp:\s+'
     //line_comment='regexp:;.*'
     string='regexp:"([^"]|\\")*"'
-    string_unclosed='regexp:"([^"]|\\")*'
     number='regexp:\d\d?r[\da-zA-Z]+|M?\d+(\.\d*([eE]\d+)?)?'
     ratio='regexp:\d+/\d+'
     char='regexp:\\(u\d{4}|newline|space|backspace|return|.)'

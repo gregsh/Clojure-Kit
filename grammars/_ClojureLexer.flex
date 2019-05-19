@@ -34,7 +34,6 @@ WHITE_SPACE=\s+
 LINE_COMMENT=;.*
 STR_CHAR=[^\\\"]|\\.|\\\"
 STRING=\" {STR_CHAR}* \"
-STRING_UNCLOSED=\" {STR_CHAR}*
 // octal numbers: 023, 023N, but not 023M
 NUMBER=[+-]? [0-9]+ (N | M | {NUMBER_EXP} M? | (\.[0-9]*) {NUMBER_EXP}? M?)? // N - BigInteger, M - BigDecimal
 NUMBER_EXP=[eE][+-]?[0-9]+
@@ -42,6 +41,8 @@ HEXNUM=[+-]? "0x" [\da-fA-F]+ N?
 RADIX=[+-]? [0-9]{1,2}r[\da-zA-Z]+
 RATIO=[+-]? [0-9]+"/"[0-9]+
 CHARACTER=\\([btrnf]|u[0-9a-fA-F]{4}|o[0-7]{3}|backspace|tab|newline|formfeed|return|space|.)
+BAD_LITERAL=\" ([^\\\"]|\\.|\\\")*
+  | [+-]? "0x" \w+
 
 SYM_START=[[\w<>$%&=*+\-!?_|]--#\d] | ".."
 SYM_PART=[.]? {SYM_CHAR} | ".."
@@ -75,12 +76,12 @@ SYM_TAIL={SYM_PART}+ (":" {SYM_PART}+)?
   true|false             { return C_BOOL; }
 
   {STRING}               { return C_STRING; }
-  {STRING_UNCLOSED}      { return C_STRING_UNCLOSED; }
   {NUMBER}               { return C_NUMBER; }
   {HEXNUM}               { return C_HEXNUM; }
   {RADIX}                { return C_RDXNUM; }
   {RATIO}                { return C_RATIO; }
   {CHARACTER}            { return C_CHAR; }
+  {BAD_LITERAL}          { return BAD_CHARACTER; }
 
   "::"                   { yybegin(SYMBOL0); return C_COLONCOLON; }
   ":"                    { yybegin(SYMBOL0); return C_COLON; }
@@ -88,7 +89,7 @@ SYM_TAIL={SYM_PART}+ (":" {SYM_PART}+)?
   ".-"                   { return C_SYM; }
   "."   /  {SYM_CHAR}    { yybegin(SYMBOL0); return C_DOT; }
   "."                    { return C_SYM; }
-  "/" {SYM_ANY}+                { yybegin(YYINITIAL); return BAD_CHARACTER; }
+  "/" {SYM_ANY}+         { yybegin(YYINITIAL); return BAD_CHARACTER; }
   "/"                    { return C_SYM; }
 
   {SYM_START}{SYM_TAIL}? { yybegin(SYMBOL1); return C_SYM; }

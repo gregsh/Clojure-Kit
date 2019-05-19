@@ -140,10 +140,10 @@ class ClojureHighlightingLexer(language: Language) : LookAheadLexer(ClojureLexer
 
   override fun lookAhead(baseLexer: Lexer) {
     fun skipWs(l: Lexer) {
-      while (l.tokenType.let {
-        ClojureTokens.WHITESPACES.contains(it) ||
-            ClojureTokens.COMMENTS.contains(it)
-      }) advanceLexer(l)
+      while (ClojureTokens.WHITESPACES.contains(l.tokenType)
+          || ClojureTokens.COMMENTS.contains(l.tokenType)) {
+        advanceLexer(l)
+      }
     }
 
     val tokenType0 = baseLexer.tokenType

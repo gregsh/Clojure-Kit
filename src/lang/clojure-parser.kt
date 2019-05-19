@@ -20,13 +20,15 @@ package org.intellij.clojure.parser
 import com.intellij.lang.*
 import com.intellij.lang.parser.GeneratedParserUtilBase
 import com.intellij.lexer.FlexAdapter
+import com.intellij.lexer.Lexer
+import com.intellij.lexer.LookAheadLexer
 import com.intellij.openapi.project.Project
 import com.intellij.psi.FileViewProvider
+import com.intellij.psi.TokenType
 import com.intellij.psi.impl.source.tree.CompositeElement
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.tree.TokenSet
 import org.intellij.clojure.lang.ClojureTokens
-import org.intellij.clojure.psi.ClojureTypes
 import org.intellij.clojure.psi.ClojureTypes.*
 import org.intellij.clojure.psi.impl.CFileImpl
 import org.intellij.clojure.util.wsOrComment
@@ -34,7 +36,25 @@ import org.intellij.clojure.util.wsOrComment
 /**
  * @author gregsh
  */
-class ClojureLexer(language: Language) : FlexAdapter(_ClojureLexer(language))
+class ClojureLexer(language: Language) : LookAheadLexer(FlexAdapter(_ClojureLexer(language))) {
+  override fun lookAhead(baseLexer: Lexer) {
+    val tokenType0 = baseLexer.tokenType
+    val tokenEnd0 = baseLexer.tokenEnd
+    when (tokenType0) {
+      in ClojureTokens.LITERALS -> {
+        baseLexer.advance()
+        if (baseLexer.tokenType === C_SYM ||
+            baseLexer.tokenType in ClojureTokens.LITERALS) {
+          advanceAs(baseLexer, TokenType.BAD_CHARACTER)
+        }
+        else {
+          addToken(tokenEnd0, tokenType0)
+        }
+      }
+      else -> super.lookAhead(baseLexer)
+    }
+  }
+}
 
 class ClojureParserDefinition : ClojureParserDefinitionBase() {
   override fun getFileNodeType() = ClojureTokens.CLJ_FILE_TYPE
@@ -45,7 +65,7 @@ class ClojureScriptParserDefinition : ClojureParserDefinitionBase() {
 }
 
 class ClojureASTFactory : ASTFactory() {
-  override fun createComposite(type: IElementType): CompositeElement? = ClojureTypes.Factory.createElement(type)
+  override fun createComposite(type: IElementType): CompositeElement? = Factory.createElement(type)
 }
 
 abstract class ClojureParserDefinitionBase : ParserDefinition {

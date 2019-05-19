@@ -129,7 +129,7 @@ object ClojureTokens {
 
   @JvmField val WHITESPACES = TokenSet.create(C_COMMA, TokenType.WHITE_SPACE)
   @JvmField val COMMENTS = TokenSet.create(LINE_COMMENT)
-  @JvmField val STRINGS = TokenSet.create(C_STRING, C_STRING_UNCLOSED)
+  @JvmField val STRINGS = TokenSet.create(C_STRING)
   @JvmField val LITERALS = TokenSet.create(C_BOOL, C_CHAR, C_HEXNUM, C_NIL, C_NUMBER, C_RATIO, C_RDXNUM, C_STRING, C_SYM)
 
   @JvmField val SHARPS = TokenSet.create(C_SHARP, C_SHARP_COMMENT, C_SHARP_QMARK, C_SHARP_QMARK_AT, C_SHARP_EQ, C_SHARP_HAT,

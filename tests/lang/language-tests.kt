@@ -44,6 +44,9 @@ class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
     |\c, \newline, \space, \tab, \formfeed, \backspace, and \return
     |\u89AF \u03A9 \o677
     |nil true false
+    |
+    |2.2N +0x23M 023abc \uTRYY \uFFFFuuu \o1234
+    |"unclosed
   """.trimMargin())
 
   fun testSymbolsAndKeywords() = doTest("""

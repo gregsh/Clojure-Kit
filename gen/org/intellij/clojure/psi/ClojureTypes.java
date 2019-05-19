@@ -57,7 +57,6 @@ public interface ClojureTypes {
   IElementType C_SHARP_SYM = new ClojureTokenType("##");
   IElementType C_SLASH = new ClojureTokenType("/");
   IElementType C_STRING = new ClojureTokenType("string");
-  IElementType C_STRING_UNCLOSED = new ClojureTokenType("string_unclosed");
   IElementType C_SYM = new ClojureTokenType("sym");
   IElementType C_SYNTAX_QUOTE = new ClojureTokenType("`");
   IElementType C_TILDE = new ClojureTokenType("~");
