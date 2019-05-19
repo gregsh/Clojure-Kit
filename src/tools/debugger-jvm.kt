@@ -238,7 +238,9 @@ class ClojureExpressionEvaluator(val codeFragment: PsiElement, val position: Sou
     if (exception != null) {
       val vmException = exception.exceptionFromTargetVM
       val method = (vmException?.type() as? ClassType)?.concreteMethodByName("getMessage", "()Ljava/lang/String;")
-      val messageObj = if (method == null) null else context.debugProcess.invokeMethod(context, vmException!!, method, emptyList<Value>())
+      val messageObj =
+          if (method == null) null
+          else context.debugProcess.invokeMethod(context, vmException, method, emptyList<Value>())
       val message = (messageObj as? StringReference)?.value() ?: exception.message ?: throw exception
       if (vmException?.type()?.name()?.contains("clojure.lang.Compiler\$CompilerException") == true) {
         throw EvaluateException(message.removePrefix("java.lang.RuntimeException: "), null)

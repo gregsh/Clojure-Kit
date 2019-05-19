@@ -17,6 +17,7 @@
 
 package org.intellij.clojure.editor
 
+import com.intellij.application.options.CodeStyle
 import com.intellij.codeInsight.editorActions.SelectWordUtil
 import com.intellij.codeInsight.editorActions.SimpleTokenSetQuoteHandler
 import com.intellij.codeInsight.editorActions.wordSelection.AbstractWordSelectioner
@@ -49,17 +50,16 @@ import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
-import com.intellij.psi.codeStyle.CodeStyleSettingsManager
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.RenameInputValidator
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
 import com.intellij.spellchecker.tokenizer.Tokenizer
+import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
 import com.intellij.util.ProcessingContext
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.TreeTraversal
 import com.intellij.util.ui.EmptyIcon
-import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider
 import org.intellij.clojure.ClojureConstants.FN_ALIKE_SYMBOLS
 import org.intellij.clojure.ClojureConstants.LET_ALIKE_SYMBOLS
 import org.intellij.clojure.formatter.ClojureCodeStyleSettings
@@ -77,15 +77,15 @@ import javax.swing.Icon
  * @author gregsh
  */
 class ClojureCommenter : Commenter {
-  override fun getLineCommentPrefix() = codeStyleAwarePrefix()
-  override fun getBlockCommentPrefix() = null
-  override fun getBlockCommentSuffix() = null
-  override fun getCommentedBlockCommentPrefix() = null
-  override fun getCommentedBlockCommentSuffix() = null
+  override fun getLineCommentPrefix(): String? = codeStyleAwarePrefix()
+  override fun getBlockCommentPrefix(): String? = null
+  override fun getBlockCommentSuffix(): String? = null
+  override fun getCommentedBlockCommentPrefix(): String? = null
+  override fun getCommentedBlockCommentSuffix(): String? = null
 
   private fun codeStyleAwarePrefix(): String {
     val project = CommandProcessor.getInstance().currentCommandProject ?: return ";"
-    val settings = CodeStyleSettingsManager.getSettings(project).getCustomSettings(ClojureCodeStyleSettings::class.java)
+    val settings = CodeStyle.getSettings(project).getCustomSettings(ClojureCodeStyleSettings::class.java)
     return if (settings.USE_2SEMI_COMMENT) ";;" else ";"
   }
 }
@@ -139,7 +139,7 @@ class ClojureNamesValidator : NamesValidator, RenameInputValidator {
 val SHORT_TEXT_MAX = 10
 val LONG_TEXT_MAX = 30
 
-class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
+class ClojureBreadCrumbProvider : BreadcrumbsProvider {
   companion object {
     val LANGUAGES = arrayOf(ClojureLanguage, ClojureScriptLanguage)
   }
@@ -170,7 +170,7 @@ class ClojureBreadCrumbProvider : BreadcrumbsInfoProvider() {
     else -> "???"
   }
 
-  override fun getElementTooltip(o: PsiElement) = null
+  override fun getElementTooltip(o: PsiElement): String? = null
 }
 
 class ClojureStructureViewFactory : PsiStructureViewFactory {

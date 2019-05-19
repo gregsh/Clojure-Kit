@@ -159,7 +159,7 @@ class ClojureLibraryRootsProvider : AdditionalLibraryRootsProvider() {
 }
 
 class CljLib(val root: VirtualFile) : SyntheticLibrary(), ItemPresentation {
-  fun getBinaryRoots(): MutableCollection<VirtualFile> = Collections.singletonList(root)
+  override fun getBinaryRoots(): MutableCollection<VirtualFile> = Collections.singletonList(root)
   override fun getSourceRoots(): MutableCollection<VirtualFile> = Collections.singletonList(root)
   override fun getLocationString(): String? = null
   override fun getIcon(unused: Boolean) = ClojureIcons.CLOJURE_ICON
@@ -169,7 +169,7 @@ class CljLib(val root: VirtualFile) : SyntheticLibrary(), ItemPresentation {
 }
 
 class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>(true) {
-  override fun processQuery(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<PsiReference>) {
+  override fun processQuery(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<in PsiReference>) {
     val targetKey = queryParameters.elementToSearch.asCTarget?.key ?: return
     if (targetKey.type == "keyword" && (targetKey.name == "keys" || targetKey.name == "syms")) return
     val keyName = if (targetKey.type == "keyword") "keys" else "syms"
@@ -191,7 +191,7 @@ class MapDestructuringUsagesSearcher : QueryExecutorBase<PsiReference, Reference
 }
 
 class ClojureImplementationSearch : QueryExecutor<PsiElement, DefinitionsScopedSearch.SearchParameters> {
-  override fun execute(queryParameters: DefinitionsScopedSearch.SearchParameters, consumer: Processor<PsiElement>): Boolean {
+  override fun execute(queryParameters: DefinitionsScopedSearch.SearchParameters, consumer: Processor<in PsiElement>): Boolean {
     val target = queryParameters.element
     val type = target.asCTarget?.key?.type ?: return true
     if (type != "defmulti" && type != "method") return true

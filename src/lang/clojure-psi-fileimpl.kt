@@ -24,7 +24,6 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFileWithId
 import com.intellij.psi.*
 import com.intellij.psi.impl.source.DummyHolder
-import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.stubs.StubTreeLoader
 import com.intellij.util.SmartList
@@ -797,7 +796,7 @@ fun CList.resolveName(defService: ClojureDefinitionService, refText: String?): S
   if (refText == null) return null
   val file = containingFile as CFileImpl
   var result = refText
-  file.processImports(object: BaseScopeProcessor() {
+  file.processImports(object: PsiScopeProcessor {
     override fun execute(o: PsiElement, state: ResolveState): Boolean {
       if (o is PsiQualifiedNamedElement && refText == o.name) {
         result = o.qualifiedName
@@ -809,7 +808,7 @@ fun CList.resolveName(defService: ClojureDefinitionService, refText: String?): S
   return result
 }
 
-fun CListStub.resolveName(defService: ClojureDefinitionService, name: String?): String? {
+fun CListStub.resolveName(name: String?): String? {
   if (name == null) return null
   var prev: CStub? = null
   var cur: CStub? = this

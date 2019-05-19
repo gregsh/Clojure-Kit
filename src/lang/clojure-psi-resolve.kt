@@ -28,7 +28,6 @@ import com.intellij.psi.*
 import com.intellij.psi.impl.AnyPsiChangeListener
 import com.intellij.psi.impl.PsiManagerImpl
 import com.intellij.psi.impl.source.resolve.ResolveCache
-import com.intellij.psi.scope.BaseScopeProcessor
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.util.PsiUtilCore
 import com.intellij.util.ArrayUtil
@@ -61,7 +60,7 @@ interface NameHint {
 
 class ClojureTypeCache(service: ClojureDefinitionService) {
   companion object {
-    val INSTANCE_KEY = ServiceManager.createLazyKey(ClojureTypeCache::class.java)!!
+    val INSTANCE_KEY = ServiceManager.createLazyKey(ClojureTypeCache::class.java)
   }
 
   val map = ContainerUtil.createConcurrentWeakMap<CForm, Any>()
@@ -136,7 +135,7 @@ private fun ClojureDefinitionService.exprTypeImpl(form: CForm): Any? {
           if (navElement.def?.type == "def") exprType(navElement.findChild(Role.NAME)?.nextForm)
           else exprType(navElement)
         navElement.asCTarget != null -> (navElement.forceXTarget?.resolveStub() as? CListStub)?.run {
-          resolveName(this@exprTypeImpl, meta[TYPE_META])
+          resolveName(meta[TYPE_META])
         }
         target is NavigatablePsiElement && target.asNonCPom() != null ->
           if (form.parent.let { it is CSymbol || it is CList && it.first?.name == "catch" }) (target as? PsiQualifiedNamedElement)?.qualifiedName
@@ -202,7 +201,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     }
 
     val NULL_TYPE = "*unknown*"
-    val ourTypeGuard = RecursionManager.createGuard("javaType")!!
+    val ourTypeGuard = RecursionManager.createGuard("javaType")
   }
 
   override fun multiResolve(incompleteCode: Boolean): Array<out ResolveResult> {
@@ -256,7 +255,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     val nsQualifier = myElement.nextSibling.elementType == ClojureTypes.C_SLASH
     val namespace = (element.containingFile.originalFile as CFileImpl).namespace
     var skipResolve = false
-    processDeclarations(service, refText, ResolveState.initial(), object : BaseScopeProcessor(), NameHint {
+    processDeclarations(service, refText, ResolveState.initial(), object : PsiScopeProcessor, NameHint {
       override fun handleEvent(event: PsiScopeProcessor.Event, associated: Any?) {
         if (event == SKIP_RESOLVE) {
           skipResolve = true

@@ -64,7 +64,6 @@ import com.intellij.remote.BaseRemoteProcessHandler
 import com.intellij.remote.RemoteProcess
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
-import com.intellij.ui.components.JBList
 import com.intellij.util.ArrayUtil
 import com.intellij.util.ExceptionUtil
 import com.intellij.util.containers.JBIterable
@@ -231,8 +230,7 @@ class ReplExclusiveModeAction : ToggleAction() {
       return repls[0].apply { consumer?.invoke(this, false) }
     }
     else {
-      val list = JBList<ReplConsole>(repls)
-      list.cellRenderer = object : ColoredListCellRenderer<ReplConsole>() {
+      val renderer = object : ColoredListCellRenderer<ReplConsole>() {
         override fun customizeCellRenderer(list: JList<out ReplConsole>, value: ReplConsole?, index: Int, selected: Boolean, hasFocus: Boolean) {
           if (value != null) {
             val exclusive = isExclusive(value.consoleView)
@@ -250,10 +248,11 @@ class ReplExclusiveModeAction : ToggleAction() {
           }
         }
       }
-      JBPopupFactory.getInstance().createListPopupBuilder(list)
+      JBPopupFactory.getInstance().createPopupChooserBuilder(repls)
           .setTitle(e.presentation.text!!)
-          .setFilteringEnabled { (it as? ReplConsole)?.consoleView?.title ?: "" }
-          .setItemChoosenCallback { consumer(list.selectedValue, true) }
+          .setRenderer(renderer)
+          .setNamerForFiltering { it?.consoleView?.title ?: "" }
+          .setItemChosenCallback { consumer(it, true) }
           .createPopup()
           .showCenteredInCurrentWindow(project)
       return null
@@ -438,10 +437,10 @@ class ReplConsole(project: Project, title: String, language: Language)
   override fun attachToProcess(processHandler: ProcessHandler) {
     this.processHandler = processHandler
     super.attachToProcess(processHandler)
-    processHandler.getUserData(NREPL_PROMISE_KEY)!!.done {
+    processHandler.getUserData(NREPL_PROMISE_KEY)!!.onSuccess {
       afterConnected()
       whenConnected.setResult(null)
-    }.rejected {
+    }.onError {
       whenConnected.cancel()
       val cause = ExceptionUtil.getRootCause(it)
       if (cause is IOException || it is ExecutionException) {
@@ -460,7 +459,7 @@ class ReplConsole(project: Project, title: String, language: Language)
     })
   }
 
-  fun eval(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.done { evalImpl(text, f) }
+  fun eval(text: String, f: NReplClient.Request.() -> Unit = {}) = whenConnected.onSuccess { evalImpl(text, f) }
 
   private fun evalImpl(text: String, f: NReplClient.Request.() -> Unit) {
     val trimmed = text.trim()
@@ -661,7 +660,7 @@ fun newLocalProcess(workingDir: File): ProcessHandler {
           promise.setResult(null)
         }
         catch (e: Exception) {
-          promise.processed { }
+          promise.onProcessed { }
           promise.setError(e)
         }
       }
@@ -689,7 +688,7 @@ fun newRemoteProcess(addressString: String): ProcessHandler {
         promise.setResult(null)
       }
       catch (e: Exception) {
-        promise.processed { }
+        promise.onProcessed { }
         promise.setError(e)
         throw e
       }

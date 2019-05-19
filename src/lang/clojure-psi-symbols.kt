@@ -49,7 +49,6 @@ import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.psi.stubs.CStub
 import org.intellij.clojure.util.*
-import java.util.concurrent.ConcurrentMap
 import javax.swing.Icon
 import kotlin.reflect.KClass
 
@@ -171,15 +170,12 @@ class ClojureDefinitionService(val project: Project) {
   }
 
   private fun createPomMap(owner : PsiElement? = null): Map<SymKey, PsiElement> {
-    return object: ConcurrentFactoryMap<SymKey, PsiElement>() {
-      override fun createMap(): ConcurrentMap<SymKey, PsiElement> {
-        return ContainerUtil.createConcurrentWeakValueMap<SymKey, PsiElement>()
-      }
-
-      override fun create(key: SymKey): PsiElement {
-        return createPomElement(owner, YTarget(project, key, this))
-      }
-    }
+    val mapRef: Array<Map<SymKey, PsiElement>> = arrayOf(emptyMap())
+    val map = ConcurrentFactoryMap.createMap(
+        {key -> createPomElement(owner, YTarget(project, key, mapRef[0]))},
+        { ContainerUtil.createConcurrentWeakValueMap<SymKey, PsiElement>()})
+    mapRef[0] = map
+    return map
   }
 
   private fun createPomElement(owner: PsiElement?, target: YTarget): PsiElement {

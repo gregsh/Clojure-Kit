@@ -59,13 +59,13 @@ class ClojureFormattingModelBuilder : FormattingModelBuilder {
   override fun createModel(element: PsiElement, settings: CodeStyleSettings): FormattingModel {
     val common = settings.getCommonSettings(ClojureLanguage)
     val custom = settings.getClojureSettings()
-    val spacingBuilder = createSpacingBuilder(common, custom)
+    val spacingBuilder = createSpacingBuilder(common)
     val props = Context(common, custom, spacingBuilder)
     val block = ClojureFormattingBlock(element.node, props, null, null, null, -1)
     return FormattingModelProvider.createFormattingModelForPsiFile(element.containingFile, block, settings)
   }
 
-  fun createSpacingBuilder(common: CommonCodeStyleSettings, custom: ClojureCodeStyleSettings): SpacingBuilder {
+  private fun createSpacingBuilder(common: CommonCodeStyleSettings): SpacingBuilder {
     return SpacingBuilder(common.rootSettings, ClojureLanguage)
         .between(C_PAREN1, C_PAREN2).lineBreakOrForceSpace(false, false)
         .between(C_BRACE1, C_BRACE2).lineBreakOrForceSpace(false, false)
@@ -91,13 +91,14 @@ data class Context(val common: CommonCodeStyleSettings,
   val spaceOrKeepNL = Spacing.createSpacing(1, 0, 0, common.KEEP_LINE_BREAKS, common.KEEP_BLANK_LINES_IN_CODE)!!
 }
 
-class ClojureFormattingBlock(node: ASTNode,
-                             val context: Context,
-                             wrap: Wrap?,
-                             alignment: Alignment?,
-                             val alignmentStrategy: AlignmentStrategy?,
-                             val sequenceIndex: Int) :
-    AbstractBlock(node, wrap, alignment) {
+private class ClojureFormattingBlock(
+    node: ASTNode,
+    val context: Context,
+    wrap: Wrap?,
+    alignment: Alignment?,
+    val alignmentStrategy: AlignmentStrategy?,
+    val sequenceIndex: Int)
+  : AbstractBlock(node, wrap, alignment) {
   val children: List<ClojureFormattingBlock> by lazy { calcChildren() }
   val childAlignment = if (ClojureTokens.LIST_ALIKE.contains(myNode.elementType)) Alignment.createAlignment() else null
 

@@ -1499,4 +1499,4 @@
 /clojure/zip.cljs                        0 errors, 0 warnings, 0 dynamic
 /process/env.cljs                        0 errors, 1 warnings, 0 dynamic
       541: unable to resolve 'NODE_ENV'
-Total: 345 warnings, 1644 dynamic in 76 files (1.60M)
+Total: 345 warnings, 1644 dynamic in 76 files (1.6 MB)

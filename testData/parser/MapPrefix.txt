@@ -102,6 +102,6 @@ CFileImpl:a.clj
           PsiElement(sym)('a')
       PsiElement({)('{')
       PsiElement(})('}')
-    PsiErrorElement:<form> expected, unexpected end of file
+    PsiErrorElement:<form> expected
       <empty list>
   PsiWhiteSpace(' ')

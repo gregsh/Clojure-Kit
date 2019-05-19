@@ -288,7 +288,7 @@ abstract class JavaHelper {
         is ClassInfo -> "class ${info.name}<br><br><i>${info.url}</i>"
         is MethodInfo -> ("method ${info.types[0]} ${info.name}" +
             "(${info.types.jbIt().skip(1).filter(EachNth(2))
-                .map { StringUtil.escapeXml(it) }
+                .map { StringUtil.escapeXmlEntities(it) }
                 .joinToString(",<br>&nbsp;&nbsp;&nbsp;&nbsp;")})").replace(pack, "") +
             "<br>in class ${info.declaringClass.name}" +
             "<br><br><i>${info.declaringClass.url}</i>"

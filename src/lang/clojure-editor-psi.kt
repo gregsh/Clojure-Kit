@@ -17,7 +17,6 @@
 
 package org.intellij.clojure.editor
 
-import com.intellij.codeHighlighting.Pass
 import com.intellij.codeInsight.CodeInsightBundle
 import com.intellij.codeInsight.TargetElementEvaluatorEx2
 import com.intellij.codeInsight.TargetElementUtil
@@ -38,7 +37,7 @@ import com.intellij.codeInsight.hints.InlayParameterHintsProvider
 import com.intellij.codeInsight.hints.Option
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
-import com.intellij.codeInsight.navigation.ListBackgroundUpdaterTask
+import com.intellij.codeInsight.navigation.BackgroundUpdaterTask
 import com.intellij.icons.AllIcons
 import com.intellij.lang.ExpressionTypeProvider
 import com.intellij.lang.annotation.AnnotationHolder
@@ -67,7 +66,7 @@ import com.intellij.pom.PomTargetPsiElement
 import com.intellij.pom.references.PomService
 import com.intellij.psi.*
 import com.intellij.psi.meta.PsiPresentableMetaData
-import com.intellij.psi.scope.BaseScopeProcessor
+import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiElementProcessor
 import com.intellij.psi.search.SearchScope
@@ -267,7 +266,7 @@ class ClojureCompletionContributor : CompletionContributor() {
         }
         if (thisForm !is CKeyword && ref != null && bindingsVec == null) {
           val service = ClojureDefinitionService.getInstance(project)
-          val stop = !ref.processDeclarations(service, null, ResolveState.initial(), object : BaseScopeProcessor() {
+          val stop = !ref.processDeclarations(service, null, ResolveState.initial(), object : PsiScopeProcessor {
             override fun execute(it: PsiElement, state: ResolveState): Boolean {
               val name = state.get(RENAMED_KEY) ?:
                   when (it) {
@@ -378,7 +377,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
     val def = (resolved as? CList)?.def ?: key ?: return getTokenDescription(originalElement?.elementType)
     if (def.type == "tag") return "tag ${def.qualifiedName}"
 
-    fun String.sanitize() = StringUtil.escapeXml(StringUtil.unquoteString(this))
+    fun String.sanitize() = StringUtil.escapeXmlEntities(StringUtil.unquoteString(this))
     fun StringBuilder.appendMap(m: CForm?) {
       val forms = (m as? CMap)?.childForms ?: return
       for ((i, form) in forms.withIndex()) {
@@ -547,20 +546,20 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
     return when {
       def?.type == "defmulti" ->
         if (!MM1.isEnabled) null else
-        LineMarkerInfo(leaf, leaf.textRange, MM1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
+        LineMarkerInfo(leaf, leaf.textRange, MM1.icon!!, { "Show implementations" },
             { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.RIGHT)
       def == null && parentName == "defmethod" ->
         if (!MM2.isEnabled) null else
-        LineMarkerInfo(leaf, leaf.textRange, MM2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
+        LineMarkerInfo(leaf, leaf.textRange, MM2.icon!!, { "Show declaration" },
             { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT)
       def?.type == "method" && (grandName == "defprotocol" || grandName == "definterface") -> {
         if (!P1.isEnabled) null
-        else LineMarkerInfo(leaf, leaf.textRange, P1.icon!!, Pass.UPDATE_ALL, { "Show implementations" },
+        else LineMarkerInfo(leaf, leaf.textRange, P1.icon!!, { "Show implementations" },
             { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.LEFT)
       }
       ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
         if (!P1.isEnabled) null else
-        LineMarkerInfo(leaf, leaf.textRange, P2.icon!!, Pass.UPDATE_ALL, { "Show declaration" },
+        LineMarkerInfo(leaf, leaf.textRange, P2.icon!!, { "Show declaration" },
             { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT)
       else -> null
     }
@@ -583,7 +582,7 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
       collectProcessor.execute(it as NavigatablePsiElement)
     }
 
-    val updater = object: ListBackgroundUpdaterTask(sym.project, "Searching for Implementing Methods") {
+    val updater = object: BackgroundUpdaterTask(sym.project, "Searching for Implementing Methods", renderer.comparator) {
       override fun getCaption(size: Int): String {
         val suffix = if (isFinished) "" else " so far"
         return "<html><body>Choose Implementation of <b>$name</b> ($size found$suffix)</body></html>"
@@ -601,7 +600,7 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
       override fun run(indicator: ProgressIndicator) {
         super.run(indicator)
         DefinitionsScopedSearch.search(target, searchScope).forEach {
-          if (!updateComponent(it, renderer.comparator)) {
+          if (!updateComponent(it)) {
             indicator.cancel()
           }
           indicator.checkCanceled()
@@ -831,7 +830,7 @@ class ClojureTypeInfoProvider : ExpressionTypeProvider<CForm>() {
 
   override fun getInformationHint(element: CForm): String {
     val type = ClojureDefinitionService.getInstance(element.project).exprType(element)
-    return StringUtil.escapeXml(type as? String ?: (type as? SymKey)?.run { "(${this.type} $qualifiedName)" } ?: "unknown")
+    return StringUtil.escapeXmlEntities(type as? String ?: (type as? SymKey)?.run { "(${this.type} $qualifiedName)" } ?: "unknown")
   }
 
   override fun getExpressionsAt(elementAt: PsiElement): List<CForm> =
