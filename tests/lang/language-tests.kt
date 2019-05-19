@@ -36,7 +36,7 @@ class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
   fun testLiterals() = doTest("""
     |"a" "\"" "\\\\\"" "new
     |line"
-    |42 -2 0x12
+    |42 -2 0x12 42N 0x12N 23M 023N 023M
     |2r101010, 8r52, 36r16,
     |-2/3
     |+2.2 23.4 34. 34.e2 2e3 2e+3 2e-4 2.0e3 3.3e-3M 99.99M

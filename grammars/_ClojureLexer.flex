@@ -35,11 +35,13 @@ LINE_COMMENT=;.*
 STR_CHAR=[^\\\"]|\\.|\\\"
 STRING=\" {STR_CHAR}* \"
 STRING_UNCLOSED=\" {STR_CHAR}*
-NUMBER=[+-]? [0-9]+(\.[0-9]*)?([eE][+-]?[0-9]+)?M?
-HEXNUM=[+-]? "0x" [\da-fA-F]+
+// octal numbers: 023, 023N, but not 023M
+NUMBER=[+-]? [0-9]+ (N | M | {NUMBER_EXP} M? | (\.[0-9]*) {NUMBER_EXP}? M?)? // N - BigInteger, M - BigDecimal
+NUMBER_EXP=[eE][+-]?[0-9]+
+HEXNUM=[+-]? "0x" [\da-fA-F]+ N?
 RADIX=[+-]? [0-9]{1,2}r[\da-zA-Z]+
 RATIO=[+-]? [0-9]+"/"[0-9]+
-CHARACTER=\\([btrnf]|u[0-9a-fA-F]{4}|backspace|tab|newline|formfeed|return|space|.)
+CHARACTER=\\([btrnf]|u[0-9a-fA-F]{4}|o[0-7]{3}|backspace|tab|newline|formfeed|return|space|.)
 
 SYM_START=[[\w<>$%&=*+\-!?_|]--#\d] | ".."
 SYM_PART=[.]? {SYM_CHAR} | ".."
