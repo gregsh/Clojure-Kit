@@ -376,6 +376,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
           it.asXTarget?.resolveForm() ?: it
         } ?: element
     val def = (resolved as? CList)?.def ?: key ?: return getTokenDescription(originalElement?.elementType)
+    if (def.type == "tag") return "tag ${def.qualifiedName}"
 
     fun String.sanitize() = StringUtil.escapeXml(StringUtil.unquoteString(this))
     fun StringBuilder.appendMap(m: CForm?) {

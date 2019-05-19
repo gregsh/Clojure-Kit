@@ -235,7 +235,10 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
       return service.getSymbol(myElement)
     }
     else if (parent is CConstructor && parent.firstForm == myElement) {
-      return service.getDefinition(SymKey(refText, "", "#$refText"))
+      return service.getDefinition(SymKey(refText, qualifier?.name ?: "", "tag"))
+    }
+    else if (parent?.parent is CConstructor && parent.parent.firstForm == parent) {
+      return service.getDefinition(SymKey(refText, "", "ns"))
     }
     // anonymous function param
     if (refText.startsWith("%")) {
