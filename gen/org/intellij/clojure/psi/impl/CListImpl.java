@@ -26,10 +26,12 @@ public class CListImpl extends CListBase implements CList {
     else super.accept(visitor);
   }
 
+  @Override
   public int getTextOffset() {
     return ClojurePsiImplUtil.getTextOffset(this);
   }
 
+  @Override
   @Nullable
   public CSymbol getFirst() {
     return ClojurePsiImplUtil.getFirst(this);

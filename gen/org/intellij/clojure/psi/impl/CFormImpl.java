@@ -38,6 +38,7 @@ public class CFormImpl extends CComposite implements CForm {
     return PsiTreeUtil.getChildrenOfTypeAsList(this, CReaderMacro.class);
   }
 
+  @Override
   @NotNull
   public String toString() {
     return ClojurePsiImplUtil.toString(this);

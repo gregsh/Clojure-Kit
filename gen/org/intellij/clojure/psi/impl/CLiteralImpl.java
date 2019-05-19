@@ -26,11 +26,13 @@ public class CLiteralImpl extends CSFormImpl implements CLiteral {
     else super.accept(visitor);
   }
 
+  @Override
   @Nullable
   public IElementType getLiteralType() {
     return ClojurePsiImplUtil.getLiteralType(this);
   }
 
+  @Override
   @NotNull
   public String getLiteralText() {
     return ClojurePsiImplUtil.getLiteralText(this);

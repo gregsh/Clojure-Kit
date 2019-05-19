@@ -64,7 +64,6 @@ public interface ClojureTypes {
   IElementType C_TILDE_AT = new ClojureTokenType("~@");
 
   class Factory {
-
     public static CompositePsiElement createElement(IElementType type) {
        if (type == C_ACCESS) {
         return new CAccessImpl(type);

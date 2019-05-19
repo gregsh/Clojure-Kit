@@ -32,6 +32,7 @@ public class CMetadataImpl extends CComposite implements CMetadata {
     return PsiTreeUtil.getChildOfType(this, CForm.class);
   }
 
+  @Override
   @NotNull
   public String toString() {
     return ClojurePsiImplUtil.toString(this);

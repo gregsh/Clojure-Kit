@@ -32,16 +32,19 @@ public class CKeywordImpl extends CKeywordBase implements CKeyword {
     return PsiTreeUtil.getChildOfType(this, CSymbol.class);
   }
 
+  @Override
   @NotNull
   public String getName() {
     return ClojurePsiImplUtil.getName(this);
   }
 
+  @Override
   @NotNull
   public String getNamespace() {
     return ClojurePsiImplUtil.getNamespace(this);
   }
 
+  @Override
   public int getTextOffset() {
     return ClojurePsiImplUtil.getTextOffset(this);
   }

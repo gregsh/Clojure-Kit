@@ -32,6 +32,7 @@ public class CReaderMacroImpl extends CComposite implements CReaderMacro {
     return PsiTreeUtil.getChildOfType(this, CSymbol.class);
   }
 
+  @Override
   @NotNull
   public String toString() {
     return ClojurePsiImplUtil.toString(this);

@@ -27,25 +27,30 @@ public class CSymbolImpl extends CSymbolBase implements CSymbol {
     else super.accept(visitor);
   }
 
+  @Override
   @NotNull
   public String getName() {
     return ClojurePsiImplUtil.getName(this);
   }
 
+  @Override
   @NotNull
   public String getQualifiedName() {
     return ClojurePsiImplUtil.getQualifiedName(this);
   }
 
+  @Override
   @Nullable
   public CSymbol getQualifier() {
     return ClojurePsiImplUtil.getQualifier(this);
   }
 
+  @Override
   public int getTextOffset() {
     return ClojurePsiImplUtil.getTextOffset(this);
   }
 
+  @Override
   @NotNull
   public PsiQualifiedReference getReference() {
     return ClojurePsiImplUtil.getReference(this);

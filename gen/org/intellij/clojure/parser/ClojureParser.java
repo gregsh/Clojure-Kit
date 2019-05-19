@@ -6,6 +6,7 @@ import com.intellij.lang.PsiBuilder.Marker;
 import static org.intellij.clojure.psi.ClojureTypes.*;
 import static com.intellij.lang.parser.GeneratedParserUtilBase.*;
 import com.intellij.psi.tree.IElementType;
+import com.intellij.psi.tree.IFileElementType;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.lang.PsiParser;
@@ -25,53 +26,11 @@ public class ClojureParser implements PsiParser, LightPsiParser {
     boolean r;
     b = adapt_builder_(t, b, this, EXTENDS_SETS_);
     Marker m = enter_section_(b, 0, _COLLAPSE_, null);
-    if (t == C_ACCESS) {
-      r = access(b, 0);
-    }
-    else if (t == C_COMMENTED) {
-      r = commented(b, 0);
-    }
-    else if (t == C_CONSTRUCTOR) {
-      r = constructor(b, 0);
-    }
-    else if (t == C_FORM) {
-      r = form(b, 0);
-    }
-    else if (t == C_FUN) {
-      r = fun(b, 0);
-    }
-    else if (t == C_KEYWORD) {
-      r = keyword(b, 0);
-    }
-    else if (t == C_LIST) {
-      r = list(b, 0);
-    }
-    else if (t == C_LITERAL) {
-      r = literal(b, 0);
-    }
-    else if (t == C_MAP) {
-      r = map(b, 0);
-    }
-    else if (t == C_METADATA) {
-      r = metadata(b, 0);
-    }
-    else if (t == C_READER_MACRO) {
-      r = reader_macro(b, 0);
-    }
-    else if (t == C_REGEXP) {
-      r = regexp(b, 0);
-    }
-    else if (t == C_SET) {
-      r = set(b, 0);
-    }
-    else if (t == C_SYMBOL) {
-      r = symbol(b, 0);
-    }
-    else if (t == C_VEC) {
-      r = vec(b, 0);
+    if (t instanceof IFileElementType) {
+      r = parse_root_(t, b, 0);
     }
     else {
-      r = parse_root_(t, b, 0);
+      r = false;
     }
     exit_section_(b, 0, m, t, r, true, TRUE_CONDITION);
   }
