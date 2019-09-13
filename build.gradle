@@ -8,7 +8,7 @@ buildscript {
 }
 
 plugins {
-  id "org.jetbrains.intellij" version "0.4.8"
+  id "org.jetbrains.intellij" version "0.4.10"
 }
 
 version = "${version}"
@@ -34,11 +34,15 @@ allprojects {
       kotlin.srcDirs "tests"
     }
   }
+  apply plugin: 'idea'
+  idea.module {
+    generatedSourceDirs += file('gen')
+  }
   apply plugin: "org.jetbrains.intellij"
   intellij {
     version ideaVersion
     type "IC"
-    plugins "copyright"
+    plugins 'copyright', 'java'
     updateSinceUntilBuild false
     downloadSources = false
   }
