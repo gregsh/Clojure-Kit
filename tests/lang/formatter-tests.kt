@@ -17,6 +17,7 @@
 
 package org.intellij.clojure.lang
 
+import com.intellij.application.options.CodeStyle
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.util.text.StringUtil.escapeToRegexp
 import com.intellij.openapi.util.text.StringUtil.nullize
@@ -24,7 +25,7 @@ import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.codeStyle.CodeStyleSettingsManager
 import com.intellij.psi.codeStyle.LanguageCodeStyleSettingsProvider
 import com.intellij.testFramework.ParsingTestCase
-import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import groovy.lang.Binding
 import groovy.lang.GroovyShell
 import org.intellij.clojure.formatter.ClojureCodeStyleSettings
@@ -33,16 +34,16 @@ import org.intellij.clojure.ui.formatter.ClojureLangCodeStyleSettingsProvider
 /**
  * @author gregsh
  */
-val DELIMITER = ";;; reformat>"
+const val DELIMITER = ";;; reformat>"
 
-class ClojureFormatterTest : LightPlatformCodeInsightFixtureTestCase() {
+class ClojureFormatterTest : BasePlatformTestCase() {
   override fun getTestDataPath() = "$TEST_DATA_PATH/formatter"
 
-  val settingsManager: CodeStyleSettingsManager get() = CodeStyleSettingsManager.getInstance(project)
+  private val settingsManager: CodeStyleSettingsManager get() = CodeStyleSettingsManager.getInstance(project)
 
   override fun setUp() {
     super.setUp()
-    settingsManager.run { setTemporarySettings(currentSettings.clone()) }
+    settingsManager.run { setTemporarySettings(CodeStyle.getSettings(project).clone()) }
   }
 
   override fun tearDown() {
@@ -63,7 +64,7 @@ class ClojureFormatterTest : LightPlatformCodeInsightFixtureTestCase() {
     val match = "\n*(?:${escapeToRegexp(DELIMITER)}.*\n*)++".toRegex().find(fullText)
         ?: error("separate before/after snippets with:\n$DELIMITER")
     nullize(fullText.substring(match.range).trimMargin(DELIMITER).trim())?.let { evaluate(it)}
-    val original = fullText.substring(0, match.range.start)
+    val original = fullText.substring(0, match.range.first)
     val performEnter = original.contains("<caret>")
     configureByText(ClojureFileType, original)
     WriteCommandAction.runWriteCommandAction(null) {
@@ -88,8 +89,8 @@ class ClojureFormatterTest : LightPlatformCodeInsightFixtureTestCase() {
     checkResultByFile(getTestName(false) + ".clj", true)
   }
 
-  fun evaluate(script : String) {
-    val tmpSettings = settingsManager.currentSettings
+  private fun evaluate(script : String) {
+    val tmpSettings = settingsManager.temporarySettings!!
     val common = tmpSettings.getCommonSettings(ClojureLanguage)
     val custom = tmpSettings.getCustomSettings(ClojureCodeStyleSettings::class.java)
     val binding = Binding(mutableMapOf(

@@ -3,12 +3,12 @@ package org.intellij.clojure.lang
 import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.lookup.Lookup.REPLACE_SELECT_CHAR
 import com.intellij.openapi.util.registry.Registry
-import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 /**
  * @author gregsh
  */
-class ClojureCompletionTest : LightPlatformCodeInsightFixtureTestCase() {
+class ClojureCompletionTest : BasePlatformTestCase() {
   companion object {
     val NS_KEY = "namespace/keyword"
     val NS_ALIAS = "(alias 'namespace some-ns)"

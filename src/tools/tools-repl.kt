@@ -349,7 +349,7 @@ private fun findReplInner(project: Project, virtualFile: VirtualFile): Triple<Ru
 fun findOrCreateRepl(project: Project, virtualFile: VirtualFile, consumer: (ReplConsole) -> Unit) {
   val (contentToReuse, title, workingDir) = findReplInner(project, virtualFile)
   if (contentToReuse != null) {
-    contentToReuse.attachedContent!!.run { manager.setSelectedContent(this) }
+    contentToReuse.attachedContent!!.run { manager?.setSelectedContent(this) }
 
     val repl = contentToReuse.executionConsole as ReplConsole
     if (repl.processHandler.isProcessTerminating || repl.processHandler.isProcessTerminated) {

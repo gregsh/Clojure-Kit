@@ -123,7 +123,7 @@ class ClojureSyntaxHighlighter(val language: Language) : SyntaxHighlighterBase()
       ClojureHighlightingLexer.QUOTED_SYM -> pack(ClojureColors.QUOTED_SYM)
       ClojureHighlightingLexer.DATA_READER -> pack(ClojureColors.DATA_READER)
       ClojureHighlightingLexer.HAT_SYM -> pack(ClojureColors.METADATA)
-      else -> EMPTY
+      else -> TextAttributesKey.EMPTY_ARRAY
     }
   }
 }

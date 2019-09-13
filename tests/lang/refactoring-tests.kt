@@ -18,14 +18,14 @@
 package org.intellij.clojure.lang
 
 import com.intellij.refactoring.BaseRefactoringProcessor
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 /**
  *
  *
  * @author gregsh
  */
-class ClojureRenameTest : LightCodeInsightFixtureTestCase() {
+class ClojureRenameTest : BasePlatformTestCase() {
   fun testRename1() = doTest("Bar", "(defrecord Foo| [a b]) (Foo. 1 2)")
   fun testRenameKey1() = doTest("foo", "::bar|\n\n(defn A [{::keys [bar]}] (print bar some/foo)))")
   fun testRenameKey2() = doFailTest("foo", "::bar| (defn A [{::keys [bar]}] (let [foo 12] (print bar))))")

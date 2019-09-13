@@ -13,7 +13,7 @@ import com.intellij.testFramework.LexerTestCase
 import com.intellij.testFramework.LightVirtualFile
 import com.intellij.testFramework.ParsingTestCase
 import com.intellij.testFramework.UsefulTestCase
-import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.inspections.ClojureResolveInspection
 import org.intellij.clojure.parser.*
@@ -131,12 +131,12 @@ abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingT
     println(stat.run { "${getTestName(false)}\nTotal: $errors errors and ${StringUtil.formatFileSize(nodes)} nodes" +
         " in $files files (${StringUtil.formatFileSize(chars)} chars)" })
     println("Processed in ${StringUtil.formatDuration(stat.duration)}\n")
-    ParsingTestCase.assertEquals("${stat.errors} errors", 0L, stat.errors)
-    ParsingTestCase.assertTrue("${stat.nodes} nodes", stat.nodes > 1000)
+    assertEquals("${stat.errors} errors", 0L, stat.errors)
+    assertTrue("${stat.nodes} nodes", stat.nodes > 1000)
   }
 }
 
-class ClojureHighlightingTest : LightPlatformCodeInsightFixtureTestCase() {
+class ClojureHighlightingTest : BasePlatformTestCase() {
   override fun getTestDataPath() = "$TEST_DATA_PATH/highlighting"
   override fun setUp() {
     super.setUp()

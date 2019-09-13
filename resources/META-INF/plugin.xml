@@ -3,7 +3,7 @@
   <id>org.jetbrains.idea.clojure</id>
   <version>2019.1-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="191.7141"/>
+  <idea-version since-build="193.2956"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript plugin for IntelliJ-based tools</description>
@@ -15,27 +15,9 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>resolve: fix qualified :keys destructuring</li>
-      <li>resolve: support this in (reify), (proxy) and (extend)</li>
-      <li>resolve: support (..), (->) and (doto) w/ and w/o parens</li>
-      <li>resolve: skip not quoted lists in ns elements</li>
-      <li>deps: notify if tool process failed to start</li>
-      <li>debugger: handle munged names in evaluator</li>
-      <li>debugger: workaround missing autoboxing for primitives eval</li>
-      <li>resolve: force JVM name for inner classes; fix (.method class)</li>
-      <li>resolve: better dynamic condition in . and ..</li>
-      <li>resolve: avoid resetting RESOLVE_SKIPPED in parallel</li>
-      <li>rename: fix extra space on rename (sym.)</li>
-      <li>rename: handle ::keys destructuring bindings</li>
-      <li>resolve: fix alias and some.alias confusion</li>
-      <li>resolve: clarify (.call obj) vs (call obj) in various cases</li>
-      <li>resolve: support mixed PSI/ASM class hierarchies</li>
-      <li>lexer: fix BigInteger numbers and octal chars literals</li>
-      <li>lexer: improve bad literals handling</li>
-      <li>resolve: improve qualified tags handling</li>
-      <li>tools: update nREPL dependencies #30</li>
+      <li>platform: IntelliJ IDEA 2019.3</li>
     </ul>
-    <a href="https://github.com/gregsh/Clojure-Kit#change-log">Full change log...</a>
+    <a href="https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md">Full change log...</a>
     ]]>
   </change-notes>
 
@@ -45,7 +27,8 @@
   <extensions defaultExtensionNs="com.intellij">
     <errorHandler implementation="com.intellij.diagnostic.ITNReporter"/>
 
-    <fileTypeFactory implementation="org.intellij.clojure.lang.ClojureFileTypeFactory"/>
+    <fileType name="Clojure" language="Clojure" extensions="cljs;clj;cljc;edn" fileNames="build.boot"
+              implementationClass="org.intellij.clojure.lang.ClojureFileType" fieldName="INSTANCE"/>
     <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.parser.ClojureParserDefinition"/>
     <lang.parserDefinition language="ClojureScript" implementationClass="org.intellij.clojure.parser.ClojureScriptParserDefinition"/>
     <lang.substitutor language="Clojure" implementationClass="org.intellij.clojure.lang.ClojureLanguageSubstitutor"/>
@@ -108,8 +91,7 @@
     <lang.findUsagesProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureFindUsagesProvider"/>
     <usageTargetProvider implementation="org.intellij.clojure.lang.usages.ClojureUsageTargetProvider"/>
     <findUsagesHandlerFactory implementation="org.intellij.clojure.java.JavaHelper$AsmFindUsagesHandlerFactory"/>
-    <projectService serviceInterface="org.intellij.clojure.psi.impl.ClojureDefinitionService"
-                    serviceImplementation="org.intellij.clojure.psi.impl.ClojureDefinitionService" />
+    <projectService serviceImplementation="org.intellij.clojure.psi.impl.ClojureDefinitionService" />
     <projectService serviceImplementation="org.intellij.clojure.psi.impl.ClojureTypeCache" />
     <referencesSearch implementation="org.intellij.clojure.lang.usages.MapDestructuringUsagesSearcher"/>
     <lang.sliceProvider language="Clojure" implementationClass="org.intellij.clojure.lang.usages.ClojureSliceSupportProvider"/>

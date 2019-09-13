@@ -44,7 +44,6 @@ import com.intellij.util.ConcurrencyUtil
 import com.intellij.util.IncorrectOperationException
 import com.intellij.util.ObjectUtils
 import com.intellij.util.containers.ContainerUtil
-import com.intellij.util.containers.ContainerUtilRt
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.JBTreeTraverser
 import org.intellij.clojure.ClojureConstants
@@ -267,10 +266,10 @@ abstract class JavaHelper {
 
     override fun getAnnotations(element: NavigatablePsiElement?): List<String> {
       if (element !is PsiModifierListOwner) return asm.getAnnotations(element)
-      val modifierList = element.modifierList ?: return ContainerUtilRt.emptyList<String>()
+      val modifierList = element.modifierList ?: return emptyList()
       val strings = ArrayList<String>()
       modifierList.annotations.forEach { o ->
-        if (o.parameterList.attributes.size == 0) {
+        if (o.parameterList.attributes.isEmpty()) {
           strings.add(o.qualifiedName ?: "_")
         }
       }
@@ -594,21 +593,20 @@ abstract class JavaHelper {
         if (sb.length == 0) return
         loop@ while (!states.isEmpty()) {
           if (finishState == states.peekFirst()) break
-          val state = states.pop()
-          when (state) {
-            JavaHelper.AsmHelper.MySignatureVisitor.State.PARAM -> {
+          when (states.pop()) {
+            State.PARAM -> {
               types.add(sb.toString())
               types.add("p" + types.size / 2)
               sb.setLength(0)
               break@loop
             }
-            JavaHelper.AsmHelper.MySignatureVisitor.State.RETURN -> {
+            State.RETURN -> {
               types.add(0, sb.toString())
               sb.setLength(0)
               break@loop
             }
-            JavaHelper.AsmHelper.MySignatureVisitor.State.ARRAY -> sb.append("[]")
-            JavaHelper.AsmHelper.MySignatureVisitor.State.GENERIC -> sb.append(">")
+            State.ARRAY -> sb.append("[]")
+            State.GENERIC -> sb.append(">")
             else -> {
             }
           }

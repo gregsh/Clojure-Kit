@@ -171,8 +171,8 @@ class ClojureDefinitionService(val project: Project) {
 
   private fun createPomMap(owner : PsiElement? = null): Map<SymKey, PsiElement> {
     val mapRef: Array<Map<SymKey, PsiElement>> = arrayOf(emptyMap())
-    val map = ConcurrentFactoryMap.createMap(
-        {key -> createPomElement(owner, YTarget(project, key, mapRef[0]))},
+    val map = ConcurrentFactoryMap.create(
+        { key -> createPomElement(owner, YTarget(project, key, mapRef[0]))},
         { ContainerUtil.createConcurrentWeakValueMap<SymKey, PsiElement>()})
     mapRef[0] = map
     return map

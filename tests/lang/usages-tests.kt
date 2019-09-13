@@ -18,11 +18,11 @@
 package org.intellij.clojure.lang
 
 import com.intellij.codeInsight.TargetElementUtil
-import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import junit.framework.TestCase
 
 
-class ClojureUsagesTest : LightPlatformCodeInsightFixtureTestCase() {
+class ClojureUsagesTest : BasePlatformTestCase() {
   companion object {
     const val NS_ALIAS = "(alias 'bar foo.bar)"
   }

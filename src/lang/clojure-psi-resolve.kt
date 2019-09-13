@@ -19,6 +19,7 @@ package org.intellij.clojure.psi.impl
 
 import com.intellij.lang.Language
 import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.TextRange
@@ -58,14 +59,12 @@ interface NameHint {
   fun getName(state: ResolveState): String?
 }
 
-class ClojureTypeCache(service: ClojureDefinitionService) {
-  companion object {
-    val INSTANCE_KEY = ServiceManager.createLazyKey(ClojureTypeCache::class.java)
-  }
-
+class ClojureTypeCache(project: Project) {
   val map = ContainerUtil.createConcurrentWeakMap<CForm, Any>()
   init {
-    service.project.messageBus.connect().subscribe(PsiManagerImpl.ANY_PSI_CHANGE_TOPIC, object : AnyPsiChangeListener.Adapter() {
+    project.messageBus.connect().subscribe(PsiManagerImpl.ANY_PSI_CHANGE_TOPIC, object : AnyPsiChangeListener {
+      override fun afterPsiChanged(isPhysical: Boolean) = Unit
+
       override fun beforePsiChanged(isPhysical: Boolean) {
         map.clear()
       }
@@ -75,9 +74,9 @@ class ClojureTypeCache(service: ClojureDefinitionService) {
 
 fun ClojureDefinitionService.exprType(form: CForm?): Any? {
   if (form == null) return null
-  val ourTypeCache = ClojureTypeCache.INSTANCE_KEY.getValue(project).map
-  val cached = ourTypeCache[form] ?: CSymbolReference.ourTypeGuard.doPreventingRecursion(form, false) {
-    val stamp = CSymbolReference.ourTypeGuard.markStack()
+  val ourTypeCache = ServiceManager.getService(project, ClojureTypeCache::class.java).map
+  val cached = ourTypeCache[form] ?: RecursionManager.doPreventingRecursion(form, false) {
+    val stamp = RecursionManager.markStack()
     val type = exprTypeImpl(form) ?: CSymbolReference.NULL_TYPE
     if (!stamp.mayCacheNow()) type
     else ConcurrencyUtil.cacheOrGet(ourTypeCache, form, type)
@@ -201,7 +200,6 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
     }
 
     val NULL_TYPE = "*unknown*"
-    val ourTypeGuard = RecursionManager.createGuard("javaType")
   }
 
   override fun multiResolve(incompleteCode: Boolean): Array<out ResolveResult> {
