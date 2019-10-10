@@ -1,3 +1,7 @@
+2019.3
+
+* platform: IntelliJ IDEA 2019.3 EAP
+
 0.7.6
 
 * resolve: fix qualified :keys destructuring
