@@ -83,7 +83,6 @@ import com.intellij.util.ProcessingContext
 import com.intellij.util.SingleAlarm
 import com.intellij.util.SmartList
 import com.intellij.util.concurrency.AppExecutorUtil
-import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.indexing.FileBasedIndex
 import org.intellij.clojure.ClojureConstants
@@ -228,7 +227,7 @@ class ClojureCompletionContributor : CompletionContributor() {
                 .substring(originalFile.text))
 
         if (thisForm is CKeyword || thisForm == null) {
-          val visited = ContainerUtil.newTroveSet<String>(qualifiedResult.prefixMatcher.prefix)
+          val visited = hashSetOf(qualifiedResult.prefixMatcher.prefix)
           val prefixNamespace = (thisForm as? CKeyword)?.namespace
           val consumer: (String, String, VirtualFile) -> Unit = consumer@ { name, ns, file ->
             if (!showAll && !noNsPrefix && ns != prefixNamespace) return@consumer
@@ -809,7 +808,7 @@ class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
 
   override fun getHintInfo(element: PsiElement): HintInfo? = HintInfo.OptionInfo(OPTION)
   override fun getDefaultBlackList(): Set<String> = emptySet()
-  override fun getSupportedOptions(): List<Option> = ContainerUtil.newSmartList(OPTION)
+  override fun getSupportedOptions(): List<Option> = SmartList(OPTION)
   override fun isBlackListSupported(): Boolean = false
 
 }

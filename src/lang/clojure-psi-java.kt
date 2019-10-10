@@ -39,10 +39,7 @@ import com.intellij.psi.meta.PsiPresentableMetaData
 import com.intellij.psi.scope.PsiScopeProcessor
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.util.ArrayUtil
-import com.intellij.util.ConcurrencyUtil
-import com.intellij.util.IncorrectOperationException
-import com.intellij.util.ObjectUtils
+import com.intellij.util.*
 import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.JBTreeTraverser
@@ -468,7 +465,7 @@ abstract class JavaHelper {
       override fun visitField(access: Int, name: String?, desc: String?, signature: String?, value: Any?): FieldVisitor? {
         if (name == null) return null
         val sig = ObjectUtils.chooseNotNull(signature, desc)
-        val types = processSignature(ContainerUtil.newSmartList(), sig, "${info.name}.$name}")
+        val types = processSignature(SmartList(), sig, "${info.name}.$name}")
         val field = FieldInfo(name, info, access, if (types.isEmpty()) sig else types[0], sig)
         info.fields.add(field)
         return super.visitField(access, name, desc, signature, value)
@@ -807,10 +804,10 @@ abstract class JavaHelper {
 
   private class ClassInfo(val name: String, val url: String) {
     var superClass: String = CommonClassNames.JAVA_LANG_OBJECT
-    val interfaces: MutableList<String> = ContainerUtil.newSmartList()
-    val annotations: MutableList<String> = ContainerUtil.newSmartList()
-    val methods: MutableList<MethodInfo> = ContainerUtil.newSmartList()
-    val fields: MutableList<FieldInfo> = ContainerUtil.newSmartList()
+    val interfaces: MutableList<String> = SmartList()
+    val annotations: MutableList<String> = SmartList()
+    val methods: MutableList<MethodInfo> = SmartList()
+    val fields: MutableList<FieldInfo> = SmartList()
 
     override fun toString() = "Class {$name}"
   }
@@ -820,8 +817,8 @@ abstract class JavaHelper {
   private class MethodInfo(name: String, declaringClass: ClassInfo, val modifiers: Int, val signature: String) :
       MemberInfo(name, declaringClass) {
     val scope = if ("<init>" == name) Scope.INIT else if (Modifier.isStatic(modifiers)) Scope.STATIC else Scope.INSTANCE
-    val annotations: MutableList<String> = ContainerUtil.newSmartList()
-    val types: MutableList<String> = ContainerUtil.newSmartList()
+    val annotations: MutableList<String> = SmartList()
+    val types: MutableList<String> = SmartList()
 
     override fun toString() = "Method {$name(), $types, @$annotations}"
   }
@@ -829,7 +826,7 @@ abstract class JavaHelper {
   private class FieldInfo(name: String, declaringClass: ClassInfo, val modifiers: Int, val type: String, val signature: String) :
       MemberInfo(name, declaringClass) {
     val scope = if (Modifier.isStatic(modifiers)) Scope.STATIC else Scope.INSTANCE
-    val annotations: MutableList<String> = ContainerUtil.newSmartList()
+    val annotations: MutableList<String> = SmartList()
 
     override fun toString() = "Field {$name, $type, @$annotations}"
   }

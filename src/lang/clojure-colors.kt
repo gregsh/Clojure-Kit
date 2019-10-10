@@ -36,9 +36,9 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.TokenType
 import com.intellij.psi.tree.IElementType
-import com.intellij.util.containers.ContainerUtil
 import org.intellij.clojure.parser.ClojureLexer
 import org.intellij.clojure.psi.ClojureTypes.*
+import java.util.concurrent.ConcurrentHashMap
 
 object ClojureColors {
   @JvmField val LINE_COMMENT = createTextAttributesKey("C_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT)
@@ -81,7 +81,7 @@ object ClojureColors {
   @JvmField val JAVA_INSTANCE_FIELD = createTextAttributesKey("C_JAVA_INSTANCE_FIELD", DefaultLanguageHighlighterColors.INSTANCE_FIELD)
   @JvmField val JAVA_INSTANCE_METHOD = createTextAttributesKey("C_JAVA_INSTANCE_METHOD", DefaultLanguageHighlighterColors.INSTANCE_METHOD)
 
-  @JvmField val NS_COLORS: Map<String, TextAttributes> = ContainerUtil.newConcurrentMap()
+  @JvmField val NS_COLORS: Map<String, TextAttributes> = ConcurrentHashMap()
 }
 
 class ClojureSyntaxHighlighterFactory : SyntaxHighlighterFactory() {

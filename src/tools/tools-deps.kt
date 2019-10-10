@@ -41,7 +41,6 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.ProjectScope
-import com.intellij.util.containers.ContainerUtil
 import com.intellij.util.io.SafeFileOutputStream
 import org.intellij.clojure.lang.ClojureLanguage
 import org.intellij.clojure.lang.usages.CljLib
@@ -51,6 +50,7 @@ import org.intellij.clojure.util.*
 import java.io.File
 import java.io.PrintWriter
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -80,7 +80,7 @@ private class ClojureProjectDeps(val project: Project) {
   }
 
   val cacheFile = File(PathManager.getSystemPath(), "clojure/deps-${project.locationHash}.txt")
-  val mapping: MutableMap<String, List<Dependency>> = ContainerUtil.newConcurrentMap()
+  val mapping: MutableMap<String, List<Dependency>> = ConcurrentHashMap()
   val allDependencies: Set<VirtualFile> get() = mapping.values.jbIt()
       .flatten { it }
       .transform(::resolveDependency)
