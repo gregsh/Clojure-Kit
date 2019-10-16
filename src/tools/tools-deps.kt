@@ -36,6 +36,7 @@ import com.intellij.openapi.roots.SyntheticLibrary
 import com.intellij.openapi.roots.ex.ProjectRootManagerEx
 import com.intellij.openapi.startup.StartupActivity
 import com.intellij.openapi.util.EmptyRunnable
+import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.JarFileSystem
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
@@ -96,7 +97,7 @@ private class ClojureProjectDeps(val project: Project) {
   })
 
   fun initialize() {
-    if (cacheFile.exists()) {
+    if (cacheFile.exists() && cacheFile.isFile) {
       try {
         read(cacheFile)
       }
@@ -131,7 +132,12 @@ private class ClojureProjectDeps(val project: Project) {
 
   private fun write(cacheFile: File) {
     LOG.info("writing ${cacheFile.path}")
-    cacheFile.mkdirs()
+    if (cacheFile.exists() && !cacheFile.isFile) {
+      FileUtil.delete(cacheFile)
+    }
+    else {
+      cacheFile.parentFile.mkdirs()
+    }
     PrintWriter(SafeFileOutputStream(cacheFile)).use {
       for ((key, value) in TreeMap(mapping)) {
         it.println(key)
