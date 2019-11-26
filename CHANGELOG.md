@@ -1,3 +1,11 @@
+2019.3.1
+
+* editor: make "smart kill" and "smart parens" configurable (Smart Keys | Clojure)
+* editor: turn "smart kill" and "smart parens" off by default
+* deps: fix dependencies cache file being a directory
+* java: fix resolve on Java 11
+* platform: IntelliJ IDEA 2019.3
+
 2019.3
 
 * platform: IntelliJ IDEA 2019.3 EAP
