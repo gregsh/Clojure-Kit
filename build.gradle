@@ -8,7 +8,7 @@ buildscript {
 }
 
 plugins {
-  id "org.jetbrains.intellij" version "0.4.10"
+  id "org.jetbrains.intellij" version "0.4.14"
 }
 
 version = "${version}"
@@ -20,10 +20,12 @@ allprojects {
 
   sourceCompatibility = javaVersion
   targetCompatibility = javaVersion
-
-  tasks.compileKotlin.kotlinOptions.apiVersion = kotlinApiVersion
-  tasks.compileTestKotlin.kotlinOptions.apiVersion = kotlinApiVersion
-
+  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+    kotlinOptions {
+      jvmTarget = javaVersion
+      apiVersion = kotlinApiVersion
+    }
+  }
   sourceSets {
     main {
       java.srcDirs "src", "gen"
@@ -53,8 +55,8 @@ repositories {
   maven { url "http://clojars.org/repo" }
 }
 dependencies {
-  testRuntime "org.clojure:clojure:1.10.0"
-  testRuntime "org.clojure:clojurescript:1.10.439"
+  testRuntime "org.clojure:clojure:1.10.1"
+  testRuntime "org.clojure:clojurescript:1.10.597"
   compile files("${System.properties['java.home']}/../lib/tools.jar")
 }
 
@@ -69,15 +71,13 @@ test {
 }
 
 task plugin_jar(type: Jar, dependsOn: [rootProject.tasks["assemble"]]) {
-  baseName = "clojure-kit"
-  destinationDir = file(artifactsPath)
+  archiveBaseName.set("clojure-kit")
   manifest { from "$rootDir/resources/META-INF/MANIFEST.MF" }
   from(rootProject.sourceSets.main.output)
 }
 
 task plugin_zip(type: Zip, dependsOn: [plugin_jar]) {
-  baseName = "ClojureKit"
-  destinationDir = file(artifactsPath)
+  archiveBaseName.set("ClojureKit")
   from(tasks["plugin_jar"].outputs) {
     into "/ClojureKit/lib"
   }
