@@ -28,8 +28,6 @@ import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.NotNullLazyKey
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.pom.PomTargetPsiElement
 import com.intellij.psi.*
 import com.intellij.psi.impl.FakePsiElement
@@ -51,7 +49,6 @@ import org.jetbrains.org.objectweb.asm.signature.SignatureReader
 import org.jetbrains.org.objectweb.asm.signature.SignatureVisitor
 import java.io.InputStream
 import java.lang.reflect.Modifier
-import java.net.URL
 import java.util.*
 import java.util.concurrent.ConcurrentMap
 
@@ -61,6 +58,8 @@ import java.util.concurrent.ConcurrentMap
 abstract class JavaHelper {
 
   companion object {
+    
+    private const val ASM_API = Opcodes.ASM7
 
     private val INSTANCE_KEY: NotNullLazyKey<JavaHelper, Project> = NotNullLazyKey.create(
         "Service: " + JavaHelper::class.qualifiedName) {
@@ -329,8 +328,8 @@ abstract class JavaHelper {
         if (packageName == null || withClass == null) null
         else (findClass("$packageName.$withClass")?.delegate as? ClassInfo)?.url?.let { url ->
           lazyCached(packageName, p_nulls) {
-            val path = VirtualFileManager.getInstance().findFileByUrl(VfsUtil.convertFromUrl(URL(url)))?.parent?.path
-            if (path == null) null else PackageInfo(packageName, path)
+            val path = PathUtil.getParentPath(url)
+            if (path.isEmpty()) null else PackageInfo(packageName, path)
           }
         }
 
@@ -427,7 +426,7 @@ abstract class JavaHelper {
       }
     }
 
-    private class MyClassVisitor(val info: ClassInfo) : ClassVisitor(Opcodes.ASM5) {
+    private class MyClassVisitor(val info: ClassInfo) : ClassVisitor(ASM_API) {
 
       override fun visit(version: Int,
                          access: Int,
@@ -449,7 +448,7 @@ abstract class JavaHelper {
         val methodInfo = MethodInfo(name, info, access, sig)
         processSignature(methodInfo.types, methodInfo.signature, "${methodInfo.declaringClass}#${methodInfo.name}(..)")
         if (name != "<clinit>") info.methods.add(methodInfo)
-        return object : MethodVisitor(Opcodes.ASM5) {
+        return object : MethodVisitor(ASM_API) {
           override fun visitAnnotation(desc: String, visible: Boolean): AnnotationVisitor {
             return object : MyAnnotationVisitor() {
               override fun visitEnd() {
@@ -471,7 +470,7 @@ abstract class JavaHelper {
         return super.visitField(access, name, desc, signature, value)
       }
 
-      inner open class MyAnnotationVisitor : AnnotationVisitor(Opcodes.ASM5) {
+      inner open class MyAnnotationVisitor : AnnotationVisitor(ASM_API) {
         var annoParamCounter: Int = 0
 
         override fun visit(s: String, o: Any) {
@@ -494,7 +493,7 @@ abstract class JavaHelper {
       }
     }
 
-    private class MySignatureVisitor(val types: MutableList<in String>) : SignatureVisitor(Opcodes.ASM5) {
+    private class MySignatureVisitor(val types: MutableList<in String>) : SignatureVisitor(ASM_API) {
       enum class State {
         PARAM, RETURN, CLASS, ARRAY, GENERIC, BOUNDS, EXCEPTION
       }
@@ -630,7 +629,7 @@ abstract class JavaHelper {
     }
 
     private fun findClassSafe(className: String?): ClassInfo? {
-      if (className == null) return null
+      if (className == null || className == "") return null
       try {
         var url: String? = null
         var stream: InputStream? = null
@@ -699,11 +698,10 @@ abstract class JavaHelper {
 
       private fun reportException(e: Exception, target: String, signature: String?) {
         if (e is ProcessCanceledException) return
-        System.err.println(e.javaClass.simpleName + " while reading " + target +
-            if (signature == null) "" else " signature " + signature)
+        System.err.println("Error while reading $target${if (signature == null) "" else " signature $signature\n$e"}")
       }
 
-      private fun fixClassName(s: String?) = s?.replace('/', '.')?.replace('$', '.') ?: "null"
+      private fun fixClassName(s: String?) = s?.replace('/', '.')?.replace('$', '.') ?: ""
     }
   }
 
