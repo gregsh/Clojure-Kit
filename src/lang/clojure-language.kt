@@ -18,7 +18,6 @@
 package org.intellij.clojure.lang
 
 import com.intellij.codeInsight.template.FileTypeBasedContextType
-import com.intellij.codeInsight.template.impl.DefaultLiveTemplatesProvider
 import com.intellij.ide.actions.QualifiedNameProvider
 import com.intellij.lang.BracePair
 import com.intellij.lang.Language
@@ -105,11 +104,6 @@ class ClojureQualifiedNameProvider : QualifiedNameProvider {
 }
 
 class ClojureLiveTemplateContext : FileTypeBasedContextType("Clojure", "Clojure", ClojureFileType)
-
-class ClojureLiveTemplateProvider : DefaultLiveTemplatesProvider {
-  override fun getDefaultLiveTemplateFiles() = arrayOf("liveTemplates/clojureLiveTemplates")
-  override fun getHiddenLiveTemplateFiles(): Array<String>? = null
-}
 
 object ClojureTokens {
   @JvmField val CLJ_FILE_TYPE = IFileElementType("CLOJURE_FILE", ClojureLanguage)

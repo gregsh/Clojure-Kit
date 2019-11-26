@@ -171,7 +171,6 @@ class CMetaStub(val map: Map<String, String>, parent: CStub?) : CStub(parent) {
 
 internal class CImportStub(val import: Import, val dialect: Dialect, parent: CStub?) : CStub(parent) {
   override fun getStubType() = SERIALIZER
-  override fun toString() = super.toString()
 
   companion object {
     val SERIALIZER = object : ObjectStubSerializer<CImportStub, CStub> {
@@ -187,6 +186,7 @@ internal class CImportStub(val import: Import, val dialect: Dialect, parent: CSt
         dataStream.writeSet(import.refer)
         dataStream.writeSet(import.only)
         dataStream.writeSet(import.exclude)
+        @Suppress("UNCHECKED_CAST")
         dataStream.writeMap(import.rename as Map<String, String>)
       }
 

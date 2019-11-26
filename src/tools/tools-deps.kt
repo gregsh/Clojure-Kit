@@ -22,7 +22,10 @@ import com.intellij.openapi.actionSystem.ActionPlaces
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.CommonDataKeys
-import com.intellij.openapi.application.*
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.PathManager
+import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -89,7 +92,7 @@ private class ClojureProjectDeps(val project: Project) {
       .addAllTo(LinkedHashSet<VirtualFile>())
   var resolveInProgress = AtomicBoolean(true)
 
-  fun reindex() = TransactionGuard.getInstance().submitTransactionLater(project, Runnable {
+  fun reindex() = ApplicationManager.getApplication().invokeLater(Runnable {
     WriteAction.run<Exception> {
       ProjectRootManagerEx.getInstanceEx(project).makeRootsChange(EmptyRunnable.getInstance(), false, true)
       resolveInProgress.set(false)

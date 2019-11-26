@@ -56,7 +56,7 @@
     <breadcrumbsInfoProvider implementation="org.intellij.clojure.editor.ClojureBreadCrumbProvider"/>
     <lang.foldingBuilder language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureFoldingBuilder"/>
     <liveTemplateContext implementation="org.intellij.clojure.lang.ClojureLiveTemplateContext"/>
-    <defaultLiveTemplatesProvider implementation="org.intellij.clojure.lang.ClojureLiveTemplateProvider"/>
+    <defaultLiveTemplates file="liveTemplates/clojureLiveTemplates"/>
 
     <typedHandler implementation="org.intellij.clojure.actions.ClojureTypedHandler"/>
     <editorActionHandler action="EditorBackSpace" implementationClass="org.intellij.clojure.actions.ClojureBackspaceHandler"/>

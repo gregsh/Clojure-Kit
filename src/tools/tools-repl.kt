@@ -40,7 +40,7 @@ import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.lang.Language
 import com.intellij.openapi.actionSystem.*
-import com.intellij.openapi.application.TransactionGuard
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.Editor
@@ -602,7 +602,7 @@ class ReplConsole(project: Project, title: String, language: Language)
       }, ConsoleViewContentType.ERROR_OUTPUT)
     }
     stdin = { out ->
-      TransactionGuard.getInstance().submitTransaction(consoleView, null, Runnable {
+      ApplicationManager.getApplication().invokeLater {
         val prevText = consoleView.editorDocument.text
         val prevLang = consoleView.language
         val prevPrompt = consoleView.prompt
@@ -622,7 +622,7 @@ class ReplConsole(project: Project, title: String, language: Language)
           out.invoke(adjusted)
         }
         requestScrollingToEnd()
-      })
+      }
     }
   }
 }
