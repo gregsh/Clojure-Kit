@@ -60,12 +60,12 @@
 /clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
 /clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
 /clojure/main.clj                        0 errors, 0 warnings, 6 dynamic
-      4668: dynamic 'read'
-      4768: dynamic 'unread'
-      5354: dynamic 'read'
-      5463: dynamic 'readLine'
-      5556: dynamic 'read'
-      5582: dynamic 'unread'
+      4778: dynamic 'read'
+      4878: dynamic 'unread'
+      5464: dynamic 'read'
+      5573: dynamic 'readLine'
+      5666: dynamic 'read'
+      5692: dynamic 'unread'
 /clojure/parallel.clj                    0 errors, 11 warnings, 23 dynamic
       2317: unable to resolve 'Ops$Op'
       2381: unable to resolve 'Ops$BinaryOp'
@@ -191,4 +191,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 66 warnings, 84 dynamic in 43 files (752.49 kB)
+Total: 66 warnings, 84 dynamic in 43 files (755.43 kB)
