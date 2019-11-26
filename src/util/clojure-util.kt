@@ -19,6 +19,7 @@ package org.intellij.clojure.util
 
 import com.intellij.lang.*
 import com.intellij.lang.parser.GeneratedParserUtilBase
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.command.undo.DocumentReferenceManager
@@ -215,3 +216,5 @@ class EachNth(private val each: Int) : JBIterable.Stateful<EachNth>(), Condition
   private var idx = -1
   override fun value(t: Any?) = run { idx = ++ idx % each; idx == 0 }
 }
+
+inline fun <reified T : Any> service(): T = ApplicationManager.getApplication().getService(T::class.java)

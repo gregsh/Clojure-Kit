@@ -37,10 +37,16 @@ import com.intellij.lexer.StringLiteralLexer
 import com.intellij.navigation.LocationPresentation
 import com.intellij.navigation.NavigationItem
 import com.intellij.openapi.command.CommandProcessor
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.State
+import com.intellij.openapi.components.Storage
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.highlighter.HighlighterIterator
+import com.intellij.openapi.options.BoundConfigurable
+import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.DialogPanel
 import com.intellij.openapi.util.TextRange
 import com.intellij.patterns.ElementPattern
 import com.intellij.patterns.PatternCondition
@@ -56,6 +62,7 @@ import com.intellij.refactoring.rename.RenameInputValidator
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
 import com.intellij.spellchecker.tokenizer.Tokenizer
 import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
+import com.intellij.ui.layout.panel
 import com.intellij.util.ProcessingContext
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.TreeTraversal
@@ -303,4 +310,25 @@ private fun dumpElementText(o: PsiElement, max: Int) = StringBuilder().run {
     }
   }
   toString()
+}
+
+@State(name = "ClojureSmartKeysOptions", storages = [Storage("editor.xml")])
+class ClojureSmartKeysOptions(delete: Boolean = false, parens: Boolean = false) : PersistentStateComponent<ClojureSmartKeysOptions> {
+  var SMART_KILL: Boolean = delete
+  var SMART_PARENS: Boolean = parens
+  override fun getState(): ClojureSmartKeysOptions = ClojureSmartKeysOptions(SMART_KILL, SMART_PARENS)
+  override fun loadState(state: ClojureSmartKeysOptions) { SMART_KILL = state.SMART_KILL; SMART_PARENS = state.SMART_PARENS }
+}
+
+class ClojureSmartKeysConfigurable : BoundConfigurable("Clojure"), SearchableConfigurable {
+  override fun getId() = "editor.preferences.clojureOptions"
+  override fun createPanel(): DialogPanel {
+    val options = service<ClojureSmartKeysOptions>()
+    return panel {
+      row { checkBox("Add closing ')', ']' or '}' after the nearest form",
+          { options.SMART_PARENS }, { options.SMART_PARENS = it}) }
+      row { checkBox("Kill a form when deleting '(' or ')' from outside, splice from inside",
+          { options.SMART_KILL }, { options.SMART_KILL = it}) }
+    }
+  }
 }

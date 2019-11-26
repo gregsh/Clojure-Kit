@@ -58,6 +58,8 @@
     <liveTemplateContext implementation="org.intellij.clojure.lang.ClojureLiveTemplateContext"/>
     <defaultLiveTemplates file="liveTemplates/clojureLiveTemplates"/>
 
+    <applicationService serviceImplementation="org.intellij.clojure.editor.ClojureSmartKeysOptions"/>
+    <editorSmartKeysConfigurable instance="org.intellij.clojure.editor.ClojureSmartKeysConfigurable" id="editor.preferences.clojureOptions"/>
     <typedHandler implementation="org.intellij.clojure.actions.ClojureTypedHandler"/>
     <editorActionHandler action="EditorBackSpace" implementationClass="org.intellij.clojure.actions.ClojureBackspaceHandler"/>
     <editorActionHandler action="EditorDelete" implementationClass="org.intellij.clojure.actions.ClojureDeleteHandler"/>

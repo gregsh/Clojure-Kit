@@ -37,6 +37,7 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.psi.*
 import com.intellij.psi.tree.IElementType
 import com.intellij.psi.util.PsiUtilBase
+import org.intellij.clojure.editor.ClojureSmartKeysOptions
 import org.intellij.clojure.lang.ClojureTokens
 import org.intellij.clojure.psi.*
 import org.intellij.clojure.util.*
@@ -52,8 +53,8 @@ class SpliceAction   : CPFormActionBase(::splice)
 class RiseAction     : EditActionBase(::rise, Unit)
 class KillAction     : EditActionBase(::kill, Unit)
 
-class ClojureBackspaceHandler(original: EditorWriteActionHandler) : ClojureEditorHandlerBase(original, ::kill, false)
-class ClojureDeleteHandler(original: EditorWriteActionHandler) : ClojureEditorHandlerBase(original, ::kill, true)
+class ClojureBackspaceHandler(original: EditorWriteActionHandler) : ClojureSmartKillHandlerBase(original, false)
+class ClojureDeleteHandler(original: EditorWriteActionHandler) : ClojureSmartKillHandlerBase(original, true)
 
 abstract class EditActionBase(private val handler: (CFile, Document, Caret) -> (() -> Unit)?)
   : EditorAction(object : EditorActionHandler(false) {
@@ -100,20 +101,17 @@ abstract class CPFormActionBase(private val handler: (CPForm, Document, caret: C
       : this({ form, document, caret -> handler(form, document, caret, forward) })
 }
 
-abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
-                                        val handler: (CFile, EditorEx, Caret) -> Boolean)
+abstract class ClojureSmartKillHandlerBase(private val original: EditorWriteActionHandler,
+                                           private val forward: Boolean)
   : EditorWriteActionHandler(true) {
-  constructor(original: EditorWriteActionHandler,
-              handler: (CFile, EditorEx, Caret, Boolean) -> Boolean,
-              forward: Boolean)
-      : this(original, { file, editor, caret -> handler(file, editor, caret, forward) })
+
   override fun executeWriteAction(editor: Editor, caret: Caret?, dataContext: DataContext) {
-    if (!perform(editor, caret, dataContext)) {
+    if (!service<ClojureSmartKeysOptions>().SMART_KILL || !perform(editor, caret, dataContext)) {
       original.executeWriteAction(editor, caret, dataContext)
     }
   }
 
-  fun perform(originalEditor: Editor, caret: Caret?, dataContext: DataContext): Boolean {
+  private fun perform(originalEditor: Editor, caret: Caret?, dataContext: DataContext): Boolean {
     if (caret == null || originalEditor.caretModel.caretCount != 1) return false
     val project = CommonDataKeys.PROJECT.getData(dataContext) ?: return false
     val originalFile = PsiUtilBase.getPsiFileInEditor(originalEditor, project) ?: return false
@@ -121,7 +119,7 @@ abstract class ClojureEditorHandlerBase(val original: EditorWriteActionHandler,
     val file = (if (editor === originalEditor) originalFile
     else PsiDocumentManager.getInstance(project).getPsiFile(editor.document))
         as? CFile ?: return false
-    return handler(file, editor as EditorEx, editor.caretModel.currentCaret)
+    return kill(file, editor as EditorEx, editor.caretModel.currentCaret, forward)
   }
 }
 
@@ -130,6 +128,7 @@ class ClojureTypedHandler : TypedHandlerDelegate() {
 
   override fun charTyped(c: Char, project: Project, editor: Editor, file: PsiFile): Result {
     if (file !is CFile || editor !is EditorEx) return Result.CONTINUE
+    if (!service<ClojureSmartKeysOptions>().SMART_PARENS) return Result.CONTINUE
     val p1 = if (c == ')') '(' else if (c == ']') '[' else if (c == '}') '{' else null
     val p2 = if (c == '(') ')' else if (c == '[') ']' else if (c == '{') '}' else null
     if (p1 == null && p2 == null) return Result.CONTINUE

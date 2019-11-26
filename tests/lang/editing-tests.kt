@@ -8,11 +8,22 @@ import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.intellij.clojure.actions.*
+import org.intellij.clojure.editor.ClojureSmartKeysOptions
+import org.intellij.clojure.util.service
 
 /**
  * @author gregsh
  */
 class StructuralEditingTest : BasePlatformTestCase() {
+  override fun setUp() {
+    super.setUp()
+    service<ClojureSmartKeysOptions>().loadState(ClojureSmartKeysOptions(true, true))
+  }
+
+  override fun tearDown() {
+    service<ClojureSmartKeysOptions>().loadState(ClojureSmartKeysOptions())
+    super.tearDown()
+  }
 
   // basic tests
   fun testSlurpFwd1() = doTest("(a b (c d |e f) g h)", "(a b (c d |e f g) h)")
