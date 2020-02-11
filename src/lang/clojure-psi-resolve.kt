@@ -19,6 +19,7 @@ package org.intellij.clojure.psi.impl
 
 import com.intellij.lang.Language
 import com.intellij.openapi.components.ServiceManager
+import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.RecursionManager
@@ -705,8 +706,10 @@ fun processNamespace(namespace: String,
                      lastParent: CFile,
                      place: PsiElement): Boolean {
   if (state.get(ALIAS_KEY) != null) return true
+  val project = lastParent.project
+  if (DumbService.getInstance(project).isDumb) return true
   val lastFile = PsiUtilCore.getVirtualFile(lastParent)
-  val scope = ClojureDefinitionService.getClojureSearchScope(lastParent.project)
+  val scope = ClojureDefinitionService.getClojureSearchScope(project)
   val nsFiles = FileBasedIndex.getInstance().getContainingFiles(NS_INDEX, namespace, scope)
   for (file in nsFiles) {
     if (lastFile == file) continue
