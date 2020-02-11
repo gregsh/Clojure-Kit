@@ -18,7 +18,6 @@
 package org.intellij.clojure.tools
 
 import com.intellij.execution.ExecutionException
-import com.intellij.execution.ExecutionManager
 import com.intellij.execution.Executor
 import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.configurations.CommandLineState
@@ -35,6 +34,7 @@ import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.ui.RunContentDescriptor
+import com.intellij.execution.ui.RunContentManager
 import com.intellij.icons.AllIcons
 import com.intellij.ide.scratch.ScratchFileService
 import com.intellij.ide.util.PropertiesComponent
@@ -198,7 +198,7 @@ class ReplExclusiveModeAction : ToggleAction() {
 
   override fun setSelected(e: AnActionEvent, state: Boolean) {
     val project = e.project ?: return
-    val contentManager = ExecutionManager.getInstance(project).contentManager
+    val contentManager = RunContentManager.getInstance(project)
     chooseRepl(e) { chosen, fromPopup ->
       allRepls(project).forEach { repl ->
         val isChosen = (state || fromPopup) && repl === chosen
@@ -267,7 +267,7 @@ private fun isExclusive(consoleView: LanguageConsoleView) =
 private fun setExclusive(consoleView: LanguageConsoleView, value: Boolean) =
     EXCLUSIVE_MODE_KEY.set(consoleView.consoleEditor, value)
 
-private fun allRepls(project: Project) = ExecutionManager.getInstance(project).contentManager.allDescriptors
+private fun allRepls(project: Project) = RunContentManager.getInstance(project).allDescriptors
     .iterate().map { it.executionConsole as? ReplConsole }.notNulls()
 
 fun findReplForFile(project: Project, file: VirtualFile?): ReplConsole? {
@@ -330,7 +330,7 @@ private fun findReplInner(project: Project, virtualFile: VirtualFile): Triple<Ru
   val tool = Tool.find(workingDir.toIoFile()) ?: Lein
   val title = "${tool::class.simpleName} REPL ($workingDirTitle)"
 
-  val allDescriptors = ExecutionManager.getInstance(project).contentManager.allDescriptors.asSequence()
+  val allDescriptors = RunContentManager.getInstance(project).allDescriptors.asSequence()
       .filter { it.executionConsole is ReplConsole }
       .filterNotNull().toList()
   val ownContent = allDescriptors.find {
@@ -385,7 +385,7 @@ fun findOrCreateRepl(project: Project, virtualFile: VirtualFile, consumer: (Repl
 private fun createNewRunContent(project: Project, title: String, icon: Icon,
                                 callback: ProgramRunner.Callback? = null,
                                 processFactory: () -> ProcessHandler) {
-  val existingTitles = ExecutionManager.getInstance(project).contentManager.allDescriptors
+  val existingTitles = RunContentManager.getInstance(project).allDescriptors
       .asSequence().map { it.displayName }.toSet()
   val uniqueTitle = UniqueNameGenerator.generateUniqueName(title, "", "", " (", ")") { !existingTitles.contains(it) }
   val profile = object : RunProfile {
@@ -403,7 +403,7 @@ private fun createNewRunContent(project: Project, title: String, icon: Icon,
 
         override fun createActions(console: ConsoleView, processHandler: ProcessHandler, executor: Executor): Array<AnAction> {
           return ArrayUtil.mergeArrays(super.createActions(console, processHandler, executor), arrayOf<AnAction>(
-              ConsoleHistoryController.getController(console as LanguageConsoleView).browseHistory,
+              ConsoleHistoryController.getController(console as LanguageConsoleView)!!.browseHistory,
               ActionManager.getInstance().getAction("clojure.repl.exclusive.mode")))
         }
 
