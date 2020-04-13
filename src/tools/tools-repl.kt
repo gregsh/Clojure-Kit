@@ -276,8 +276,6 @@ fun findReplForFile(project: Project, file: VirtualFile?): ReplConsole? {
   return triple?.first?.executionConsole as? ReplConsole ?: allRepls(project).single()
 }
 
-fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
-fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
 
 class ReplActionPromoter : ActionPromoter {
   override fun promote(actions: List<AnAction>, context: DataContext) =
@@ -433,7 +431,21 @@ class ReplConsole(project: Project, title: String, language: Language)
 
   var inputHandler: ((String) -> Unit)? = null
     private set
-  val consoleView: LanguageConsoleView = this
+  val consoleView: ReplConsole = this
+
+  private val ansiEscapeDecoder = AnsiEscapeDecoder()
+
+  override fun print(text: String, contentType: ConsoleViewContentType) {
+    if (contentType == ConsoleViewContentType.NORMAL_OUTPUT || contentType == ConsoleViewContentType.ERROR_OUTPUT) {
+      var outType = if (contentType == ConsoleViewContentType.NORMAL_OUTPUT) ProcessOutputTypes.STDOUT else ProcessOutputTypes.STDERR
+      ansiEscapeDecoder.escapeText(text, outType) { t, attr -> super.print(t, ConsoleViewContentType.getConsoleViewType(attr)) }
+    } else {
+      super.print(text, contentType)
+    }
+  }
+
+  fun println(text: String = "") = print(text + "\n", ConsoleViewContentType.NORMAL_OUTPUT)
+  fun printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
 
   override fun attachToProcess(processHandler: ProcessHandler) {
     this.processHandler = processHandler
