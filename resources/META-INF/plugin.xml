@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>2019.3.2-snapshot</version>
+  <version>2020.1-snapshot</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
   <idea-version since-build="193.5233"/>
 
@@ -15,11 +15,7 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>editor: make "smart kill" and "smart parens" configurable (Smart Keys | Clojure)</li>
-      <li>editor: turn "smart kill" and "smart parens" off by default</li>
-      <li>deps: fix dependencies cache file being a directory</li>
-      <li>java: fix resolve on Java 11</li>
-      <li>platform: IntelliJ IDEA 2019.3</li>
+      <li>platform: IntelliJ IDEA 2020.1</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md">Full change log...</a>
     ]]>

@@ -1,3 +1,7 @@
+2020.1
+
+* platform: IntelliJ IDEA 2020.1
+
 2019.3.1
 
 * editor: make "smart kill" and "smart parens" configurable (Smart Keys | Clojure)
