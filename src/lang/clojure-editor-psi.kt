@@ -533,9 +533,6 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
   override fun getName() = "Clojure line markers"
   override fun getOptions() = arrayOf(P1, P2, MM1, MM2)
 
-  override fun collectSlowLineMarkers(elements: MutableList<PsiElement>, result: MutableCollection<LineMarkerInfo<PsiElement>>) {
-  }
-
   override fun getLineMarkerInfo(element: PsiElement): LineMarkerInfo<*>? {
     if (element !is CSymbol || element.role != Role.NAME) return null
     val def = element.parentForm.asDef?.def

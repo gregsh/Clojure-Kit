@@ -17,7 +17,6 @@
 
 package org.intellij.clojure.psi.impl
 
-import com.intellij.ide.scratch.ScratchFileType
 import com.intellij.ide.util.PsiNavigationSupport
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.components.ServiceManager
@@ -77,7 +76,7 @@ class ClojureDefinitionService(val project: Project) {
     @JvmStatic fun getInstance(project: Project) = ServiceManager.getService(project, ClojureDefinitionService::class.java)!!
 
     @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope =
-        GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType, ScratchFileType.INSTANCE)
+        GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType)
 
   }
 

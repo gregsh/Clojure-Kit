@@ -84,7 +84,7 @@ class ClojureSliceUsage : SliceUsage {
       if (parent == null) ClojureSliceUsage(usageInfo.element!!, params)
       else ClojureSliceUsage(usageInfo.element!!, parent)
 
-  override fun processUsagesFlownFromThe(element: PsiElement, uniqueProcessor: Processor<SliceUsage>) {
+  override fun processUsagesFlownFromThe(element: PsiElement, uniqueProcessor: Processor<in SliceUsage>) {
     if (element is CSymbol && element.reference.resolve()?.navigationElement == element) {
       ReferencesSearch.search(element.reference.resolve() as PsiElement, params.scope.toSearchScope()).forEach {
         if (element != it.element) {
@@ -125,7 +125,7 @@ class ClojureSliceUsage : SliceUsage {
     }
   }
 
-  override fun processUsagesFlownDownTo(element0: PsiElement, uniqueProcessor: Processor<SliceUsage>) {
+  override fun processUsagesFlownDownTo(element0: PsiElement, uniqueProcessor: Processor<in SliceUsage>) {
     val element = (element0 as? CSymbol)?.reference?.resolve()?.navigationElement as? CSymbol ?: return
     if (element != element0) {
       uniqueProcessor.process(ClojureSliceUsage(element, this))

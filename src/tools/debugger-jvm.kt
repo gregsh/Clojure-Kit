@@ -17,7 +17,6 @@
 
 package org.intellij.clojure.debugger
 
-import com.google.common.collect.ImmutableBiMap
 import com.intellij.debugger.MultiRequestPositionManager
 import com.intellij.debugger.NoDataException
 import com.intellij.debugger.PositionManagerFactory
@@ -350,9 +349,9 @@ private val MUNGE_MAP = arrayOf(
     .jbIt()
     .split(2)
     .map { it.iterator() }
-    .reduce(ImmutableBiMap.builder<String, String>()) { b, it -> b.put(it.next(), it.next()) }
-    .build()
-private val DEMUNGE_MAP = MUNGE_MAP.inverse()
+    .map { it.next()!! to it.next()!! }
+    .let { mapOf(*it.toArray(emptyArray())) }
+private val DEMUNGE_MAP = MUNGE_MAP.entries.associate { (k, v) -> v to k }
 private val MUNGE_PATTERN = buildReplacePattern(MUNGE_MAP.keys)
 private val DEMUNGE_PATTERN = buildReplacePattern(DEMUNGE_MAP.keys)
 

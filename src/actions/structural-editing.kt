@@ -53,8 +53,8 @@ class SpliceAction   : CPFormActionBase(::splice)
 class RiseAction     : EditActionBase(::rise, Unit)
 class KillAction     : EditActionBase(::kill, Unit)
 
-class ClojureBackspaceHandler(original: EditorWriteActionHandler) : ClojureSmartKillHandlerBase(original, false)
-class ClojureDeleteHandler(original: EditorWriteActionHandler) : ClojureSmartKillHandlerBase(original, true)
+class ClojureBackspaceHandler(original: EditorActionHandler) : ClojureSmartKillHandlerBase(original, false)
+class ClojureDeleteHandler(original: EditorActionHandler) : ClojureSmartKillHandlerBase(original, true)
 
 abstract class EditActionBase(private val handler: (CFile, Document, Caret) -> (() -> Unit)?)
   : EditorAction(object : EditorActionHandler(false) {
@@ -87,27 +87,26 @@ abstract class EditActionBase(private val handler: (CFile, Document, Caret) -> (
 
 abstract class CPFormActionBase(private val handler: (CPForm, Document, caret: Caret) -> Unit)
   : EditActionBase({ file, document, caret ->
-  file.findElementAt(caret.offset).findParent(CPForm::class).let { form ->
-    if (form != null) {
-      { handler(form, document, caret) }
-    }
-    else {
-      HintManager.getInstance().showErrorHint(caret.editor, "Place caret inside a list-like form")
-      null
-    }
+  val form = file.findElementAt(caret.offset).findParent(CPForm::class)
+  if (form != null) {
+    { handler(form, document, caret) }
+  }
+  else {
+    HintManager.getInstance().showErrorHint(caret.editor, "Place caret inside a list-like form")
+    null
   }
 }) {
   constructor(handler: (CPForm, Document, caret: Caret, Boolean) -> Unit, forward: Boolean)
       : this({ form, document, caret -> handler(form, document, caret, forward) })
 }
 
-abstract class ClojureSmartKillHandlerBase(private val original: EditorWriteActionHandler,
+abstract class ClojureSmartKillHandlerBase(private val original: EditorActionHandler,
                                            private val forward: Boolean)
   : EditorWriteActionHandler(true) {
 
   override fun executeWriteAction(editor: Editor, caret: Caret?, dataContext: DataContext) {
     if (!service<ClojureSmartKeysOptions>().SMART_KILL || !perform(editor, caret, dataContext)) {
-      original.executeWriteAction(editor, caret, dataContext)
+      original.execute(editor, caret, dataContext)
     }
   }
 
