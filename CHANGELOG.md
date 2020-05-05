@@ -1,5 +1,7 @@
 2020.1
 
+* formatter: missing newline after a line comment (#31)
+* resolve: nested vectors in `require` (#33)
 * platform: IntelliJ IDEA 2020.1
 
 2019.3.1
