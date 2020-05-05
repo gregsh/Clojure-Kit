@@ -1,25 +1,25 @@
 /clojure/core.clj                        0 errors, 8 warnings, 13 dynamic
-      125252: unable to resolve 'setInt'
-      125391: unable to resolve 'setLong'
-      125538: unable to resolve 'setBoolean'
-      125687: unable to resolve 'setFloat'
-      125834: unable to resolve 'setDouble'
-      125981: unable to resolve 'setShort'
-      126124: unable to resolve 'setByte'
-      126265: unable to resolve 'setChar'
-      54932: dynamic 'hasRoot'
-      55327: dynamic 'addMethod'
-      81272: dynamic 'reset'
-      81287: dynamic 'deref'
-      103904: dynamic 'nth'
-      122147: dynamic 'close'
-      176220: dynamic 'offer'
-      179427: dynamic 'visitParameterAnnotation'
-      179583: dynamic 'visitAnnotation'
-      179753: dynamic 'visitEnd'
-      192068: dynamic 'hasRoot'
-      235377: dynamic 'getProperty'
-      235909: dynamic 'contains'
+      125325: unable to resolve 'setInt'
+      125464: unable to resolve 'setLong'
+      125611: unable to resolve 'setBoolean'
+      125760: unable to resolve 'setFloat'
+      125907: unable to resolve 'setDouble'
+      126054: unable to resolve 'setShort'
+      126197: unable to resolve 'setByte'
+      126338: unable to resolve 'setChar'
+      55005: dynamic 'hasRoot'
+      55400: dynamic 'addMethod'
+      81345: dynamic 'reset'
+      81360: dynamic 'deref'
+      103977: dynamic 'nth'
+      122220: dynamic 'close'
+      176293: dynamic 'offer'
+      179500: dynamic 'visitParameterAnnotation'
+      179656: dynamic 'visitAnnotation'
+      179826: dynamic 'visitEnd'
+      192141: dynamic 'hasRoot'
+      235450: dynamic 'getProperty'
+      235982: dynamic 'contains'
 /clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
 /clojure/core/reducers.clj               0 errors, 0 warnings, 0 dynamic
 /clojure/core/server.clj                 0 errors, 0 warnings, 2 dynamic
@@ -170,14 +170,7 @@
       10970: dynamic 'getClassName'
       11628: dynamic 'stop'
 /clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
-/clojure/stacktrace.clj                  0 errors, 0 warnings, 7 dynamic
-      808: dynamic 'getCause'
-      983: dynamic 'getClassName'
-      1009: dynamic 'getMethodName'
-      1245: dynamic 'getFileName'
-      1266: dynamic 'getLineNumber'
-      1461: dynamic 'getMessage'
-      2373: dynamic 'getCause'
+/clojure/stacktrace.clj                  0 errors, 0 warnings, 0 dynamic
 /clojure/string.clj                      0 errors, 0 warnings, 0 dynamic
 /clojure/template.clj                    0 errors, 0 warnings, 0 dynamic
 /clojure/test.clj                        0 errors, 0 warnings, 1 dynamic
@@ -191,4 +184,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 66 warnings, 84 dynamic in 43 files (755.43 kB)
+Total: 66 warnings, 77 dynamic in 43 files (755.59 kB)

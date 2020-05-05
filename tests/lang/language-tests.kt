@@ -4,6 +4,7 @@ import com.intellij.lang.LanguageASTFactory
 import com.intellij.lang.LanguageBraceMatching
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.lexer.Lexer
+import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.SyntaxTraverser
@@ -158,6 +159,8 @@ class ClojureHighlightingTest : BasePlatformTestCase() {
 //    walkAndHighlight { block -> walkFs(CLJ_LIB_FS, file, block) } }
 
   private fun walkAndHighlight(walker: ((Path, String) -> Unit) -> Unit) {
+    RecursionManager.disableAssertOnRecursionPrevention(testRootDisposable) //TODO fixme
+    RecursionManager.disableMissedCacheAssertions(testRootDisposable) //TODO fixme
     val ignoreInCljs = arrayOf("goog", "gobj", "gstring", "garray", "gdom", "gjson")
     val stat = object {
       var duration = System.currentTimeMillis()

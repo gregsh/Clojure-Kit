@@ -77,10 +77,10 @@ class ClojureCompletionTest : BasePlatformTestCase() {
   fun testFqn3a() = "str/blank?".let { doTest("$STR_ALIAS (clostribla<caret>)", it, "$STR_ALIAS ($it)", 2) }
   fun testFqn4a() = doTest("$STR_ALIAS (s<caret>tr/blank?)", "str", "$STR_ALIAS (str/blank?)")
 
-  fun testInsideImport1() = doTest("(require [<caret> :refer [blank?]])", "clojure.string")
-  fun testInsideImport2() = doNegTest("(require [<caret> :refer [blank?]])", "def")
-  fun testInsideImport3() = doTest("(require [clojure.string :refer [<caret>]])", "blank?")
-  fun testInsideImport4() = doNegTest("(require [clojure.string :refer [<caret>]])", "def")
+  fun testInsideImport1() = doTest("(require '[<caret> :refer [blank?]])", "clojure.string")
+  fun testInsideImport2() = doNegTest("(require '[<caret> :refer [blank?]])", "def")
+  fun testInsideImport3() = doTest("(require '[clojure.string :refer [<caret>]])", "blank?")
+  fun testInsideImport4() = doNegTest("(require '[clojure.string :refer [<caret>]])", "def")
 
   fun testJava1() = doPosTest("(defn a [^java.util.SortedSet a] (.<caret> a))", "comparator", "size", "contains", "add")
 
