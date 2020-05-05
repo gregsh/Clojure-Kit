@@ -315,7 +315,7 @@ internal fun processPrecomputedDeclarations(dialect: Dialect, refText: String?,
       }
     }
     else if (refText != null) {
-      if (!processor.execute(target, state)) return false
+      if (!processor.execute(target, state.put(RENAMED_KEY, refText))) return false
     }
     else if (key.type == "ns") {
       FileBasedIndex.getInstance().processAllKeys(NS_INDEX, { ns ->
@@ -608,12 +608,12 @@ private class NSReader(val helper: RoleHelper) {
           (it as? CKeyword)?.name ?:
               (it as? CSymbol)?.name /* clojure < 1.9 */
         } ?: return@flatMap emptyList<Import>()
-        readNSElement2(it, s.withRoot(it), name, dialect)
+        readNSElement2(it, s.withRoot(it), name, true, dialect)
       }.toList()
       imports
     }
     else {
-      val imports = readNSElement2(e, s, nsType, dialect)
+      val imports = readNSElement2(e, s, nsType, false, dialect)
       imports
     }
     if (imports.isEmpty()) return null
@@ -621,14 +621,14 @@ private class NSReader(val helper: RoleHelper) {
     return Imports(imports, dialect, e.textRange, scope?.textRange?.endOffset ?: -1)
   }
 
-  fun readNSElement2(root: CListBase, traverser: SyntaxTraverser<PsiElement>, nsType: String, dialect: Dialect): List<Import> {
+  fun readNSElement2(root: CListBase, traverser: SyntaxTraverser<PsiElement>, nsType: String, inNs: Boolean, dialect: Dialect): List<Import> {
     val content = traverser.iterate(root).skip(1)
     return when (nsType) {
       "import" -> readNSElement_import(content, traverser)
       "alias" -> readNSElement_alias(content)
       "refer" -> readNSElement_refer("", content, traverser, nsType).asListOrEmpty()
       "refer-clojure" -> readNSElement_refer(dialect.coreNs, content, traverser, nsType).asListOrEmpty()
-      "use", "require", "require-macros" -> readNSElement_require_use(content, traverser, nsType)
+      "use", "require", "require-macros" -> readNSElement_require_use(content, traverser, nsType, inNs)
       else -> emptyList() // load, gen-class, ??
     }
   }
@@ -709,7 +709,8 @@ private class NSReader(val helper: RoleHelper) {
   }
 
 
-  private fun readNSElement_require_use(content: JBIterable<PsiElement>, traverser: SyntaxTraverser<PsiElement>, nsType: String): List<Import> {
+  private fun readNSElement_require_use(content: JBIterable<PsiElement>, traverser: SyntaxTraverser<PsiElement>,
+                                        nsType: String, inNs: Boolean): List<Import> {
     val iterator = content.iterator()
     val result = SmartList<Import>()
     fun addImport(item: CForm, nsPrefix: String) {
@@ -725,12 +726,16 @@ private class NSReader(val helper: RoleHelper) {
       when (item) {
         is CKeyword -> if (item.name == "as") iterator.safeNext()  // ignore the next form to get it highlighted
         is CSymbol -> addImport(item, "")
-        is CVec -> addImport(item, "")
-        is CList -> if (item.fastFlags and FLAG_QUOTED != 0) {
-          traverser.iterate(item).iterator().apply {
-            val prefixSym = safeNext() as? CSymbol ?: return@apply
-            val nsPrefix = prefixSym.name
-            forEach { e -> addImport(e as? CForm ?: return@forEach, nsPrefix) }
+        is CLVForm -> if (inNs == (item.fastFlags and FLAG_QUOTED == 0)) {
+          if (item is CVec && item.childForm(CKeyword::class) != null) {
+            addImport(item, "")
+          }
+          else {
+            traverser.iterate(item).iterator().apply {
+              val prefixSym = safeNext() as? CSymbol ?: return@apply
+              val nsPrefix = prefixSym.name
+              forEach { e -> addImport(e as? CForm ?: return@forEach, nsPrefix) }
+            }
           }
         }
       }

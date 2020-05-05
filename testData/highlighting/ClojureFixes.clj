@@ -25,6 +25,11 @@
   (s1/union)
   )
 (do
+  (require '[clojure [set :as s1] [data :as s2]])
+  (<warning>union</warning>)
+  (s1/union)
+  )
+(do
   (require '(clojure zip [set :as s2]))
   (<warning>union</warning>)
   (<warning>s1</warning>/union)
@@ -36,7 +41,7 @@
   (intersection #{1} #{1 2})
   )
 (do
-  (require [clojure.string :refer [blank?]])
+  (require '[clojure.string :refer [blank?]])
   (blank?)
   (<warning>trim-newline</warning>)
   (when-let [nsname 'foo.core']
