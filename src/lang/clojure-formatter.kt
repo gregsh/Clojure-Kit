@@ -24,10 +24,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.IndexNotReadyException
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
-import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
-import com.intellij.psi.PsiWhiteSpace
-import com.intellij.psi.TokenType
+import com.intellij.psi.*
 import com.intellij.psi.codeStyle.CodeStyleSettings
 import com.intellij.psi.codeStyle.CommonCodeStyleSettings
 import com.intellij.psi.codeStyle.CustomCodeStyleSettings
@@ -131,6 +128,7 @@ private class ClojureFormattingBlock(
       if (psi2 is PsiWhiteSpace && psi2.textMatches(",")) return null
       return context.newLineTop
     }
+    if (psi1 is PsiComment) return context.newLine
     if (psi2 is PsiWhiteSpace && psi2.textMatches(",")) return context.noSpaces
     val newLine = context.newLine
     fun dependentSpacing(r: TextRange) =

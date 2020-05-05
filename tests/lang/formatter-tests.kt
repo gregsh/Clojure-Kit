@@ -53,6 +53,7 @@ class ClojureFormatterTest : BasePlatformTestCase() {
 
   fun testSimple() = doTest()
   fun testStyleGuide() = doTest()
+  fun testFormatterFixes() = doTest()
 
   fun testCodeSample() = doTest(ClojureLangCodeStyleSettingsProvider().getCodeSample(
       LanguageCodeStyleSettingsProvider.SettingsType.INDENT_SETTINGS))
