@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>2020.1-snapshot</version>
+  <version>2020.3-SNAPSHOT</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="201.6668"/>
+  <idea-version since-build="203.5419"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript plugin for IntelliJ-based tools</description>
@@ -15,9 +15,7 @@
   <change-notes>
     <![CDATA[
     <ul>
-      <li>formatter: missing newline after a line comment (#31)</li>
-      <li>resolve: nested vectors in `require` (#33)</li>
-      <li>platform: IntelliJ IDEA 2020.1</li>
+      <li>platform: IntelliJ IDEA 2020.3</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md">Full change log...</a>
     ]]>

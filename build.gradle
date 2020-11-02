@@ -1,66 +1,60 @@
-buildscript {
-  repositories {
-    mavenCentral()
-  }
-  dependencies {
-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-  }
-}
-
 plugins {
-  id "org.jetbrains.intellij" version "0.4.19"
+  id "org.jetbrains.kotlin.jvm" version "$kotlinVersion"
+  id 'org.jetbrains.intellij' version "$ijpVersion"
 }
 
-version = "${version}"
+version = "$pluginVersion"
 defaultTasks "clean", "artifacts", "test"
-
-allprojects {
-  apply plugin: "java"
-  apply plugin: "kotlin"
-
-  sourceCompatibility = javaVersion
-  targetCompatibility = javaVersion
-  tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
-    kotlinOptions {
-      jvmTarget = javaVersion
-      apiVersion = kotlinApiVersion
-    }
-  }
-  sourceSets {
-    main {
-      java.srcDirs "src", "gen"
-      kotlin.srcDirs "src"
-      resources.srcDirs "resources"
-    }
-    test {
-      kotlin.srcDirs "tests"
-    }
-  }
-  apply plugin: 'idea'
-  idea.module {
-    generatedSourceDirs += file('gen')
-  }
-  apply plugin: "org.jetbrains.intellij"
-  intellij {
-    version ideaVersion
-    type "IC"
-    plugins 'copyright', 'java'
-    updateSinceUntilBuild false
-    downloadSources = false
-  }
-}
 
 repositories {
   mavenCentral()
-  maven { url "http://clojars.org/repo" }
 }
-dependencies {
-  testRuntime "org.clojure:clojure:1.10.2-alpha1"
-  testRuntime "org.clojure:clojurescript:1.10.758"
-  compile files("${System.properties['java.home']}/../lib/tools.jar")
+apply plugin: "java"
+apply plugin: "kotlin"
+
+sourceCompatibility = javaVersion
+targetCompatibility = javaVersion
+tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).all {
+  kotlinOptions {
+    jvmTarget = javaVersion
+    apiVersion = kotlinApiVersion
+  }
 }
+sourceSets {
+  main {
+    java.srcDirs "src", "gen"
+    kotlin.srcDirs "src"
+    resources.srcDirs "resources"
+  }
+  test {
+    kotlin.srcDirs "tests"
+  }
+}
+apply plugin: 'idea'
+idea.module {
+  generatedSourceDirs += file('gen')
+}
+apply plugin: "org.jetbrains.intellij"
+intellij {
+  version ideaVersion
+  type "IC"
+  plugins 'copyright', 'java'
+  updateSinceUntilBuild false
+  downloadSources = false
+}
+buildSearchableOptions.enabled = false
 
 test {
+  repositories {
+    mavenCentral()
+    maven { url "http://clojars.org/repo" }
+  }
+  dependencies {
+    testRuntime "org.clojure:clojure:$clojureVersion"
+    testRuntime "org.clojure:clojurescript:$cljsVersion"
+    compile files("${System.properties['java.home']}/../lib/tools.jar")
+  }
+
   useJUnit {}
   include "**/*Test.class"
   scanForTestClasses false

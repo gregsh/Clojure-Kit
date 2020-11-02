@@ -6,7 +6,7 @@
       </exclude>
     </properties>
     <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.10.758/clojurescript-1.10.758.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.10.773/clojurescript-1.10.773.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-unshaded/v20200315/closure-compiler-unshaded-v20200315.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-externs/v20200315/closure-compiler-externs-v20200315.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/args4j/args4j/2.0.26/args4j-2.0.26.jar!/" />
