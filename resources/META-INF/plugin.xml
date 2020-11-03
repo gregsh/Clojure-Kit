@@ -80,7 +80,7 @@
     <codeInsight.parameterNameHints language="Clojure" implementationClass="org.intellij.clojure.editor.ClojureParamInlayHintsHandler"/>
 
     <filetype.stubBuilder filetype="Clojure" implementationClass="org.intellij.clojure.psi.stubs.ClojureStubBuilder"/>
-    <stubElementTypeHolder class="org.intellij.clojure.psi.stubs.ClojureStubBuilder"/>
+    <stubElementTypeHolder class="org.intellij.clojure.psi.stubs.ClojureStubBuilder$Holder" externalIdPrefix="clojure."/>
 
     <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureNSIndex"/>
     <fileBasedIndex implementation="org.intellij.clojure.psi.impl.ClojureDefIndex"/>

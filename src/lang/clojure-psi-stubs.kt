@@ -46,15 +46,14 @@ class ClojureStubBuilder : BinaryFileStubBuilder {
     return buildStubTree(fileContent.psiFile as? CFile ?: return null)
   }
 
-  companion object {
-    init {
-      SerializationManager.getInstance().run {
-        registerSerializer(CFileStub.SERIALIZER)
-        registerSerializer(CListStub.SERIALIZER)
-        registerSerializer(CPrototypeStub.SERIALIZER)
-        registerSerializer(CMetaStub.SERIALIZER)
-        registerSerializer(CImportStub.SERIALIZER)
-      }
+  @Suppress("unused")
+  private interface Holder {
+    companion object {
+      @JvmField val FILE = CFileStub.SERIALIZER
+      @JvmField val LIST = CListStub.SERIALIZER
+      @JvmField val PROTO = CPrototypeStub.SERIALIZER
+      @JvmField val META = CMetaStub.SERIALIZER
+      @JvmField val IMPORT = CImportStub.SERIALIZER
     }
   }
 }
@@ -77,7 +76,7 @@ class CFileStub(val namespace: String) : CStub(null) {
   fun registerListStub(child: CListStub) { childMap[child.key] = child }
   fun findChildStub(key: SymKey) = childMap[key]
 
-  override fun getStubType() = SERIALIZER
+  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
 
   companion object {
     val SERIALIZER = object : ObjectStubSerializer<CFileStub, CStub> {
@@ -107,7 +106,7 @@ class CListStub(val key: SymKey,
         ?.registerListStub(this)
   }
 
-  override fun getStubType() = SERIALIZER
+  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
   override fun toString() = key.toString()
 
   companion object {
@@ -128,7 +127,7 @@ class CListStub(val key: SymKey,
 
 class CPrototypeStub(val args: List<Arg>, val typeHint: String?, parent: CStub?) : CStub(parent) {
 
-  override fun getStubType() = SERIALIZER
+  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
   override fun toString() = args.toString()
 
   companion object {
@@ -155,7 +154,7 @@ class CPrototypeStub(val args: List<Arg>, val typeHint: String?, parent: CStub?)
 
 class CMetaStub(val map: Map<String, String>, parent: CStub?) : CStub(parent) {
 
-  override fun getStubType() = SERIALIZER
+  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
   override fun toString() = map.toString()
 
   companion object {
@@ -170,7 +169,7 @@ class CMetaStub(val map: Map<String, String>, parent: CStub?) : CStub(parent) {
 }
 
 internal class CImportStub(val import: Import, val dialect: Dialect, parent: CStub?) : CStub(parent) {
-  override fun getStubType() = SERIALIZER
+  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
 
   companion object {
     val SERIALIZER = object : ObjectStubSerializer<CImportStub, CStub> {
