@@ -13,13 +13,13 @@
       81360: dynamic 'deref'
       103977: dynamic 'nth'
       122220: dynamic 'close'
-      176293: dynamic 'offer'
-      179500: dynamic 'visitParameterAnnotation'
-      179656: dynamic 'visitAnnotation'
-      179826: dynamic 'visitEnd'
-      192141: dynamic 'hasRoot'
-      235450: dynamic 'getProperty'
-      235982: dynamic 'contains'
+      176311: dynamic 'offer'
+      179518: dynamic 'visitParameterAnnotation'
+      179674: dynamic 'visitAnnotation'
+      179844: dynamic 'visitEnd'
+      192159: dynamic 'hasRoot'
+      235552: dynamic 'getProperty'
+      236084: dynamic 'contains'
 /clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
 /clojure/core/reducers.clj               0 errors, 0 warnings, 0 dynamic
 /clojure/core/server.clj                 0 errors, 0 warnings, 2 dynamic
@@ -167,8 +167,8 @@
       960: dynamic 'instanceMember'
       2986: dynamic 'instanceFieldName-symbol'
       3061: dynamic 'staticFieldName-symbol'
-      10970: dynamic 'getClassName'
-      11628: dynamic 'stop'
+      10949: dynamic 'getClassName'
+      11607: dynamic 'stop'
 /clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/stacktrace.clj                  0 errors, 0 warnings, 0 dynamic
 /clojure/string.clj                      0 errors, 0 warnings, 0 dynamic
@@ -184,4 +184,4 @@
 /clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
 /clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
 /clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 66 warnings, 77 dynamic in 43 files (755.59 kB)
+Total: 66 warnings, 77 dynamic in 43 files (757.47 kB)

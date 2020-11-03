@@ -47,6 +47,11 @@ class ClojureLexerTest : ClojureLexerTestCase(ClojureLexer(ClojureLanguage)) {
     |nil true false
     |
     |2.2N +0x23M 023abc \uTRYY \uFFFFuuu \o1234
+    |
+    |a""+ ""a+ ""+a +""a 
+    |1\b
+    |1true 1+
+    |
     |"unclosed
   """.trimMargin())
 
@@ -80,7 +85,7 @@ class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testFirstAndSimple() = doCodeTest(";line\n(+ 1 2 3)\n(clojure.core/str \"a\" '.. '.-a val 123 :key)")
   fun testSimpleRecover() = doCodeTest("//// 42 : x (abc [: x : y z] 2/3) )1 sym)")
   fun testSimpleRecover2() = doCodeTest("(a))(b)")
-  fun testSimpleFixes() = doCodeTest(".1 x .-;comment\n1;unclosed eof\n\"x")
+  fun testSimpleFixes() = doCodeTest(".1 x .-;comment\na'b\"\"a\"\"+\n1;unclosed eof\n\"x")
   fun testMapPrefix() = doCodeTest("#:asd{:a 1 :b #::{:c 2}  #::as {} :s1 #:: {} :s2 #:a {} :s3 #: a{} :s4 #:: a{} ")
   fun testCommentedForms() = doCodeTest("(def ^int #_cc n 0) {#_0 #_1 :a '#_'(xxx) a :b 'b #_2 #_3} # #_asd dbg 10")
   fun testInterOp() = doCodeTest("(a.) (a/b.)")
