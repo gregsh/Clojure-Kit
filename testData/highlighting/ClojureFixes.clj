@@ -47,6 +47,9 @@
   (when-let [nsname 'foo.core']
     (require (symbol nsname)))
   )
+(do
+  (ns nsns (:require [clojure.core]))
+  (require '[clojure.missing]))
 
 (do
   (use '[clojure.set :as s1])

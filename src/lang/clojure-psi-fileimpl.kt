@@ -727,10 +727,11 @@ private class NSReader(val helper: RoleHelper) {
         is CKeyword -> if (item.name == "as") iterator.safeNext()  // ignore the next form to get it highlighted
         is CSymbol -> addImport(item, "")
         is CLVForm -> if (inNs == (item.fastFlags and FLAG_QUOTED == 0)) {
-          if (item is CVec && item.childForm(CKeyword::class) != null) {
+          if (item is CVec && (item.childForm(CKeyword::class) != null || item.childForm(CLVForm::class) == null)) {
             addImport(item, "")
           }
           else {
+            // one-level ns prefix, ns suffixes cannot have dots
             traverser.iterate(item).iterator().apply {
               val prefixSym = safeNext() as? CSymbol ?: return@apply
               val nsPrefix = prefixSym.name
