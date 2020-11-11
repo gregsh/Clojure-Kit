@@ -3,7 +3,7 @@
   <id>org.jetbrains.idea.clojure</id>
   <version>2020.3-SNAPSHOT</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="203.5419"/>
+  <idea-version since-build="203.5784"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript plugin for IntelliJ-based tools</description>
