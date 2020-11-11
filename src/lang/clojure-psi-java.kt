@@ -104,8 +104,10 @@ abstract class JavaHelper {
   open fun getClassReferenceProvider(): PsiReferenceProvider? = null
   open fun findPackage(packageName: String?, withClass: String?): NavigatablePsiElement? = null
 
-  private class PsiHelper(private val myFacade: JavaPsiFacade, private val myElementFactory: PsiElementFactory) : JavaHelper() {
-    val asm = AsmHelper(myFacade.project)
+  private class PsiHelper(project: Project, ) : JavaHelper() {
+    val asm = AsmHelper(project)
+    val javaFacade : JavaPsiFacade = JavaPsiFacade.getInstance(project)
+    val elementFactory : PsiElementFactory = PsiElementFactory.getInstance(project)
 
     override fun getElementType(element: PsiElement?): ElementType? = when (element) {
       is PsiPackage -> ElementType.PACKAGE
@@ -129,11 +131,11 @@ abstract class JavaHelper {
     }
 
     override fun findClass(className: String?): NavigatablePsiElement? = className?.let {
-      myFacade.findClass(it.replace('$', '.'), GlobalSearchScope.allScope(myFacade.project))
+      javaFacade.findClass(it.replace('$', '.'), GlobalSearchScope.allScope(javaFacade.project))
           ?: asm.findClass(it) }
 
     override fun findPackage(packageName: String?, withClass: String?): NavigatablePsiElement? =
-        myFacade.findPackage(packageName!!) as? NavigatablePsiElement ?: asm.findPackage(packageName, withClass)
+        javaFacade.findPackage(packageName!!) as? NavigatablePsiElement ?: asm.findPackage(packageName, withClass)
 
     internal fun superclasses(className: String?) = JBTreeTraverser(this::getDeclaredSupers)
         .withRoot(findClass(className))
@@ -195,7 +197,7 @@ abstract class JavaHelper {
             .filter {
               acceptsName(name, it.name) &&
                   acceptsMethod(it, scope == Scope.STATIC) &&
-                  acceptsMethod(myElementFactory, it, paramCount, *paramTypes)
+                  acceptsMethod(it, paramCount, *paramTypes)
             }
 
     fun findDeclaredClassFields(it: PsiClass, scope: Scope, name: String?): JBIterable<PsiField> =
@@ -205,8 +207,7 @@ abstract class JavaHelper {
                   acceptsMethod(it, scope == Scope.STATIC)
             }
 
-    private fun acceptsMethod(elementFactory: PsiElementFactory,
-                              method: PsiMethod,
+    private fun acceptsMethod(method: PsiMethod,
                               paramCount: Int,
                               vararg paramTypes: String): Boolean {
       val parameterList = method.parameterList
@@ -634,7 +635,7 @@ abstract class JavaHelper {
         var url: String? = null
         var stream: InputStream? = null
         val lastDot = className.lastIndexOf('.')
-        val pkgName = className.substring(0, lastDot).replace('.', '/')
+        val pkgName = if (lastDot == -1) "" else className.substring(0, lastDot).replace('.', '/')
         val clzName = className.substring(lastDot + 1) + ".class"
         for (psiFile in FilenameIndex.getFilesByName(project, clzName, GlobalSearchScope.allScope(project))) {
           url = "jar:file://" + psiFile.virtualFile.presentableUrl
