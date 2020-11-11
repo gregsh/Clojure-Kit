@@ -47,12 +47,12 @@ buildSearchableOptions.enabled = false
 test {
   repositories {
     mavenCentral()
-    maven { url "http://clojars.org/repo" }
+    maven { url "https://clojars.org/repo" }
   }
   dependencies {
-    testRuntime "org.clojure:clojure:$clojureVersion"
-    testRuntime "org.clojure:clojurescript:$cljsVersion"
-    compile files("${System.properties['java.home']}/../lib/tools.jar")
+    testRuntimeOnly "org.clojure:clojure:$clojureVersion"
+    testRuntimeOnly "org.clojure:clojurescript:$cljsVersion"
+    compileOnly files("${System.properties['java.home']}/../lib/tools.jar")
   }
 
   useJUnit {}
