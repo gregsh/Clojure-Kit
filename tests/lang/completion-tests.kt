@@ -11,8 +11,8 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 class ClojureCompletionTest : BasePlatformTestCase() {
   companion object {
     val NS_KEY = "namespace/keyword"
-    val NS_ALIAS = "(alias 'namespace some-ns)"
-    val STR_ALIAS = "(alias 'str clojure.string)"
+    val NS_ALIAS = "(alias 'namespace 'some-ns)"
+    val STR_ALIAS = "(alias 'str 'clojure.string)"
   }
 
   override fun setUp() {

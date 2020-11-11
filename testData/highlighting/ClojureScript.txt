@@ -38,8 +38,7 @@
       3124: dynamic 'length'
       11602: dynamic 'exists'
       12525: dynamic 'exists'
-/cljs/closure.clj                        0 errors, 9 warnings, 43 dynamic
-      874: unable to resolve 'clojure.reflect'
+/cljs/closure.clj                        0 errors, 8 warnings, 43 dynamic
       62592: unable to resolve 'read-str'
       69334: unable to resolve 'write-str'
       75708: unable to resolve 'read-str'
@@ -156,8 +155,7 @@
       137090: dynamic 'slice'
       141847: dynamic '-cljs$lang$macro'
       143846: dynamic '-cljs$lang$macro'
-/cljs/core.cljs                          0 errors, 20 warnings, 864 dynamic
-      660: unable to resolve 'goog.Uri'
+/cljs/core.cljs                          0 errors, 19 warnings, 864 dynamic
       33056: unable to resolve 'cljs.core.Var'
       62372: unable to resolve 'goog.math.Integer'
       62410: unable to resolve 'goog.math.Long'
@@ -813,8 +811,7 @@
       6646: unable to resolve 'source-logging-push-back-reader'
 /cljs/core/specs/alpha.cljc              0 errors, 1 warnings, 0 dynamic
       6567: unable to resolve 'ns-special-form'
-/cljs/core/specs/alpha.cljs              0 errors, 1 warnings, 0 dynamic
-      510: unable to resolve 'cljs.core.specs.alpha'
+/cljs/core/specs/alpha.cljs              0 errors, 0 warnings, 0 dynamic
 /cljs/env.cljc                           0 errors, 0 warnings, 0 dynamic
 /cljs/env/macros.clj                     0 errors, 0 warnings, 0 dynamic
 /cljs/externs.clj                        0 errors, 0 warnings, 22 dynamic
@@ -841,8 +838,7 @@
       10389: dynamic 'getName'
       10592: dynamic 'getName'
 /cljs/js.clj                             0 errors, 0 warnings, 0 dynamic
-/cljs/js.cljs                            0 errors, 29 warnings, 47 dynamic
-      733: unable to resolve 'cljs.spec.alpha'
+/cljs/js.cljs                            0 errors, 28 warnings, 47 dynamic
       2001: unable to resolve 'read'
       4412: unable to resolve 'default-compiler-env'
       9423: unable to resolve 'default-compiler-env'
@@ -1066,8 +1062,7 @@
       52607: dynamic 'instanceMethod'
       52656: dynamic 'instanceField'
       64988: dynamic 'stack'
-/cljs/repl.cljs                          0 errors, 1 warnings, 3 dynamic
-      591: unable to resolve 'goog.string.format'
+/cljs/repl.cljs                          0 errors, 0 warnings, 3 dynamic
       2861: dynamic 'name'
 /cljs/repl/bootstrap.clj                 0 errors, 0 warnings, 11 dynamic
       966: dynamic 'isProvided__'
@@ -1396,8 +1391,7 @@
       4575: dynamic 'open'
       4635: dynamic 'send'
       4806: dynamic 'toLowerCase'
-/clojure/browser/repl.cljs               0 errors, 3 warnings, 83 dynamic
-      1341: unable to resolve 'cljs.repl'
+/clojure/browser/repl.cljs               0 errors, 2 warnings, 83 dynamic
       1368: unable to resolve 'HOST'
       1399: unable to resolve 'PORT'
       1772: dynamic 'json/serialize'
@@ -1484,4 +1478,4 @@
 /clojure/zip.cljs                        0 errors, 0 warnings, 0 dynamic
 /process/env.cljs                        0 errors, 1 warnings, 0 dynamic
       541: unable to resolve 'NODE_ENV'
-Total: 348 warnings, 1651 dynamic in 74 files (1.64 MB)
+Total: 342 warnings, 1651 dynamic in 74 files (1.64 MB)

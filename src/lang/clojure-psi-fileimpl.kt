@@ -666,9 +666,15 @@ private class NSReader(val helper: RoleHelper) {
     val iterator = content.iterator()
     val aliasSym = iterator.safeNext() as? CSymbol ?: return emptyList()
     val nsSym = iterator.safeNext() as? CSymbol
-    val namespace = nsSym?.name ?: ""
-    setResolveTo(aliasSym, SymKey(aliasSym.name, namespace, "alias"))
-    setResolveTo(nsSym, SymKey(namespace, "", "ns"))
+    val aliasQuoted = aliasSym.fastFlags and FLAG_QUOTED != 0
+    val nsQuoted = nsSym.fastFlags and FLAG_QUOTED != 0
+    val namespace = if (nsQuoted) nsSym?.name ?: "" else ""
+    if (aliasQuoted) {
+      setResolveTo(aliasSym, SymKey(aliasSym.name, namespace, "alias"))
+    }
+    if (nsQuoted) {
+      setResolveTo(nsSym, SymKey(namespace, "", "ns"))
+    }
     return listOf(Import("alias", namespace, aliasSym.name, aliasSym))
   }
 

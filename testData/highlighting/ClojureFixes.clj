@@ -78,7 +78,7 @@
   (defn allow-forward-decl-in-spec)
   )
 (do
-  (alias 'clojure.set-alias clojure.set)
+  (alias 'clojure.set-alias 'clojure.set)
   (defn no-resolve-to-alias [] [<warning>clojure.set-alias</warning> clojure.set-alias/union])
   )
 
@@ -140,6 +140,7 @@
   (-> (Object.) .getClass .getName))
 
 (do
-  (alias buz 'clojure.set)
-  (alias bar.buz 'clojure.core)
+  (alias <warning>bar</warning> <warning>clojure.set</warning>)
+  (alias 'buz 'clojure.set)
+  (alias 'bar.buz 'clojure.core)
   (buz/union))

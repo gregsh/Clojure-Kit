@@ -24,7 +24,7 @@ import junit.framework.TestCase
 
 class ClojureUsagesTest : BasePlatformTestCase() {
   companion object {
-    const val NS_ALIAS = "(alias 'bar foo.bar)"
+    const val NS_ALIAS = "(alias 'bar 'foo.bar)"
   }
 
   fun testKeywordUsages1() = doTest("(let [{:keys [x y]} {:x| 42}] y)", 2)
