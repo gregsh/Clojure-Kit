@@ -181,6 +181,7 @@ class ClojureDefinitionService(val project: Project) {
     return if (owner == null) CPomTargetElement(project, target)
     else object : CPomTargetElement(project, target) {
       override fun getUseScope() = LocalSearchScope(owner)
+      override fun isEquivalentTo(another: PsiElement?) = super.isEquivalentTo(another) && useScope == another?.useScope
     }
   }
 
@@ -224,6 +225,10 @@ private open class CPomTargetElement(project: Project, target: CTarget) :
   override fun isValid() = target.isValid
 
   override fun getContext(): PsiElement? = null
+
+  override fun isEquivalentTo(another: PsiElement?): Boolean {
+    return target.key == (another as? CPomTargetElement)?.target?.key
+  }
 
   override fun toString() = target.key.toString()
 }
