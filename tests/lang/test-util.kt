@@ -17,41 +17,47 @@
 
 package org.intellij.clojure.lang
 
+import com.intellij.openapi.util.JDOMUtil
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.io.FileUtilRt
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.util.text.StringUtilRt
 import com.intellij.openapi.vfs.CharsetToolkit
-import org.intellij.clojure.ClojureConstants
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import java.io.File
 import java.io.InputStreamReader
-import java.nio.file.*
 
 /**
  * @author gregsh
  */
 val TEST_DATA_PATH = FileUtil.toSystemIndependentName(File("testData").absolutePath)
+val CLOJURE_LIB = "Clojure"
+val CLOJURE_SCRIPT_LIB = "ClojureScript"
 
-val CLJ_LIB_FS = resourceFs(ClojureConstants.CLJ_CORE_PATH)
-val CLJS_LIB_FS = resourceFs(ClojureConstants.CLJS_CORE_PATH)
-val KNOWN_LIB_FS = resourceFsn(ClojureConstants.LEIN_CONFIG)
+fun getLibrarySources(libName: String) = getLibraryUrls(libName)
+    .mapNotNull { VirtualFileManager.getInstance().findFileByUrl(it) }
+    .flatMap { VfsUtil.collectChildrenRecursively(it) }
+    .filter { FileUtilRt.getExtension(it.name).startsWith("clj") }
+    .sortedBy { it.path }
 
-fun walkClojureLang(block: (Path, String) -> Unit) = walkFs(CLJ_LIB_FS, block)
-fun walkClojureScriptLang(block: (Path, String) -> Unit) = walkFs(CLJS_LIB_FS, block)
-fun walkKnownLibs(block: (Path, String) -> Unit) = KNOWN_LIB_FS.forEach { walkFs(it, block) }
-
-fun resourceFs(resource: String) = ClojureLanguage.javaClass.getResource(resource)!!
-    .let { FileSystems.newFileSystem(it.toURI(), emptyMap<String, Any>()) }!!
-
-fun resourceFsn(resource: String) = ClojureLanguage.javaClass.classLoader.getResources(resource)
-    .asSequence().sortedBy { it.file }.map { FileSystems.newFileSystem(it.toURI(), emptyMap<String, Any>()) }.toList()
-
-fun walkFs(fs: FileSystem, block: (Path, String) -> Unit) = walkFs(fs, "/", block)
-fun walkFs(fs: FileSystem, root: String, block: (Path, String) -> Unit) = Files.walk(fs.getPath(root))
-    .filter { FileUtilRt.getExtension(it.fileName?.toString() ?: "").startsWith("clj") }
-    .sorted()
-    .forEach {
-      val stream = fs.provider().newInputStream(it, StandardOpenOption.READ)
-      val textRaw = FileUtil.loadTextAndClose(InputStreamReader(stream, CharsetToolkit.UTF8)).trim { it <= ' ' }
-      val text = StringUtilRt.convertLineSeparators(textRaw)
-      block(it, text)
+fun getLibraryUrls(libName: String) = JDOMUtil.load(File(".idea/libraries/$libName.xml"))
+    .getChild("library").getChild("CLASSES").getChildren("root")
+    .mapNotNull { it.getAttributeValue("url") }
+    .map { StringUtil.trimEnd(it, "!/") }
+    .map { it.substring(it.lastIndexOf("/") + 1) }
+    .mapNotNull {
+      val cp = System.getProperty("java.class.path")
+      val idx = cp.indexOf(it)
+      if (idx == -1) return@mapNotNull null
+      val path = cp.substring(cp.substring(0, idx).lastIndexOf(File.pathSeparator) + 1, idx + it.length)
+      "jar://$path!/"
     }
+
+fun getFileText(vFile: VirtualFile) : Pair<String, String> {
+  val path = vFile.path.substring(vFile.path.indexOf("!/") + 2)
+  val text = StringUtilRt.convertLineSeparators(FileUtil.loadTextAndClose(
+      InputStreamReader(vFile.inputStream, CharsetToolkit.UTF8)).trim { it <= ' ' })
+  return Pair(path, text)
+}

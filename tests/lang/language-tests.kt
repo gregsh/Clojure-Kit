@@ -1,11 +1,21 @@
 package org.intellij.clojure.lang
 
+import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.lang.LanguageASTFactory
 import com.intellij.lang.LanguageBraceMatching
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.lexer.Lexer
+import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.text.StringUtil
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.VirtualFileManagerListener
+import com.intellij.openapi.vfs.impl.CoreVirtualFilePointerManager
+import com.intellij.openapi.vfs.impl.VirtualFileManagerImpl
+import com.intellij.openapi.vfs.impl.jar.CoreJarFileSystem
+import com.intellij.openapi.vfs.local.CoreLocalFileSystem
+import com.intellij.openapi.vfs.pointers.VirtualFilePointerManager
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.SyntaxTraverser
 import com.intellij.psi.TokenType
@@ -21,7 +31,6 @@ import org.intellij.clojure.parser.*
 import org.intellij.clojure.util.elementType
 import org.intellij.clojure.util.jbIt
 import java.io.File
-import java.nio.file.Path
 
 /**
  * @author gregsh
@@ -90,12 +99,12 @@ class ClojureParsingTest : ClojureParsingTestCase(ClojureParserDefinition()) {
   fun testCommentedForms() = doCodeTest("(def ^int #_cc n 0) {#_0 #_1 :a '#_'(xxx) a :b 'b #_2 #_3} # #_asd dbg 10")
   fun testInterOp() = doCodeTest("(a.) (a/b.)")
 
-  fun testParseClojureLang() = walkAndParse(::walkClojureLang)
+  fun testParseClojureLang() = walkAndParse(CLOJURE_LIB)
 //  fun testParseWellKnownLibs() = walkAndParse(::walkKnownLibs)
 }
 
 class ClojureScriptParsingTest : ClojureParsingTestCase(ClojureScriptParserDefinition()) {
-  fun testParseClojureScript() = walkAndParse(::walkClojureScriptLang)
+  fun testParseClojureScript() = walkAndParse(CLOJURE_SCRIPT_LIB)
 }
 
 abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingTestCase(
@@ -107,7 +116,7 @@ abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingT
     addExplicitExtension(LanguageBraceMatching.INSTANCE, ClojureLanguage, ClojureBraceMatcher())
   }
 
-  fun walkAndParse(walker: ((Path, String) -> Unit) -> Unit) {
+  fun walkAndParse(libName: String) {
     val stat = object {
       var duration = System.currentTimeMillis()
       var files: Int = 0
@@ -115,10 +124,16 @@ abstract class ClojureParsingTestCase(o: ClojureParserDefinitionBase) : ParsingT
       var nodes: Long = 0
       var errors: Long = 0
     }
-    walker { path: Path, text: String ->
+    CoreApplicationEnvironment.registerApplicationExtensionPoint(ExtensionPointName("com.intellij.virtualFileManagerListener"), VirtualFileManagerListener::class.java)
+    val vfm = VirtualFileManagerImpl(mutableListOf(CoreLocalFileSystem(), CoreJarFileSystem()))
+    application.registerService(VirtualFileManager::class.java, vfm)
+    application.registerService(VirtualFilePointerManager::class.java, CoreVirtualFilePointerManager())
+
+    getLibrarySources(libName).forEach { vFile ->
+      val (path, text) = getFileText(vFile)
       stat.files++
       stat.chars += text.length
-      val psiFile = createFile(path.toString(), text)
+      val psiFile = createFile(path, text)
       for (o in SyntaxTraverser.psiTraverser(psiFile)) {
         stat.nodes++
         val elementType = o.elementType
@@ -152,20 +167,21 @@ class ClojureHighlightingTest : BasePlatformTestCase() {
 
   fun testClojureFixes() = doTest("clj")
 
-  fun testClojureLang() = walkAndHighlight(::walkClojureLang)
-  fun testClojureScript() = walkAndHighlight(::walkClojureScriptLang)
+  fun testClojureLang() = walkLibrary("Clojure")
+  fun testClojureScript() = walkLibrary("ClojureScript")
 
   private fun doTest(extension: String) {
     myFixture.configureByFile(getTestName(false) + ".$extension")
     myFixture.checkHighlighting()
   }
 
-//  fun testClojureFile() = "/clojure/core.clj".let { file ->
-//    walkAndHighlight { block -> walkFs(CLJ_LIB_FS, file, block) } }
-
-  private fun walkAndHighlight(walker: ((Path, String) -> Unit) -> Unit) {
+  private fun walkLibrary(libName: String) {
     RecursionManager.disableAssertOnRecursionPrevention(testRootDisposable) //TODO fixme
     RecursionManager.disableMissedCacheAssertions(testRootDisposable) //TODO fixme
+
+    ModuleRootModificationUtil.addModuleLibrary(module, libName, getLibraryUrls(libName), emptyList())
+
+
     val ignoreInCljs = arrayOf("goog", "gobj", "gstring", "garray", "gdom", "gjson")
     val stat = object {
       var duration = System.currentTimeMillis()
@@ -175,10 +191,11 @@ class ClojureHighlightingTest : BasePlatformTestCase() {
       var dynamic: Long = 0
     }
     val report = StringBuilder()
-    walker { path: Path, text: String ->
+    getLibrarySources(libName).forEach { vFile ->
+      val (path, text) = getFileText(vFile)
       stat.files++
       stat.chars += text.length
-      val lightVirtualFile = LightVirtualFile(path.toString(), ClojureLanguage, text)
+      val lightVirtualFile = LightVirtualFile(path, ClojureLanguage, text)
       val isCljs = lightVirtualFile.name.run { endsWith(".cljc") || endsWith(".cljs") }
       myFixture.configureFromExistingVirtualFile(lightVirtualFile)
       val infos = myFixture.doHighlighting().jbIt()
@@ -187,15 +204,17 @@ class ClojureHighlightingTest : BasePlatformTestCase() {
       val dynamic = infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }.size()
       stat.warnings += warnings
       stat.dynamic += dynamic
-      "${path.toString().run { this + StringUtil.repeat(" ", Math.max(0, 40 - length)) }} $errors errors, $warnings warnings, $dynamic dynamic".run {
+      "${path.run { this + StringUtil.repeat(" ", kotlin.math.max(0, 40 - length)) }} $errors errors, $warnings warnings, $dynamic dynamic".run {
         report.append(this).append("\n")
         println(this)
       }
       for (info in infos.filter { it.severity == HighlightSeverity.ERROR || it.severity == HighlightSeverity.WARNING }) {
+        val sym = StringUtil.trimLeading(text.substring(info.startOffset, info.endOffset), '\'').trim()
+        if (isCljs && ignoreInCljs.find { sym.startsWith(it) } != null) continue
         report.append("      ${info.startOffset}: ${info.description}").append("\n")
       }
       for (info in infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }) {
-        val sym = text.subSequence(info.startOffset, info.endOffset)
+        val sym = StringUtil.trimLeading(text.substring(info.startOffset, info.endOffset), '\'').trim()
         if (isCljs && (sym == "js" || ignoreInCljs.find { sym.startsWith(it) } != null)) continue
         report.append("      ${info.startOffset}: dynamic '$sym'").append("\n")
       }

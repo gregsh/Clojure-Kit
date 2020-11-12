@@ -1,4 +1,4 @@
-/clojure/core.clj                        0 errors, 8 warnings, 13 dynamic
+clojure/core.clj                         0 errors, 8 warnings, 13 dynamic
       125325: unable to resolve 'setInt'
       125464: unable to resolve 'setLong'
       125611: unable to resolve 'setBoolean'
@@ -20,12 +20,12 @@
       192159: dynamic 'hasRoot'
       235552: dynamic 'getProperty'
       236084: dynamic 'contains'
-/clojure/core/protocols.clj              0 errors, 0 warnings, 0 dynamic
-/clojure/core/reducers.clj               0 errors, 0 warnings, 0 dynamic
-/clojure/core/server.clj                 0 errors, 0 warnings, 2 dynamic
+clojure/core/protocols.clj               0 errors, 0 warnings, 0 dynamic
+clojure/core/reducers.clj                0 errors, 0 warnings, 0 dynamic
+clojure/core/server.clj                  0 errors, 0 warnings, 2 dynamic
       1241: dynamic 'lock'
       1306: dynamic 'unlock'
-/clojure/core_deftype.clj                0 errors, 0 warnings, 14 dynamic
+clojure/core_deftype.clj                 0 errors, 0 warnings, 14 dynamic
       7714: dynamic 'valAt'
       9670: dynamic 'valAt'
       9746: dynamic 'valAt'
@@ -40,33 +40,33 @@
       28461: dynamic 'sym'
       28486: dynamic 'sym'
       28534: dynamic 'sym'
-/clojure/core_print.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/core_proxy.clj                  0 errors, 0 warnings, 1 dynamic
+clojure/core_print.clj                   0 errors, 0 warnings, 0 dynamic
+clojure/core_proxy.clj                   0 errors, 0 warnings, 1 dynamic
       11517: dynamic 'getModifiers'
-/clojure/data.clj                        0 errors, 0 warnings, 0 dynamic
-/clojure/datafy.clj                      0 errors, 0 warnings, 0 dynamic
-/clojure/edn.clj                         0 errors, 0 warnings, 0 dynamic
-/clojure/genclass.clj                    0 errors, 0 warnings, 2 dynamic
+clojure/data.clj                         0 errors, 0 warnings, 0 dynamic
+clojure/datafy.clj                       0 errors, 0 warnings, 0 dynamic
+clojure/edn.clj                          0 errors, 0 warnings, 0 dynamic
+clojure/genclass.clj                     0 errors, 0 warnings, 2 dynamic
       29531: dynamic 'replace'
       33015: dynamic 'defineClass'
-/clojure/gvec.clj                        0 errors, 0 warnings, 0 dynamic
-/clojure/inspector.clj                   0 errors, 0 warnings, 0 dynamic
-/clojure/instant.clj                     0 errors, 0 warnings, 0 dynamic
-/clojure/java/browse.clj                 0 errors, 0 warnings, 1 dynamic
+clojure/gvec.clj                         0 errors, 0 warnings, 0 dynamic
+clojure/inspector.clj                    0 errors, 0 warnings, 0 dynamic
+clojure/instant.clj                      0 errors, 0 warnings, 0 dynamic
+clojure/java/browse.clj                  0 errors, 0 warnings, 1 dynamic
       1956: dynamic 'browse'
-/clojure/java/browse_ui.clj              0 errors, 0 warnings, 1 dynamic
+clojure/java/browse_ui.clj               0 errors, 0 warnings, 1 dynamic
       1134: dynamic 'processHTMLFrameHyperlinkEvent'
-/clojure/java/io.clj                     0 errors, 0 warnings, 0 dynamic
-/clojure/java/javadoc.clj                0 errors, 0 warnings, 0 dynamic
-/clojure/java/shell.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/main.clj                        0 errors, 0 warnings, 6 dynamic
+clojure/java/io.clj                      0 errors, 0 warnings, 0 dynamic
+clojure/java/javadoc.clj                 0 errors, 0 warnings, 0 dynamic
+clojure/java/shell.clj                   0 errors, 0 warnings, 0 dynamic
+clojure/main.clj                         0 errors, 0 warnings, 6 dynamic
       4778: dynamic 'read'
       4878: dynamic 'unread'
       5464: dynamic 'read'
       5573: dynamic 'readLine'
       5666: dynamic 'read'
       5692: dynamic 'unread'
-/clojure/parallel.clj                    0 errors, 11 warnings, 23 dynamic
+clojure/parallel.clj                     0 errors, 11 warnings, 23 dynamic
       2317: unable to resolve 'Ops$Op'
       2381: unable to resolve 'Ops$BinaryOp'
       2470: unable to resolve 'Ops$IntAndObjectToObject'
@@ -101,8 +101,8 @@
       7231: dynamic 'precumulate'
       7651: dynamic 'removeNulls'
       7828: dynamic 'removeConsecutiveDuplicates'
-/clojure/pprint.clj                      0 errors, 0 warnings, 0 dynamic
-/clojure/pprint/cl_format.clj            0 errors, 24 warnings, 0 dynamic
+clojure/pprint.clj                       0 errors, 0 warnings, 0 dynamic
+clojure/pprint/cl_format.clj             0 errors, 24 warnings, 0 dynamic
       56082: unable to resolve 'params'
       56150: unable to resolve 'params'
       56166: unable to resolve 'params'
@@ -127,8 +127,8 @@
       62153: unable to resolve 'params'
       62220: unable to resolve 'params'
       62290: unable to resolve 'params'
-/clojure/pprint/column_writer.clj        0 errors, 0 warnings, 0 dynamic
-/clojure/pprint/dispatch.clj             0 errors, 11 warnings, 4 dynamic
+clojure/pprint/column_writer.clj         0 errors, 0 warnings, 0 dynamic
+clojure/pprint/dispatch.clj              0 errors, 11 warnings, 4 dynamic
       3405: unable to resolve 'aseq'
       3434: unable to resolve 'aseq'
       3458: unable to resolve 'aseq'
@@ -144,10 +144,10 @@
       19740: dynamic 'substring'
       19917: dynamic 'col_write'
       20241: dynamic 'col_write'
-/clojure/pprint/pprint_base.clj          0 errors, 2 warnings, 0 dynamic
+clojure/pprint/pprint_base.clj           0 errors, 2 warnings, 0 dynamic
       15091: unable to resolve 'walk'
       15151: unable to resolve 'walk'
-/clojure/pprint/pretty_writer.clj        0 errors, 10 warnings, 0 dynamic
+clojure/pprint/pretty_writer.clj         0 errors, 10 warnings, 0 dynamic
       7284: unable to resolve 'nl-t?'
       7642: unable to resolve 'nl-t?'
       8486: unable to resolve 'nl-t?'
@@ -158,30 +158,192 @@
       16553: unable to resolve 'make-end-block-t'
       16756: unable to resolve 'make-nl-t'
       17205: unable to resolve 'make-indent-t'
-/clojure/pprint/print_table.clj          0 errors, 0 warnings, 0 dynamic
-/clojure/pprint/utilities.clj            0 errors, 0 warnings, 0 dynamic
-/clojure/reflect.clj                     0 errors, 0 warnings, 0 dynamic
-/clojure/reflect/java.clj                0 errors, 0 warnings, 0 dynamic
-/clojure/repl.clj                        0 errors, 0 warnings, 6 dynamic
+clojure/pprint/print_table.clj           0 errors, 0 warnings, 0 dynamic
+clojure/pprint/utilities.clj             0 errors, 0 warnings, 0 dynamic
+clojure/reflect.clj                      0 errors, 0 warnings, 0 dynamic
+clojure/reflect/java.clj                 0 errors, 0 warnings, 0 dynamic
+clojure/repl.clj                         0 errors, 0 warnings, 6 dynamic
       912: dynamic 'instanceMember'
       960: dynamic 'instanceMember'
       2986: dynamic 'instanceFieldName-symbol'
       3061: dynamic 'staticFieldName-symbol'
       10949: dynamic 'getClassName'
       11607: dynamic 'stop'
-/clojure/set.clj                         0 errors, 0 warnings, 0 dynamic
-/clojure/stacktrace.clj                  0 errors, 0 warnings, 0 dynamic
-/clojure/string.clj                      0 errors, 0 warnings, 0 dynamic
-/clojure/template.clj                    0 errors, 0 warnings, 0 dynamic
-/clojure/test.clj                        0 errors, 0 warnings, 1 dynamic
+clojure/set.clj                          0 errors, 0 warnings, 0 dynamic
+clojure/stacktrace.clj                   0 errors, 0 warnings, 0 dynamic
+clojure/string.clj                       0 errors, 0 warnings, 0 dynamic
+clojure/template.clj                     0 errors, 0 warnings, 0 dynamic
+clojure/test.clj                         0 errors, 0 warnings, 1 dynamic
       18220: dynamic 'getMessage'
-/clojure/test/junit.clj                  0 errors, 0 warnings, 3 dynamic
+clojure/test/junit.clj                   0 errors, 0 warnings, 3 dynamic
       2361: dynamic 'lastIndexOf'
       2426: dynamic 'substring'
       2448: dynamic 'substring'
-/clojure/test/tap.clj                    0 errors, 0 warnings, 0 dynamic
-/clojure/uuid.clj                        0 errors, 0 warnings, 0 dynamic
-/clojure/walk.clj                        0 errors, 0 warnings, 0 dynamic
-/clojure/xml.clj                         0 errors, 0 warnings, 0 dynamic
-/clojure/zip.clj                         0 errors, 0 warnings, 0 dynamic
-Total: 66 warnings, 77 dynamic in 43 files (757.48 kB)
+clojure/test/tap.clj                     0 errors, 0 warnings, 0 dynamic
+clojure/uuid.clj                         0 errors, 0 warnings, 0 dynamic
+clojure/walk.clj                         0 errors, 0 warnings, 0 dynamic
+clojure/xml.clj                          0 errors, 0 warnings, 0 dynamic
+clojure/zip.clj                          0 errors, 0 warnings, 0 dynamic
+clojure/core/specs/alpha.clj             0 errors, 0 warnings, 0 dynamic
+clojure/spec/alpha.clj                   0 errors, 42 warnings, 0 dynamic
+      8754: unable to resolve 'such-that'
+      28589: unable to resolve 'return'
+      28876: unable to resolve 'bind'
+      28886: unable to resolve 'tuple'
+      28911: unable to resolve 'choose'
+      28958: unable to resolve 'shuffle'
+      29036: unable to resolve 'tuple'
+      29176: unable to resolve 'tuple'
+      32414: unable to resolve 'bind'
+      32439: unable to resolve 'tuple'
+      32976: unable to resolve 'hash-map'
+      36237: unable to resolve 'fmap'
+      36659: unable to resolve 'one-of'
+      39216: unable to resolve 'tuple'
+      42174: unable to resolve 'one-of'
+      45246: unable to resolve 'fmap'
+      45305: unable to resolve 'tuple'
+      46367: unable to resolve 'empty-coll'
+      46935: unable to resolve 'empty-coll'
+      51000: unable to resolve 'bind'
+      51064: unable to resolve 'return'
+      51111: unable to resolve 'fmap'
+      51251: unable to resolve 'return'
+      51319: unable to resolve 'fmap'
+      51506: unable to resolve 'vector-distinct'
+      51595: unable to resolve 'vector-distinct'
+      51902: unable to resolve 'vector'
+      52000: unable to resolve 'vector'
+      52148: unable to resolve 'vector'
+      62928: unable to resolve 'fmap'
+      63130: unable to resolve 'return'
+      63175: unable to resolve 'return'
+      63288: unable to resolve 'fmap'
+      63695: unable to resolve 'one-of'
+      63800: unable to resolve 'return'
+      63922: unable to resolve 'fmap'
+      63988: unable to resolve 'vector'
+      68530: unable to resolve 'return'
+      71303: unable to resolve 'frequency'
+      71348: unable to resolve 'return'
+      72055: unable to resolve 'sample'
+      72590: unable to resolve 'sample'
+clojure/spec/gen/alpha.clj               0 errors, 116 warnings, 0 dynamic
+      639: unable to resolve 'string'
+      646: unable to resolve 'uuid'
+      3208: unable to resolve 'hash-map'
+      3217: unable to resolve 'list'
+      3222: unable to resolve 'map'
+      3226: unable to resolve 'not-empty'
+      3236: unable to resolve 'set'
+      3240: unable to resolve 'vector'
+      3247: unable to resolve 'vector-distinct'
+      3263: unable to resolve 'fmap'
+      3268: unable to resolve 'elements'
+      3295: unable to resolve 'bind'
+      3300: unable to resolve 'choose'
+      3307: unable to resolve 'fmap'
+      3312: unable to resolve 'one-of'
+      3319: unable to resolve 'such-that'
+      3329: unable to resolve 'tuple'
+      3335: unable to resolve 'sample'
+      3342: unable to resolve 'return'
+      3367: unable to resolve 'large-integer*'
+      3382: unable to resolve 'double*'
+      3390: unable to resolve 'frequency'
+      3400: unable to resolve 'shuffle'
+      3890: unable to resolve 'any'
+      3894: unable to resolve 'any-printable'
+      3927: unable to resolve 'char-alpha'
+      3938: unable to resolve 'char-alphanumeric'
+      3956: unable to resolve 'char-ascii'
+      3990: unable to resolve 'keyword'
+      3998: unable to resolve 'keyword-ns'
+      4009: unable to resolve 'large-integer'
+      4023: unable to resolve 'ratio'
+      4029: unable to resolve 'simple-type'
+      4041: unable to resolve 'simple-type-printable'
+      4075: unable to resolve 'string'
+      4082: unable to resolve 'string-ascii'
+      4095: unable to resolve 'string-alphanumeric'
+      4115: unable to resolve 'symbol'
+      4122: unable to resolve 'symbol-ns'
+      4132: unable to resolve 'uuid'
+      4285: unable to resolve 'fmap'
+      4323: unable to resolve 'tuple'
+      4455: unable to resolve 'simple-type-printable'
+      4491: unable to resolve 'one-of'
+      4500: unable to resolve 'return'
+      4513: unable to resolve 'any-printable'
+      4543: unable to resolve 'such-that'
+      4560: unable to resolve 'any-printable'
+      4591: unable to resolve 'one-of'
+      4600: unable to resolve 'large-integer'
+      4642: unable to resolve 'large-integer'
+      4669: unable to resolve 'large-integer'
+      4700: unable to resolve 'large-integer*'
+      4741: unable to resolve 'large-integer*'
+      4783: unable to resolve 'large-integer*'
+      4893: unable to resolve 'string-alphanumeric'
+      4928: unable to resolve 'one-of'
+      4937: unable to resolve 'keyword-ns'
+      4950: unable to resolve 'symbol-ns'
+      4984: unable to resolve 'one-of'
+      4993: unable to resolve 'keyword'
+      5003: unable to resolve 'symbol'
+      5037: unable to resolve 'such-that'
+      5059: unable to resolve 'one-of'
+      5068: unable to resolve 'keyword-ns'
+      5081: unable to resolve 'symbol-ns'
+      5111: unable to resolve 'keyword-ns'
+      5146: unable to resolve 'keyword'
+      5181: unable to resolve 'such-that'
+      5203: unable to resolve 'keyword-ns'
+      5231: unable to resolve 'symbol-ns'
+      5264: unable to resolve 'symbol'
+      5297: unable to resolve 'such-that'
+      5319: unable to resolve 'symbol-ns'
+      5344: unable to resolve 'uuid'
+      5362: unable to resolve 'fmap'
+      5416: unable to resolve 'uuid'
+      5439: unable to resolve 'fmap'
+      5489: unable to resolve 'double*'
+      5543: unable to resolve 'fmap'
+      5588: unable to resolve 'large-integer'
+      5620: unable to resolve 'one-of'
+      5629: unable to resolve 'return'
+      5666: unable to resolve 'list'
+      5704: unable to resolve 'vector'
+      5744: unable to resolve 'map'
+      5788: unable to resolve 'set'
+      5825: unable to resolve 'string-alphanumeric'
+      5864: unable to resolve 'vector'
+      5891: unable to resolve 'map'
+      5925: unable to resolve 'vector'
+      5953: unable to resolve 'list'
+      5978: unable to resolve 'list'
+      6022: unable to resolve 'set'
+      6046: unable to resolve 'return'
+      6072: unable to resolve 'return'
+      6099: unable to resolve 'return'
+      6125: unable to resolve 'return'
+      6152: unable to resolve 'one-of'
+      6161: unable to resolve 'large-integer'
+      6177: unable to resolve 'ratio'
+      6199: unable to resolve 'one-of'
+      6208: unable to resolve 'map'
+      6249: unable to resolve 'list'
+      6284: unable to resolve 'vector'
+      6321: unable to resolve 'set'
+      6349: unable to resolve 'elements'
+      6399: unable to resolve 'one-of'
+      6408: unable to resolve 'map'
+      6428: unable to resolve 'vector'
+      6464: unable to resolve 'one-of'
+      6473: unable to resolve 'list'
+      6487: unable to resolve 'vector'
+      6518: unable to resolve 'such-that'
+      6536: unable to resolve 'ratio'
+      6688: unable to resolve 'elements'
+clojure/spec/test/alpha.clj              0 errors, 0 warnings, 0 dynamic
+Total: 224 warnings, 77 dynamic in 47 files (865.07 kB)
