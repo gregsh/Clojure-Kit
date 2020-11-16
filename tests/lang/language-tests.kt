@@ -6,6 +6,7 @@ import com.intellij.lang.LanguageBraceMatching
 import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.lexer.Lexer
 import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.util.RecursionManager
 import com.intellij.openapi.util.text.StringUtil
@@ -189,6 +190,7 @@ class ClojureHighlightingTest : BasePlatformTestCase() {
       var chars: Long = 0
       var warnings: Long = 0
       var dynamic: Long = 0
+      var ignored: Long = 0
     }
     val report = StringBuilder()
     getLibrarySources(libName).forEach { vFile ->
@@ -198,29 +200,43 @@ class ClojureHighlightingTest : BasePlatformTestCase() {
       val lightVirtualFile = LightVirtualFile(path, ClojureLanguage, text)
       val isCljs = lightVirtualFile.name.run { endsWith(".cljc") || endsWith(".cljs") }
       myFixture.configureFromExistingVirtualFile(lightVirtualFile)
-      val infos = myFixture.doHighlighting().jbIt()
+      var ignored = 0
+      val rawInfos =
+          try { myFixture.doHighlighting() }
+          catch (e: ProcessCanceledException) { e.printStackTrace(); emptyList() }
+      val infos = rawInfos.run {
+        if (!isCljs) return@run jbIt()
+        val adjusted = jbIt().filter { info ->
+          val sym = StringUtil.trimLeading(text.substring(info.startOffset, info.endOffset), '\'').trim()
+          sym != "js" && ignoreInCljs.find { sym.startsWith(it) } == null
+        }.collect()
+        ignored = size - adjusted.size()
+        adjusted
+      }
       val errors = infos.filter { it.severity == HighlightSeverity.ERROR }.size()
       val warnings = infos.filter { it.severity == HighlightSeverity.WARNING }.size()
       val dynamic = infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }.size()
       stat.warnings += warnings
       stat.dynamic += dynamic
-      "${path.run { this + StringUtil.repeat(" ", kotlin.math.max(0, 40 - length)) }} $errors errors, $warnings warnings, $dynamic dynamic".run {
+      stat.ignored += ignored
+      ("${path.run { this + StringUtil.repeat(" ", kotlin.math.max(0, 40 - length)) }} " +
+          "$errors errors, $warnings warnings, $dynamic dynamic" +
+          (if (ignored == 0) "" else ", $ignored ignored")).run {
         report.append(this).append("\n")
         println(this)
       }
       for (info in infos.filter { it.severity == HighlightSeverity.ERROR || it.severity == HighlightSeverity.WARNING }) {
-        val sym = StringUtil.trimLeading(text.substring(info.startOffset, info.endOffset), '\'').trim()
-        if (isCljs && ignoreInCljs.find { sym.startsWith(it) } != null) continue
         report.append("      ${info.startOffset}: ${info.description}").append("\n")
       }
       for (info in infos.filter { it.forcedTextAttributesKey == ClojureColors.DYNAMIC }) {
         val sym = StringUtil.trimLeading(text.substring(info.startOffset, info.endOffset), '\'').trim()
-        if (isCljs && (sym == "js" || ignoreInCljs.find { sym.startsWith(it) } != null)) continue
         report.append("      ${info.startOffset}: dynamic '$sym'").append("\n")
       }
     }
     stat.duration = System.currentTimeMillis() - stat.duration
-    stat.run { "Total: $warnings warnings, $dynamic dynamic in $files files (${StringUtil.formatFileSize(chars)})".run {
+    stat.run { ("Total: $warnings warnings, $dynamic dynamic" +
+        (if (stat.ignored == 0L) "" else ", $ignored ignored") +
+        " in $files files (${StringUtil.formatFileSize(chars)})").run {
       report.append(this).append("\n")
       println("${getTestName(false)}\n${this}")
     } }
