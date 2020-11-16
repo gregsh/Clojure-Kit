@@ -37,7 +37,7 @@ import kotlin.reflect.jvm.internal.impl.utils.SmartList
 /**
  * @author gregsh
  */
-private val VERSION: Int = 6
+val VERSION: Int = 7
 
 class ClojureStubBuilder : BinaryFileStubBuilder {
   override fun getStubVersion() = VERSION
@@ -106,7 +106,7 @@ class CListStub(val key: SymKey,
         ?.registerListStub(this)
   }
 
-  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
+  override fun getStubType() = SERIALIZER
   override fun toString() = key.toString()
 
   companion object {
@@ -127,7 +127,7 @@ class CListStub(val key: SymKey,
 
 class CPrototypeStub(val args: List<Arg>, val typeHint: String?, parent: CStub?) : CStub(parent) {
 
-  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
+  override fun getStubType() = SERIALIZER
   override fun toString() = args.toString()
 
   companion object {
@@ -154,7 +154,7 @@ class CPrototypeStub(val args: List<Arg>, val typeHint: String?, parent: CStub?)
 
 class CMetaStub(val map: Map<String, String>, parent: CStub?) : CStub(parent) {
 
-  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
+  override fun getStubType() = SERIALIZER
   override fun toString() = map.toString()
 
   companion object {
@@ -169,7 +169,7 @@ class CMetaStub(val map: Map<String, String>, parent: CStub?) : CStub(parent) {
 }
 
 internal class CImportStub(val import: Import, val dialect: Dialect, parent: CStub?) : CStub(parent) {
-  override fun getStubType() = SERIALIZER as ObjectStubSerializer<*, Stub>
+  override fun getStubType() = SERIALIZER
 
   companion object {
     val SERIALIZER = object : ObjectStubSerializer<CImportStub, CStub> {

@@ -24,13 +24,9 @@ import com.intellij.psi.PsiPolyVariantReference
 import org.intellij.clojure.ClojureConstants
 import org.intellij.clojure.ClojureConstants.SYMBOLIC_VALUES
 import org.intellij.clojure.psi.*
-import org.intellij.clojure.psi.impl.CFileImpl
-import org.intellij.clojure.psi.impl.placeLanguage
+import org.intellij.clojure.psi.impl.*
 import org.intellij.clojure.tools.Tool
-import org.intellij.clojure.util.elementType
-import org.intellij.clojure.util.iterate
-import org.intellij.clojure.util.jbIt
-import org.intellij.clojure.util.parents
+import org.intellij.clojure.util.*
 import kotlin.collections.component1
 import kotlin.collections.component2
 
@@ -62,8 +58,12 @@ class ClojureResolveInspection : LocalInspectionTool() {
       override fun visitSymbol(o: CSymbol) {
         val reference = o.reference
         val multiResolve = (reference as PsiPolyVariantReference).multiResolve(false)
-        val (valid, invalid) = multiResolve.jbIt().reduce(arrayOf(0, 0)) { arr, it -> arr[if (it.isValidResult) 0 else 1] ++; arr }
         if (o.getUserData(RESOLVE_SKIPPED) != null) return
+
+        val checkBadNS = { it : PsiElement? -> o.parent !is CSymbol &&
+            it.asCTarget?.key?.run { type == "ns" && namespace == "" } == true &&
+            it.forceXTarget.let { it != null && !it.canNavigate() }}
+        val (valid, invalid, badNS) = multiResolve.jbIt().reduce(arrayOf(0, 0, 0)) { arr, it -> arr[if (it.isValidResult) if (checkBadNS(it.element)) 2 else 0 else 1] ++; arr }
 
         val qualifier = reference.qualifier?.apply {
           if (this.reference?.resolve() == null) return }
@@ -77,8 +77,10 @@ class ClojureResolveInspection : LocalInspectionTool() {
         if (o.parent is CSymbol && o.parent.parent is CKeyword &&
             o.parent.prevSibling?.elementType == ClojureTypes.C_COLON) return
         val quotesAndComments = o.parents().filter {
-          it is CMetadata || it is CForm && (it.flags and FLAG_COMMENTED != 0 ||
-              it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0) } != null)
+          it is CMetadata ||
+              it.fastFlagIsSet(FLAG_COMMENTED) ||
+              it is CReaderMacro && it.firstChild.elementType == ClojureTypes.C_SHARP_NS ||
+              it.role != Role.RCOND && it.iterate(CReaderMacro::class).find { suppressResolve(it, invalid != 0, badNS != 0) } != null
         }.first()
         if (quotesAndComments != null) return
         holder.registerProblem(reference, "unable to resolve '${reference.referenceName}'", ProblemHighlightType.GENERIC_ERROR_OR_WARNING)
@@ -87,9 +89,10 @@ class ClojureResolveInspection : LocalInspectionTool() {
   }
 }
 
-private fun suppressResolve(o: CReaderMacro, invalidResolve: Boolean) = when (o.firstChild.elementType) {
-  ClojureTypes.C_QUOTE, ClojureTypes.C_SYNTAX_QUOTE -> true
-  ClojureTypes.C_SHARP_QUOTE -> invalidResolve
+private fun suppressResolve(o: CReaderMacro, invalid: Boolean, badNS : Boolean) = when (o.firstChild.elementType) {
+  ClojureTypes.C_QUOTE -> !badNS
+  ClojureTypes.C_SYNTAX_QUOTE -> true
+  ClojureTypes.C_SHARP_QUOTE -> invalid || badNS
   ClojureTypes.C_SHARP_SYM -> SYMBOLIC_VALUES.contains((o.parent as? CSymbol)?.name)
   else -> false
 }

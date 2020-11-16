@@ -32,7 +32,7 @@ import java.io.DataOutput
 /**
  * @author gregsh
  */
-val VERSION = 202
+val VERSION = 204
 
 val NS_INDEX = ID.create<String, Unit>("clojure.ns")
 val DEF_INDEX = ID.create<String, Unit>("clojure.def")
@@ -43,21 +43,25 @@ val KEYWORD_FQN_INDEX = ID.create<String, Unit>("clojure.keyword.fqn")
 class ClojureNSIndex : ClojureUnitIndex() {
   override fun getName(): ID<String, Unit> = NS_INDEX
   override fun index(file: CFile): MutableMap<String, Unit> {
-    return mutableMapOf(file.namespace to Unit)
+    val result = mutableMapOf(file.namespace to Unit)
+    file.defs().filter { it.def!!.type == "ns" }.forEach {
+      result[it.def!!.name] = Unit
+    }
+    return result
   }
 }
 
 class ClojureDefIndex : ClojureUnitIndex() {
   override fun getName(): ID<String, Unit> = DEF_INDEX
   override fun index(file: CFile): MutableMap<String, Unit> {
-    return file.defs().map { it.def!!.name }.toMap { Unit }
+    return file.defs().filter { it.def!!.type != "ns" }. map { it.def!!.name }.toMap { Unit }
   }
 }
 
 class ClojureDefFqnIndex : ClojureUnitIndex() {
   override fun getName(): ID<String, Unit> = DEF_FQN_INDEX
   override fun index(file: CFile): MutableMap<String, Unit> {
-    return file.defs().map {it.def!!.qualifiedName }.toMap { Unit }
+    return file.defs().filter { it.def!!.type != "ns" }.map { it.def!!.qualifiedName }.toMap { Unit }
   }
 }
 

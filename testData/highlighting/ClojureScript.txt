@@ -7,7 +7,7 @@ cognitect/transit.clj                    0 errors, 5 warnings, 3 dynamic
       13717: dynamic 'x'
       13724: dynamic 'y'
       13791: dynamic 'r'
-cljs/analyzer.cljc                       0 errors, 7 warnings, 10 dynamic, 47 ignored
+cljs/analyzer.cljc                       0 errors, 7 warnings, 12 dynamic, 48 ignored
       604: unable to resolve 'ensure'
       149016: unable to resolve 'info'
       149193: unable to resolve 'info'
@@ -22,6 +22,8 @@ cljs/analyzer.cljc                       0 errors, 7 warnings, 10 dynamic, 47 ig
       52264: dynamic 'cljs$lang$test'
       150611: dynamic 'contains'
       152345: dynamic 'isMacro'
+      152715: dynamic 'sym'
+      153298: dynamic 'sym'
       156155: dynamic 'charAt'
       156461: dynamic 'charAt'
       156490: dynamic '-length'
@@ -34,7 +36,8 @@ cljs/cli.clj                             0 errors, 0 warnings, 3 dynamic
       3124: dynamic 'length'
       11602: dynamic 'exists'
       12525: dynamic 'exists'
-cljs/closure.clj                         0 errors, 0 warnings, 40 dynamic
+cljs/closure.clj                         0 errors, 1 warnings, 40 dynamic
+      145194: unable to resolve 'goog.events'
       2873: dynamic 'getCanonicalPath'
       16606: dynamic 'setOptionsForCompilationLevel'
       18132: dynamic 'getFile'
@@ -75,7 +78,7 @@ cljs/closure.clj                         0 errors, 0 warnings, 40 dynamic
       142458: dynamic 'watchable'
       146668: dynamic 'isFile'
       146687: dynamic 'delete'
-cljs/compiler.cljc                       0 errors, 1 warnings, 8 dynamic, 49 ignored
+cljs/compiler.cljc                       0 errors, 1 warnings, 8 dynamic, 50 ignored
       604: unable to resolve 'ensure'
       1909: dynamic 'StringBuffer'
       5833: dynamic 'toString'
@@ -136,7 +139,7 @@ cljs/core.cljc                           0 errors, 7 warnings, 41 dynamic, 23 ig
       137090: dynamic 'slice'
       141847: dynamic '-cljs$lang$macro'
       143846: dynamic '-cljs$lang$macro'
-cljs/core.cljs                           0 errors, 10 warnings, 621 dynamic, 362 ignored
+cljs/core.cljs                           0 errors, 10 warnings, 623 dynamic, 368 ignored
       33056: unable to resolve 'cljs.core.Var'
       104285: unable to resolve 'apply-to'
       104609: unable to resolve 'apply-to'
@@ -196,6 +199,7 @@ cljs/core.cljs                           0 errors, 10 warnings, 621 dynamic, 362
       33410: dynamic 'substring'
       33470: dynamic 'substring'
       33503: dynamic '-length'
+      33540: dynamic 'sym'
       33585: dynamic 'fqn'
       33882: dynamic '-cljs$lang$macro'
       36766: dynamic 'length'
@@ -704,6 +708,7 @@ cljs/core.cljs                           0 errors, 10 warnings, 621 dynamic, 362
       286256: dynamic 'append'
       292757: dynamic 'state'
       292921: dynamic 'state'
+      293049: dynamic 'sym'
       294365: dynamic 'meta'
       294388: dynamic 'meta'
       294495: dynamic 'meta'
@@ -773,7 +778,8 @@ cljs/core/server.clj                     0 errors, 3 warnings, 0 dynamic
       527: unable to resolve 'resolve-fn'
       538: unable to resolve 'prepl'
       544: unable to resolve 'io-prepl'
-cljs/core/specs/alpha.cljc               0 errors, 1 warnings, 0 dynamic
+cljs/core/specs/alpha.cljc               0 errors, 2 warnings, 0 dynamic
+      593: unable to resolve 'cljs.core$macros'
       6567: unable to resolve 'ns-special-form'
 cljs/core/specs/alpha.cljs               0 errors, 0 warnings, 0 dynamic
 cljs/env.cljc                            0 errors, 0 warnings, 0 dynamic
@@ -802,7 +808,7 @@ cljs/externs.clj                         0 errors, 0 warnings, 22 dynamic
       10389: dynamic 'getName'
       10592: dynamic 'getName'
 cljs/js.clj                              0 errors, 0 warnings, 0 dynamic
-cljs/js.cljs                             0 errors, 12 warnings, 33 dynamic, 15 ignored
+cljs/js.cljs                             0 errors, 12 warnings, 33 dynamic, 16 ignored
       4412: unable to resolve 'default-compiler-env'
       9423: unable to resolve 'default-compiler-env'
       25887: unable to resolve '*compiler*'
@@ -849,7 +855,7 @@ cljs/js.cljs                             0 errors, 12 warnings, 33 dynamic, 15 i
       61779: dynamic '-cause'
       61786: dynamic '-stack'
 cljs/js_deps.cljc                        0 errors, 0 warnings, 0 dynamic, 2 ignored
-cljs/loader.cljs                         0 errors, 0 warnings, 16 dynamic, 10 ignored
+cljs/loader.cljs                         0 errors, 0 warnings, 16 dynamic, 12 ignored
       592: dynamic 'ModuleLoader'
       630: dynamic 'ModuleManager'
       1094: dynamic 'legacy/trustedResourceUrlFromString'
@@ -873,9 +879,9 @@ cljs/nodejs.cljs                         0 errors, 0 warnings, 4 dynamic, 4 igno
       924: dynamic 'log'
       1018: dynamic 'apply'
       1027: dynamic 'error'
-cljs/nodejscli.cljs                      0 errors, 0 warnings, 0 dynamic, 9 ignored
+cljs/nodejscli.cljs                      0 errors, 0 warnings, 0 dynamic, 10 ignored
 cljs/pprint.cljc                         0 errors, 0 warnings, 0 dynamic
-cljs/pprint.cljs                         0 errors, 44 warnings, 42 dynamic, 117 ignored
+cljs/pprint.cljs                         0 errors, 45 warnings, 42 dynamic, 118 ignored
       11722: unable to resolve 'nl-t?'
       12077: unable to resolve 'nl-t?'
       12869: unable to resolve 'nl-t?'
@@ -909,6 +915,7 @@ cljs/pprint.cljs                         0 errors, 44 warnings, 42 dynamic, 117 
       92756: unable to resolve 'params'
       92826: unable to resolve 'params'
       92898: unable to resolve 'params'
+      97952: unable to resolve 'directive-table'
       109099: unable to resolve 'aseq'
       109128: unable to resolve 'aseq'
       109159: unable to resolve 'aseq'
@@ -963,7 +970,7 @@ cljs/pprint.cljs                         0 errors, 44 warnings, 42 dynamic, 117 
       125017: dynamic 'col_write'
       125349: dynamic 'col_write'
 cljs/reader.clj                          0 errors, 0 warnings, 0 dynamic
-cljs/reader.cljs                         0 errors, 1 warnings, 6 dynamic, 18 ignored
+cljs/reader.cljs                         0 errors, 1 warnings, 6 dynamic, 19 ignored
       3859: unable to resolve 'PersistentQueue.EMPTY'
       691: dynamic 'StringBuffer'
       895: dynamic 'getLength'
@@ -983,7 +990,7 @@ cljs/repl.cljc                           0 errors, 0 warnings, 11 dynamic, 9 ign
       52607: dynamic 'instanceMethod'
       52656: dynamic 'instanceField'
       64988: dynamic 'stack'
-cljs/repl.cljs                           0 errors, 0 warnings, 1 dynamic, 6 ignored
+cljs/repl.cljs                           0 errors, 0 warnings, 1 dynamic, 8 ignored
       2861: dynamic 'name'
 cljs/repl/bootstrap.clj                  0 errors, 0 warnings, 11 dynamic
       966: dynamic 'isProvided__'
@@ -1041,7 +1048,7 @@ cljs/repl/server.clj                     0 errors, 0 warnings, 19 dynamic
 cljs/server/browser.clj                  0 errors, 0 warnings, 0 dynamic
 cljs/server/node.clj                     0 errors, 0 warnings, 0 dynamic
 cljs/source_map.clj                      0 errors, 0 warnings, 0 dynamic
-cljs/source_map.cljs                     0 errors, 0 warnings, 2 dynamic, 25 ignored
+cljs/source_map.cljs                     0 errors, 0 warnings, 2 dynamic, 26 ignored
       9497: dynamic 'valueOf'
       10303: dynamic 'stringify'
 cljs/source_map/base64.clj               0 errors, 0 warnings, 0 dynamic
@@ -1056,7 +1063,7 @@ cljs/source_map/base64_vlq.cljs          0 errors, 0 warnings, 6 dynamic, 2 igno
       2221: dynamic 'substring'
 cljs/spec/alpha.cljc                     0 errors, 1 warnings, 0 dynamic
       1607: unable to resolve 'str'
-cljs/spec/alpha.cljs                     0 errors, 40 warnings, 6 dynamic, 13 ignored
+cljs/spec/alpha.cljs                     0 errors, 40 warnings, 7 dynamic, 14 ignored
       8791: unable to resolve 'such-that'
       10432: unable to resolve 'map-spec'
       12523: unable to resolve 'return'
@@ -1098,6 +1105,7 @@ cljs/spec/alpha.cljs                     0 errors, 40 warnings, 6 dynamic, 13 ig
       51688: unable to resolve 'return'
       52244: unable to resolve 'sample'
       4503: dynamic 'name'
+      10273: dynamic 'sym'
       49073: dynamic 'message'
       52729: dynamic 'lessThanOrEqual'
       52769: dynamic 'lessThan'
@@ -1221,7 +1229,7 @@ cljs/spec/gen/alpha.cljs                 0 errors, 112 warnings, 1 dynamic, 2 ig
 cljs/spec/test/alpha.cljc                0 errors, 2 warnings, 0 dynamic
       2191: unable to resolve 'cljs.spec.alpha$macros'
       8356: unable to resolve 'cljs.spec.alpha$macros'
-cljs/spec/test/alpha.cljs                0 errors, 0 warnings, 12 dynamic, 8 ignored
+cljs/spec/test/alpha.cljs                0 errors, 0 warnings, 12 dynamic, 10 ignored
       1578: dynamic '-location'
       1588: dynamic '-host'
       1620: dynamic '-location'
@@ -1234,7 +1242,7 @@ cljs/spec/test/alpha.cljs                0 errors, 0 warnings, 12 dynamic, 8 ign
       3979: dynamic 'cljs$core$IFn$_invoke$arity$variadic'
       4561: dynamic 'cljs$core$IFn$_invoke$arity$variadic'
       4619: dynamic 'cljs$core$IFn$_invoke$arity$variadic'
-cljs/stacktrace.cljc                     0 errors, 0 warnings, 4 dynamic, 11 ignored
+cljs/stacktrace.cljc                     0 errors, 0 warnings, 4 dynamic, 12 ignored
       12911: dynamic 'indexOf'
       12949: dynamic 'indexOf'
       12976: dynamic 'substring'
@@ -1262,12 +1270,12 @@ cljs/util.cljc                           0 errors, 1 warnings, 5 dynamic
       5596: dynamic 'getFile'
       6926: dynamic 'getAbsolutePath'
       6981: dynamic 'getFile'
-clojure/browser/dom.cljs                 0 errors, 0 warnings, 4 dynamic, 49 ignored
+clojure/browser/dom.cljs                 0 errors, 0 warnings, 4 dynamic, 51 ignored
       759: dynamic 'log'
       821: dynamic 'log'
       4239: dynamic 'value'
       4581: dynamic 'click'
-clojure/browser/event.cljs               0 errors, 0 warnings, 11 dynamic, 4 ignored
+clojure/browser/event.cljs               0 errors, 0 warnings, 11 dynamic, 5 ignored
       717: dynamic 'EventTarget'
       729: dynamic 'EventType'
       937: dynamic 'toLowerCase'
@@ -1279,7 +1287,7 @@ clojure/browser/event.cljs               0 errors, 0 warnings, 11 dynamic, 4 ign
       2117: dynamic 'events/dispatchEvent'
       2171: dynamic 'events/expose'
       2273: dynamic 'events/getTotalListenerCount'
-clojure/browser/net.cljs                 0 errors, 1 warnings, 22 dynamic, 15 ignored
+clojure/browser/net.cljs                 0 errors, 1 warnings, 22 dynamic, 17 ignored
       4870: unable to resolve 'WebSocket.EventType'
       807: dynamic 'XhrIo'
       813: dynamic 'EventType'
@@ -1303,7 +1311,7 @@ clojure/browser/net.cljs                 0 errors, 1 warnings, 22 dynamic, 15 ig
       4575: dynamic 'open'
       4635: dynamic 'send'
       4806: dynamic 'toLowerCase'
-clojure/browser/repl.cljs                0 errors, 2 warnings, 33 dynamic, 95 ignored
+clojure/browser/repl.cljs                0 errors, 2 warnings, 33 dynamic, 100 ignored
       1368: unable to resolve 'HOST'
       1399: unable to resolve 'PORT'
       1772: dynamic 'json/serialize'
@@ -1354,7 +1362,7 @@ clojure/reflect.cljs                     0 errors, 0 warnings, 3 dynamic, 3 igno
       1169: dynamic 'getResponseText'
       1188: dynamic 'currentTarget'
 clojure/set.cljs                         0 errors, 0 warnings, 0 dynamic
-clojure/string.cljs                      0 errors, 0 warnings, 31 dynamic, 37 ignored
+clojure/string.cljs                      0 errors, 0 warnings, 31 dynamic, 38 ignored
       592: dynamic 'StringBuffer'
       838: dynamic 'replace'
       984: dynamic 'source'
@@ -1392,7 +1400,7 @@ process/env.cljs                         0 errors, 1 warnings, 0 dynamic
       541: unable to resolve 'NODE_ENV'
 clojure/data/json.clj                    0 errors, 0 warnings, 0 dynamic
 clojure/data/json_compat_0_1.clj         0 errors, 0 warnings, 0 dynamic
-cljs/tools/reader.cljs                   0 errors, 8 warnings, 25 dynamic, 40 ignored
+cljs/tools/reader.cljs                   0 errors, 8 warnings, 25 dynamic, 42 ignored
       594: unable to resolve 'read'
       599: unable to resolve 'read-line'
       609: unable to resolve 'read-string'
@@ -1426,7 +1434,7 @@ cljs/tools/reader.cljs                   0 errors, 8 warnings, 25 dynamic, 40 ig
       33692: dynamic 'trim'
       33800: dynamic 'frames'
       33918: dynamic 'trim'
-cljs/tools/reader/edn.cljs               0 errors, 6 warnings, 15 dynamic, 17 ignored
+cljs/tools/reader/edn.cljs               0 errors, 6 warnings, 15 dynamic, 18 ignored
       595: unable to resolve 'read'
       600: unable to resolve 'read-string'
       617: unable to resolve 'default-data-readers'
@@ -1460,11 +1468,11 @@ cljs/tools/reader/impl/inspect.cljs      0 errors, 0 warnings, 3 dynamic
       1282: dynamic 'length'
       1336: dynamic 'substring'
       1368: dynamic 'length'
-cljs/tools/reader/impl/utils.cljs        0 errors, 1 warnings, 1 dynamic, 7 ignored
+cljs/tools/reader/impl/utils.cljs        0 errors, 1 warnings, 1 dynamic, 8 ignored
       728: unable to resolve 'cljs.core.ExceptionInfo'
       1532: dynamic 'test'
 cljs/tools/reader/reader_types.clj       0 errors, 0 warnings, 0 dynamic
-cljs/tools/reader/reader_types.cljs      0 errors, 1 warnings, 13 dynamic, 3 ignored
+cljs/tools/reader/reader_types.cljs      0 errors, 1 warnings, 13 dynamic, 4 ignored
       634: unable to resolve 'read-line'
       1910: dynamic 'charAt'
       2029: dynamic 'charAt'
@@ -1513,4 +1521,4 @@ clojure/tools/reader/impl/utils.clj      0 errors, 6 warnings, 0 dynamic
       2360: unable to resolve 'clojure.tools.reader.impl.utils.ReaderConditional'
       2455: unable to resolve 'clojure.tools.reader.impl.utils.ReaderConditional'
 clojure/tools/reader/reader_types.clj    0 errors, 0 warnings, 0 dynamic
-Total: 281 warnings, 1141 dynamic, 1024 ignored in 93 files (1.84 MB)
+Total: 284 warnings, 1146 dynamic, 1061 ignored in 93 files (1.84 MB)

@@ -143,6 +143,7 @@ fun newLeafPsiElement(project: Project, s: String): PsiElement =
 
 val PsiElement?.fastRole: Role get() = (this as? CComposite)?.roleImpl ?: Role.NONE
 val PsiElement?.fastFlags: Int get() = (this as? CComposite)?.flagsImpl ?: 0
+fun PsiElement?.fastFlagIsSet(flag: Int): Boolean = fastFlags and flag == flag
 val CList?.fastDef: IDef?
   get() = (this as? CListBase)?.run {
     ((this as CComposite).dataImpl as? IDef)?.run {

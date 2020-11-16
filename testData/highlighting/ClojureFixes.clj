@@ -49,7 +49,7 @@
   )
 (do
   (ns nsns (:require [clojure.core]))
-  (require '[clojure.missing]))
+  (require '[<warning descr="unable to resolve 'clojure.missing'">clojure.missing</warning>]))
 
 (do
   (use '[clojure.set :as s1])

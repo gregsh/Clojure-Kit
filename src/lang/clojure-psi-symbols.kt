@@ -286,25 +286,25 @@ private fun wrapWithNavigationElement(project: Project, key: SymKey): PsiElement
 internal fun wrapWithNavigationElement(project: Project, key: SymKey, file: VirtualFile?): NavigatablePsiElement {
   val adjusted = key.adjustKeyForNavigation()
   fun <C : CForm> locate(k: SymKey, clazz: KClass<C>): (CFile) -> Navigatable? = { f ->
-    f.cljTraverser().traverse().filter(clazz).find {
-      if (k.type == "keyword") it is CKeyword && it.namespace == k.namespace
-      else it is CList && it.def?.run { name == k.name && namespace == k.namespace } ?: false
-    }.let {
-      when {
-        k == key -> it
-        key.type == "field" -> {
-          it.findChild(Role.FIELD_VEC).iterate().find { it is CSymbol && it.name == key.name } as? CSymbol
-        }
-        key.type == "method" -> {
-          it.childForms(CList::class).find { it?.def?.let { it.name == key.name && it.type == key.type} == true }
-        }
-        else -> it
+    val form = f.cljTraverser().traverse().filter(clazz).find {
+      when (k.type) {
+        "keyword" -> it is CKeyword && it.run { name == k.name && namespace == k.namespace }
+        else -> it is CList && it.def?.run { name == k.name && namespace == k.namespace } ?: false
       }
+    }
+    when {
+      k == key -> form
+      key.type == "field" -> {
+        form.findChild(Role.FIELD_VEC).iterate().find { form is CSymbol && form.name == key.name } as? CSymbol
+      }
+      key.type == "method" -> {
+        form.childForms(CList::class).find { it?.def?.let { it.name == key.name && it.type == key.type } == true }
+      }
+      else -> form
     }
   }
 
   return when (key.type) {
-    "ns" -> CPomTargetElement(project, XTarget(project, key, file) { it })
     "keyword" -> CPomTargetElement(project, XTarget(project, key, file, locate(adjusted, CKeywordBase::class)))
     else -> CPomTargetElement(project, XTarget(project, key, file, locate(adjusted, CListBase::class)))
   }

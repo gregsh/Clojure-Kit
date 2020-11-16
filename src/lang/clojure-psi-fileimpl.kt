@@ -65,7 +65,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
         else -> fileStubForced
       }
     }
-  internal val fileStubForced: CFileStub?
+  internal val fileStubForced: CFileStub
     get() = fileStubRef?.get() ?: run {
       val stub = if (virtualFile !is VirtualFileWithId) buildStubTree(this)
       else StubTreeLoader.getInstance().readFromVFile(project, virtualFile)?.root as? CFileStub ?: buildStubTree(this)
@@ -110,7 +110,7 @@ open class CFileImpl(viewProvider: FileViewProvider, language: Language) :
       val helper = RoleHelper()
       helper.assignRoles(this, curState != null && curState.timeStamp < 0)
       val definitions = cljTraverser().traverse()
-          .filter { (it as? CComposite)?.roleImpl == Role.DEF }
+          .filter { (it as? CComposite)?.dataImpl is IDef }
           .filter(CList::class).toList()
       val state = State(curTimeStamp, helper.fileNS, definitions, helper.imports)
       myState = state
@@ -343,7 +343,7 @@ private fun processSyntheticDeclarations(def: IDef, private: Boolean,
 private class RoleHelper {
   val langStack = ArrayDeque<Dialect>()
   val nsReader = NSReader(this)
-  val fileNS: String get() = nsReader.fileNS
+  val fileNS: String get() = nsReader.fileNS ?: ClojureConstants.NS_USER
   val imports: List<Imports> get() = nsReader.result
 
   fun currentLangKind() = langStack.peek()!!
@@ -362,7 +362,7 @@ private class RoleHelper {
     langStack.push(if (file.language == ClojureScriptLanguage) Dialect.CLJS else Dialect.CLJ)
 
     val s = file.cljTraverser().expand {
-      it !is CListBase || (it as CComposite).roleImpl != Role.DEF && (it as CComposite).roleImpl != Role.NS
+      it !is CListBase || (it as CComposite).roleImpl.let { r -> r != Role.DEF && r != Role.NS }
     }.traverse()
 
     if (firstTime) {
@@ -396,14 +396,13 @@ private class RoleHelper {
         val ns = first.qualifier?.name?.let { resolveAlias(it) } ?:
             if (seenDefs.contains(firstName.withNamespace(fileNS))) fileNS else langKind.coreNs
         setData(first.qualifier, ns)
+        val nameSym = (first.nextForm as? CSymbol)?.apply { initFlags(this) }
         if (ClojureConstants.DEF_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.coreNs ||
             firstName != "defmethod" &&
             firstName.startsWith("def") && firstName != "default" && firstName != "def" /* clojure.spec/def */) {
-          val nameSym = first.nextForm as? CSymbol
-          if (nameSym != null && nameSym.firstChild !is CReaderMacro ) {
+          if (nameSym != null && !nameSym.fastFlagIsSet(FLAG_QUOTED) && !nameSym.fastFlagIsSet(FLAG_UNQUOTED)) {
             // optimization: delay up until the end, so that other threads may skip this
-            val type = if (firstName == "create-ns") "ns" else firstName
-            val key = SymKey(nameSym.name, resolveAlias(nameSym.qualifier?.name) ?: fileNS, type)
+            val key = SymKey(nameSym.name, resolveAlias(nameSym.qualifier?.name) ?: fileNS, firstName)
             setData(nameSym.qualifier, key.namespace)
             setData(nameSym, Role.NAME)
             delayedDefs[e] = createDef(e, nameSym, key)
@@ -429,7 +428,6 @@ private class RoleHelper {
           seenDefs.add(key.name)
         }
         else if (ClojureConstants.NS_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.coreNs) {
-          setData(e, Role.NS) // prevents deep traversal for e
           processNSElement(e)
         }
         else if (ClojureConstants.LET_ALIKE_SYMBOLS.contains(firstName) && ns == langKind.coreNs) {
@@ -566,23 +564,26 @@ private class RoleHelper {
 }
 
 private class NSReader(val helper: RoleHelper) {
-  var fileNS: String = ClojureConstants.NS_USER
+  var fileNS: String? = null
   val result = mutableListOf<Imports>()
 
   fun processElement(e: CListBase) {
     val nsType = (e as CList).first!!.name
     var imports: MutableList<Imports>? = null
-    if (nsType == "in-ns" || nsType == "ns") {
-      val nameSym = e.first.nextForm as? CSymbol
+    val nameSym = e.first.nextForm as? CSymbol
+    val nsName = nameSym?.name
+    val nsQuotedOK = (nsType == "ns") != nameSym.fastFlagIsSet(FLAG_QUOTED)
+    if (nsName != null && nsQuotedOK && (nsType == "ns" || nsType == "create-ns" || nsType == "in-ns")) {
       imports = mutableListOf()
-      if (nameSym != null) {
-        val name = nameSym.name
-        setData(nameSym, Role.NAME)
-        setData(e, NSDef(SymKey(name, "", "ns"), imports))
-        if (result.isEmpty()) {
-          fileNS = name
-        }
+      setData(nameSym, Role.NAME)
+      setData(e, NSDef(SymKey(nsName, "", "ns"), imports))
+      if (fileNS == null && nsType != "create-ns" && e.parentForm == null) {
+        fileNS = nsName
       }
+      if (nsType != "ns") return
+    }
+    else {
+      setData(e, Role.NS)
     }
     val hasRC = e.cljTraverser().filter(CListBase::class.java)
         .reduce(false, { flag, it -> helper.processRCParenForm(it) || flag })
@@ -618,7 +619,8 @@ private class NSReader(val helper: RoleHelper) {
     }
     if (imports.isEmpty()) return null
     val scope = e.parentForms.skip(1).filter { it.fastRole != Role.RCOND && it.fastRole != Role.RCOND_S }.first()
-    return Imports(imports, dialect, e.textRange, scope?.textRange?.endOffset ?: -1)
+    val range = TextRange(e.first!!.textRange.endOffset, e.textRange.endOffset)
+    return Imports(imports, dialect, range, scope?.textRange?.endOffset ?: -1)
   }
 
   fun readNSElement2(root: CListBase, traverser: SyntaxTraverser<PsiElement>, nsType: String, inNs: Boolean, dialect: Dialect): List<Import> {
@@ -666,8 +668,8 @@ private class NSReader(val helper: RoleHelper) {
     val iterator = content.iterator()
     val aliasSym = iterator.safeNext() as? CSymbol ?: return emptyList()
     val nsSym = iterator.safeNext() as? CSymbol
-    val aliasQuoted = aliasSym.fastFlags and FLAG_QUOTED != 0
-    val nsQuoted = nsSym.fastFlags and FLAG_QUOTED != 0
+    val aliasQuoted = aliasSym.fastFlagIsSet(FLAG_QUOTED)
+    val nsQuoted = nsSym.fastFlagIsSet(FLAG_QUOTED)
     val namespace = if (nsQuoted) nsSym?.name ?: "" else ""
     if (aliasQuoted) {
       setResolveTo(aliasSym, SymKey(aliasSym.name, namespace, "alias"))
@@ -731,8 +733,10 @@ private class NSReader(val helper: RoleHelper) {
     for (item in iterator) {
       when (item) {
         is CKeyword -> if (item.name == "as") iterator.safeNext()  // ignore the next form to get it highlighted
-        is CSymbol -> addImport(item, "")
-        is CLVForm -> if (inNs == (item.fastFlags and FLAG_QUOTED == 0)) {
+        is CSymbol -> if (inNs != item.fastFlagIsSet(FLAG_QUOTED)) {
+          addImport(item, "")
+        }
+        is CLVForm -> if (inNs != item.fastFlagIsSet(FLAG_QUOTED)) {
           if (item is CVec && (item.childForm(CKeyword::class) != null || item.childForm(CLVForm::class) == null)) {
             addImport(item, "")
           }

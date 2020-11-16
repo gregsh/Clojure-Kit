@@ -72,7 +72,7 @@ object ClojureConstants {
   @JvmStatic val DEF_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
     def defn defn- defmacro defonce deftype defrecord defstruct defmulti defprotocol
     def-aset definline definterface
-    define defcurried deftype* defrecord* create-ns
+    define defcurried deftype* defrecord*
     """.trim()).toSet()
 
   @JvmStatic val FN_ALIKE_SYMBOLS = "\\s+".toRegex().split("""fn fn* rfn""").toSet()
@@ -85,7 +85,7 @@ object ClojureConstants {
     """.trim()).toSet()
 
   @JvmStatic val NS_ALIKE_SYMBOLS = "\\s+".toRegex().split("""
-    ns in-ns import require require-macros use refer refer-clojure alias
+    ns in-ns create-ns import require require-macros use refer refer-clojure alias
     """.trim()).toSet()
 
   @JvmStatic val TYPE_META_ALIASES = "\\s+".toRegex().split("""
