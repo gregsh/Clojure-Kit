@@ -1,3 +1,12 @@
+2020.3
+
+* parser: allow no space between some tokens
+* resolve: namespaces without ":as" (#35)
+* resolve: check correct quotes in definitions
+* resolve: improve namespaces handling
+* editor: highlight missing namespaces
+* platform: IntelliJ IDEA 2020.3
+
 2020.1
 
 * formatter: missing newline after a line comment (#31)

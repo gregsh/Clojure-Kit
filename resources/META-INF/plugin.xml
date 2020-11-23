@@ -15,6 +15,11 @@
   <change-notes>
     <![CDATA[
     <ul>
+      <li>parser: allow no space between some tokens</li>
+      <li>resolve: namespaces without ":as" (#35)</li>
+      <li>resolve: check correct quotes in definitions</li>
+      <li>resolve: improve namespaces handling</li>
+      <li>editor: highlight missing namespaces</li>
       <li>platform: IntelliJ IDEA 2020.3</li>
     </ul>
     <a href="https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md">Full change log...</a>
