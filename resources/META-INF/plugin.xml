@@ -30,8 +30,6 @@
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
-    <errorHandler implementation="com.intellij.diagnostic.ITNReporter"/>
-
     <fileType name="Clojure" language="Clojure" extensions="cljs;clj;cljc;edn" fileNames="build.boot"
               implementationClass="org.intellij.clojure.lang.ClojureFileType" fieldName="INSTANCE"/>
     <lang.parserDefinition language="Clojure" implementationClass="org.intellij.clojure.parser.ClojureParserDefinition"/>
