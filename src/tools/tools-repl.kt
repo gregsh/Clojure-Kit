@@ -83,6 +83,7 @@ import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.*
 import java.util.concurrent.TimeUnit
 import javax.swing.Icon
 import javax.swing.JList
@@ -279,7 +280,7 @@ fun ConsoleView.println(text: String = "") = print(text + "\n", ConsoleViewConte
 fun ConsoleView.printerr(text: String) = print(text + "\n", ConsoleViewContentType.ERROR_OUTPUT)
 
 class ReplActionPromoter : ActionPromoter {
-  override fun promote(actions: MutableList<AnAction>, context: DataContext) =
+  override fun promote(actions: List<AnAction>, context: DataContext) =
       actions.find { it is ReplExecuteAction }?.let { listOf(it) }
 }
 
@@ -340,7 +341,7 @@ private fun findReplInner(project: Project, virtualFile: VirtualFile): Triple<Ru
     (it.executionConsole as ReplConsole).let { isExclusive(it) }
   }
   val sameTitleContent = allDescriptors.find {
-    Comparing.equal(title, it.displayName)
+    Objects.equals(title, it.displayName)
   }
   val contentToReuse = ownContent ?: exclusiveContent ?: sameTitleContent
   return Triple(contentToReuse, title, workingDir)

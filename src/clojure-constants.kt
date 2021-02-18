@@ -140,10 +140,10 @@ object ClojureConstants {
 }
 
 object ClojureIcons {
-  @JvmStatic val CLOJURE_ICON = IconLoader.getIcon("/icons/clojure.svg")
-  @JvmStatic val FILE = IconLoader.getIcon("/icons/clojureFile.svg")
-  @JvmStatic val NAMESPACE = IconLoader.getIcon("/icons/namespace.svg")
-  @JvmStatic val SYMBOL = IconLoader.getIcon("/icons/symbol.svg")
+  @JvmStatic val CLOJURE_ICON = IconLoader.getIcon("/icons/clojure.svg", ClojureIcons::class.java)
+  @JvmStatic val FILE = IconLoader.getIcon("/icons/clojureFile.svg", ClojureIcons::class.java)
+  @JvmStatic val NAMESPACE = IconLoader.getIcon("/icons/namespace.svg", ClojureIcons::class.java)
+  @JvmStatic val SYMBOL = IconLoader.getIcon("/icons/symbol.svg", ClojureIcons::class.java)
   @JvmStatic val DEFN = AllIcons.Nodes.Function
   @JvmStatic val MACRO = AllIcons.Nodes.AbstractMethod
   @JvmStatic val FIELD = AllIcons.Nodes.Field

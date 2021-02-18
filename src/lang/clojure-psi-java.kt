@@ -24,7 +24,6 @@ import com.intellij.lang.documentation.DocumentationProviderEx
 import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Comparing
 import com.intellij.openapi.util.NotNullLazyKey
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
@@ -621,7 +620,7 @@ abstract class JavaHelper {
         if (acceptsName(paramType, parameter)) continue
         val info = (findClass(paramType) as? MyElement)?.delegate as? ClassInfo
         if (info != null) {
-          if (Comparing.equal(info.superClass, parameter)) continue
+          if (Objects.equals(info.superClass, parameter)) continue
           if (info.interfaces.contains(parameter)) continue
         }
         return false

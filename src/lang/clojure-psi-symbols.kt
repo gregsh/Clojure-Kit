@@ -32,7 +32,6 @@ import com.intellij.pom.PomTargetPsiElement
 import com.intellij.pom.references.PomService
 import com.intellij.psi.*
 import com.intellij.psi.impl.PomTargetPsiElementImpl
-import com.intellij.psi.search.EverythingGlobalScope
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.search.SearchScope
@@ -76,7 +75,7 @@ class ClojureDefinitionService(val project: Project) {
     @JvmStatic fun getInstance(project: Project) = ServiceManager.getService(project, ClojureDefinitionService::class.java)!!
 
     @JvmStatic fun getClojureSearchScope(project: Project): GlobalSearchScope =
-        GlobalSearchScope.getScopeRestrictedByFileTypes(EverythingGlobalScope(project), ClojureFileType)
+        GlobalSearchScope.getScopeRestrictedByFileTypes(GlobalSearchScope.everythingScope(project), ClojureFileType)
 
   }
 

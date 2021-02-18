@@ -35,13 +35,13 @@ import com.intellij.codeInsight.hints.HintInfo
 import com.intellij.codeInsight.hints.InlayInfo
 import com.intellij.codeInsight.hints.InlayParameterHintsProvider
 import com.intellij.codeInsight.hints.Option
-import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.codeInsight.navigation.BackgroundUpdaterTask
 import com.intellij.icons.AllIcons
 import com.intellij.lang.ExpressionTypeProvider
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
+import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.lang.documentation.DocumentationProviderEx
 import com.intellij.lang.parameterInfo.*
 import com.intellij.navigation.NavigationItem
@@ -99,6 +99,7 @@ import org.intellij.clojure.psi.stubs.CPrototypeStub
 import org.intellij.clojure.tools.findReplForFile
 import org.intellij.clojure.util.*
 import java.awt.event.MouseEvent
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
@@ -110,15 +111,24 @@ class ClojureAnnotator : Annotator {
     if (element is CSForm && (element.parentForm as? CList).firstForm == element
         && element.firstChild.elementType != C_SYM
         && element.parentForm.iterate(CReaderMacro::class).isEmpty) {
-      holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.CALLABLE
+      holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+          .range(element.valueRange)
+          .textAttributes(ClojureColors.CALLABLE)
+          .create()
     }
     if (element is CCommented || element.flags and FLAG_COMMENTED != 0) {
-      holder.createInfoAnnotation(element, null).textAttributes = ClojureColors.FORM_COMMENT
+      holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+          .range(element)
+          .textAttributes(ClojureColors.FORM_COMMENT)
+          .create()
     }
     if (element is CSymbol && element.flags and FLAG_QUOTED != 0 &&
         !element.parentForm.iterate().find { it is CSymbol || it.elementType == C_SYM }
             ?.prevSibling.let { it is CReaderMacro && it.firstChild.elementType.let { it == C_QUOTE || it == C_SYNTAX_QUOTE } }) {
-      holder.createInfoAnnotation(element.valueRange, null).textAttributes = ClojureColors.QUOTED_SYM
+      holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+          .range(element.valueRange)
+          .textAttributes(ClojureColors.QUOTED_SYM)
+          .create()
     }
     if (element is CSymbol && element.flags and FLAG_QUOTED == 0) {
       var enforced: TextAttributes? = null
@@ -154,10 +164,13 @@ class ClojureAnnotator : Annotator {
         }
       }
       if (attrs != null) {
-        holder.createInfoAnnotation(element.valueRange, null).run {
-          textAttributes = attrs
-          enforcedTextAttributes = enforced
-        }
+        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
+            .range(element.valueRange)
+            .textAttributes(attrs)
+            .apply {
+              enforced?.let { enforcedTextAttributes(it) }
+            }
+            .create()
       }
     }
   }
@@ -493,7 +506,7 @@ class ClojureDocumentationProvider : DocumentationProviderEx() {
       }
       val newText = sb.toString()
       val prevText = component.text
-      if (!Comparing.equal(newText, prevText)) {
+      if (!Objects.equals(newText, prevText)) {
         component.replaceText(newText, element)
       }
     }, 100, alarmDisposable)
@@ -543,20 +556,20 @@ class ClojureLineMarkerProvider : LineMarkerProviderDescriptor() {
       def?.type == "defmulti" ->
         if (!MM1.isEnabled) null else
         LineMarkerInfo(leaf, leaf.textRange, MM1.icon!!, { "Show implementations" },
-            { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.RIGHT)
+            { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.RIGHT, { "Show implementations" })
       def == null && parentName == "defmethod" ->
         if (!MM2.isEnabled) null else
         LineMarkerInfo(leaf, leaf.textRange, MM2.icon!!, { "Show declaration" },
-            { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT)
+            { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT, { "Show declaration" })
       def?.type == "method" && (grandName == "defprotocol" || grandName == "definterface") -> {
         if (!P1.isEnabled) null
         else LineMarkerInfo(leaf, leaf.textRange, P1.icon!!, { "Show implementations" },
-            { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.LEFT)
+            { event, o -> showNavPopup(o, event) }, GutterIconRenderer.Alignment.LEFT, { "Show implementations" })
       }
       ClojureConstants.OO_ALIKE_SYMBOLS.contains(grandName) ->
         if (!P1.isEnabled) null else
         LineMarkerInfo(leaf, leaf.textRange, P2.icon!!, { "Show declaration" },
-            { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT)
+            { _, o -> navigate(o) }, GutterIconRenderer.Alignment.LEFT, { "Show declaration" })
       else -> null
     }
   }
@@ -765,9 +778,6 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
 
   override fun getArgumentListClass(): Class<CList> = CList::class.java
   override fun getActualParameters(o: CList) = o.childForms.skip(1).toList().toTypedArray()
-  override fun couldShowInLookup() = true
-  override fun getParametersForLookup(item: LookupElement?, context: ParameterInfoContext?) = emptyArray<Any>()
-  override fun getParameterCloseChars(): String = ")"
 
   override fun showParameterInfo(element: CList, context: CreateParameterInfoContext) =
       context.showHint(element, element.textRange.startOffset, this)
@@ -776,7 +786,7 @@ class ClojureParamInfoProvider : ParameterInfoHandlerWithTabActionSupport<CList,
 class ClojureParamInlayHintsHandler : InlayParameterHintsProvider {
 
   companion object {
-    private val OPTION = Option("clojure.parameter.hints", "Show parameter names", false)
+    private val OPTION = Option("clojure.parameter.hints", { "Show parameter names" }, false)
   }
 
   override fun getParameterHints(element: PsiElement): List<InlayInfo> {

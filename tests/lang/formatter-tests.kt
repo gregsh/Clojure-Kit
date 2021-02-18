@@ -43,7 +43,8 @@ class ClojureFormatterTest : BasePlatformTestCase() {
 
   override fun setUp() {
     super.setUp()
-    settingsManager.run { setTemporarySettings(CodeStyle.getSettings(project).clone()) }
+    val settings = CodeStyleSettingsManager.getInstance(project).cloneSettings(CodeStyle.getSettings(project))
+    settingsManager.setTemporarySettings(settings)
   }
 
   override fun tearDown() {
