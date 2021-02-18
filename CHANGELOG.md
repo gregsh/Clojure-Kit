@@ -1,3 +1,7 @@
+2020.3.1
+
+* platform: minor compatibility fixes
+
 2020.3
 
 * parser: allow no space between some tokens
