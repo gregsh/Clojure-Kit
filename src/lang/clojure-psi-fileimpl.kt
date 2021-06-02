@@ -489,6 +489,11 @@ private class RoleHelper {
     if (typeHint == null && prototypes.isNotEmpty()) {
       typeHint = prototypes.jbIt().reduce(prototypes[0].typeHint) { r, p -> if (r == p.typeHint) r else null }
     }
+    if (typeHint == null && key.type == "def") (nameSym.nextForm as? CList).firstForm?.let {
+      if (it is CAccess && it.lastChild.elementType == ClojureTypes.C_DOT) {
+        typeHint = it.symbol.qualifiedName
+      }
+    }
 
     if (typeHint != null) meta[TYPE_META] = typeHint!!
     if (private) meta[PRIVATE_META] = ""

@@ -160,7 +160,7 @@ private class ClojureProjectDeps(val project: Project) {
     ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Resolving project dependencies...", false) {
       override fun run(indicator: ProgressIndicator) {
         indicator.isIndeterminate = true
-        DumbService.getInstance(myProject).waitForSmartMode()
+        DumbService.getInstance(myProject!!).waitForSmartMode()
 
         val files: Collection<File> = filesGetter()
         for ((index, file) in files.withIndex()) {
