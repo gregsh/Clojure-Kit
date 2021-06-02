@@ -36,10 +36,10 @@ idea.module {
 }
 apply plugin: "org.jetbrains.intellij"
 intellij {
-  version ideaVersion
-  type "IC"
-  plugins 'copyright', 'java'
-  updateSinceUntilBuild false
+  version = ideaVersion
+  type = "IC"
+  plugins = ['copyright', 'java']
+  updateSinceUntilBuild = false
   downloadSources = false
 }
 buildSearchableOptions.enabled = false

@@ -13,13 +13,13 @@ clojure/core.clj                         0 errors, 8 warnings, 13 dynamic
       81422: dynamic 'deref'
       103704: dynamic 'nth'
       121947: dynamic 'close'
-      176038: dynamic 'offer'
-      179245: dynamic 'visitParameterAnnotation'
-      179401: dynamic 'visitAnnotation'
-      179571: dynamic 'visitEnd'
-      191886: dynamic 'hasRoot'
-      235554: dynamic 'getProperty'
-      236086: dynamic 'contains'
+      177193: dynamic 'offer'
+      180400: dynamic 'visitParameterAnnotation'
+      180556: dynamic 'visitAnnotation'
+      180726: dynamic 'visitEnd'
+      193041: dynamic 'hasRoot'
+      236709: dynamic 'getProperty'
+      237241: dynamic 'contains'
 clojure/core/protocols.clj               0 errors, 0 warnings, 0 dynamic
 clojure/core/reducers.clj                0 errors, 0 warnings, 0 dynamic
 clojure/core/server.clj                  0 errors, 0 warnings, 2 dynamic
@@ -351,4 +351,4 @@ clojure/spec/gen/alpha.clj               0 errors, 116 warnings, 0 dynamic
       6536: unable to resolve 'ratio'
       6688: unable to resolve 'elements'
 clojure/spec/test/alpha.clj              0 errors, 0 warnings, 0 dynamic
-Total: 229 warnings, 77 dynamic in 47 files (865.71 kB)
+Total: 229 warnings, 77 dynamic in 47 files (866.87 kB)
