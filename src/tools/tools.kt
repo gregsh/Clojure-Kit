@@ -121,7 +121,7 @@ object Deps : Tool {
   override fun getDeps(projectFile: File) = readProcessOutput(
       GeneralCommandLine(command, "-Stree"), projectFile.parent)
       .mapNotNull { line ->
-        Regex("(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
+        Regex("(?:\\. )?(.*)/(.*) (.*)").matchEntire(line.trim())?.let {
           val (group, artifact, version) = it.destructured
           Dependency(group, artifact, version)
         }
