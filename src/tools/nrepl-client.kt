@@ -51,7 +51,7 @@ class NReplClient {
   val isConnected: Boolean get() = transport != NOT_CONNECTED
   fun ping() = isConnected && pingImpl()
 
-  private fun pingImpl(session: String = mainSession) =
+  private fun pingImpl(session: String = pingSession) =
       try { eval("42") { this.session = session }.get(PING_TIMEOUT, TimeUnit.MILLISECONDS)["value"] == "42" }
       catch (e: Exception) { false }
 
@@ -63,6 +63,8 @@ class NReplClient {
     private set
   var toolSession = ""
     private set
+  var pingSession = ""
+    private set
   var defaultRequest: Request? = null
 
   fun connect(host: String, port: Int) {
@@ -71,6 +73,7 @@ class NReplClient {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
       mainSession = if (mainSession != "" && pingImpl(mainSession)) mainSession else createSession()
       toolSession = if (toolSession != "" && pingImpl(toolSession)) toolSession else createSession()
+      pingSession = if (pingSession != "") pingSession else createSession()
     }
     catch(e: Exception) {
       if (transport != NOT_CONNECTED) disconnect()
@@ -83,6 +86,7 @@ class NReplClient {
       defaultRequest = null
       try { closeSession(mainSession).get(PING_TIMEOUT, TimeUnit.MILLISECONDS) } catch (e: Exception) { }
       try { closeSession(toolSession).get(PING_TIMEOUT, TimeUnit.MILLISECONDS) } catch (e: Exception) { }
+      try { closeSession(pingSession).get(PING_TIMEOUT, TimeUnit.MILLISECONDS) } catch (e: Exception) { }
     }
     finally {
       val tmp = transport
