@@ -2,9 +2,9 @@
   <library name="Clojure" type="repository">
     <properties maven-id="org.clojure:clojure:RELEASE" />
     <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojure/1.11.0-alpha1/clojure-1.11.0-alpha1.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/spec.alpha/0.2.194/spec.alpha-0.2.194.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/core.specs.alpha/0.2.56/core.specs.alpha-0.2.56.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojure/1.11.0-alpha3/clojure-1.11.0-alpha3.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/spec.alpha/0.3.214/spec.alpha-0.3.214.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/core.specs.alpha/0.2.62/core.specs.alpha-0.2.62.jar!/" />
     </CLASSES>
     <JAVADOC />
     <SOURCES />

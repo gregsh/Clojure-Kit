@@ -6,10 +6,10 @@
       </exclude>
     </properties>
     <CLASSES>
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.10.866/clojurescript-1.10.866.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-unshaded/v20210505/closure-compiler-unshaded-v20210505.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/google-closure-library/0.0-20201211-3e6c510d/google-closure-library-0.0-20201211-3e6c510d.jar!/" />
-      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/google-closure-library-third-party/0.0-20201211-3e6c510d/google-closure-library-third-party-0.0-20201211-3e6c510d.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/clojurescript/1.11.4/clojurescript-1.11.4.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/com/google/javascript/closure-compiler-unshaded/v20210808/closure-compiler-unshaded-v20210808.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/google-closure-library/0.0-20211011-0726fdeb/google-closure-library-0.0-20211011-0726fdeb.jar!/" />
+      <root url="jar://$MAVEN_REPOSITORY$/org/clojure/google-closure-library-third-party/0.0-20211011-0726fdeb/google-closure-library-third-party-0.0-20211011-0726fdeb.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/org/clojure/data.json/0.2.6/data.json-0.2.6.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/org/clojure/tools.reader/1.3.3/tools.reader-1.3.3.jar!/" />
       <root url="jar://$MAVEN_REPOSITORY$/com/cognitect/transit-clj/0.8.309/transit-clj-0.8.309.jar!/" />

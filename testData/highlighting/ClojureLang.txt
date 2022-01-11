@@ -1,45 +1,43 @@
-clojure/core.clj                         0 errors, 8 warnings, 13 dynamic
-      125052: unable to resolve 'setInt'
-      125191: unable to resolve 'setLong'
-      125338: unable to resolve 'setBoolean'
-      125487: unable to resolve 'setFloat'
-      125634: unable to resolve 'setDouble'
-      125781: unable to resolve 'setShort'
-      125924: unable to resolve 'setByte'
-      126065: unable to resolve 'setChar'
-      55067: dynamic 'hasRoot'
-      55462: dynamic 'addMethod'
-      81407: dynamic 'reset'
-      81422: dynamic 'deref'
-      103704: dynamic 'nth'
-      121947: dynamic 'close'
-      177193: dynamic 'offer'
-      180400: dynamic 'visitParameterAnnotation'
-      180556: dynamic 'visitAnnotation'
-      180726: dynamic 'visitEnd'
-      193041: dynamic 'hasRoot'
-      236709: dynamic 'getProperty'
-      237241: dynamic 'contains'
+clojure/core.clj                         0 errors, 8 warnings, 11 dynamic
+      125121: unable to resolve 'setInt'
+      125260: unable to resolve 'setLong'
+      125407: unable to resolve 'setBoolean'
+      125556: unable to resolve 'setFloat'
+      125703: unable to resolve 'setDouble'
+      125850: unable to resolve 'setShort'
+      125993: unable to resolve 'setByte'
+      126134: unable to resolve 'setChar'
+      55136: dynamic 'hasRoot'
+      55531: dynamic 'addMethod'
+      81476: dynamic 'reset'
+      81491: dynamic 'deref'
+      103773: dynamic 'nth'
+      122016: dynamic 'close'
+      177262: dynamic 'offer'
+      180469: dynamic 'visitParameterAnnotation'
+      180625: dynamic 'visitAnnotation'
+      180795: dynamic 'visitEnd'
+      193110: dynamic 'hasRoot'
 clojure/core/protocols.clj               0 errors, 0 warnings, 0 dynamic
 clojure/core/reducers.clj                0 errors, 0 warnings, 0 dynamic
 clojure/core/server.clj                  0 errors, 0 warnings, 2 dynamic
       1241: dynamic 'lock'
       1306: dynamic 'unlock'
 clojure/core_deftype.clj                 0 errors, 0 warnings, 14 dynamic
-      7714: dynamic 'valAt'
-      9670: dynamic 'valAt'
-      9746: dynamic 'valAt'
-      11202: dynamic 'count'
-      11264: dynamic 'count'
-      11408: dynamic 'valAt'
-      26836: dynamic '__methodImplCache'
-      26901: dynamic 'fnFor'
-      27136: dynamic 'sym'
-      27483: dynamic '__methodImplCache'
-      27548: dynamic 'fnFor'
-      28461: dynamic 'sym'
-      28486: dynamic 'sym'
-      28534: dynamic 'sym'
+      7777: dynamic 'valAt'
+      9733: dynamic 'valAt'
+      9809: dynamic 'valAt'
+      11265: dynamic 'count'
+      11327: dynamic 'count'
+      11471: dynamic 'valAt'
+      26899: dynamic '__methodImplCache'
+      26964: dynamic 'fnFor'
+      27199: dynamic 'sym'
+      27546: dynamic '__methodImplCache'
+      27611: dynamic 'fnFor'
+      28524: dynamic 'sym'
+      28549: dynamic 'sym'
+      28597: dynamic 'sym'
 clojure/core_print.clj                   0 errors, 0 warnings, 0 dynamic
 clojure/core_proxy.clj                   0 errors, 0 warnings, 1 dynamic
       11506: dynamic 'getModifiers'
@@ -58,6 +56,7 @@ clojure/java/browse_ui.clj               0 errors, 0 warnings, 1 dynamic
       1134: dynamic 'processHTMLFrameHyperlinkEvent'
 clojure/java/io.clj                      0 errors, 0 warnings, 0 dynamic
 clojure/java/javadoc.clj                 0 errors, 0 warnings, 0 dynamic
+clojure/java/math.clj                    0 errors, 0 warnings, 0 dynamic
 clojure/java/shell.clj                   0 errors, 0 warnings, 0 dynamic
 clojure/main.clj                         0 errors, 0 warnings, 6 dynamic
       4778: dynamic 'read'
@@ -351,4 +350,4 @@ clojure/spec/gen/alpha.clj               0 errors, 116 warnings, 0 dynamic
       6536: unable to resolve 'ratio'
       6688: unable to resolve 'elements'
 clojure/spec/test/alpha.clj              0 errors, 0 warnings, 0 dynamic
-Total: 229 warnings, 77 dynamic in 47 files (866.87 kB)
+Total: 229 warnings, 75 dynamic in 48 files (896.58 kB)
