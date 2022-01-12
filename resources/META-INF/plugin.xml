@@ -3,7 +3,6 @@
   <id>org.jetbrains.idea.clojure</id>
   <version>2020.3.2-SNAPSHOT</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
-  <idea-version since-build="203.5784"/>
 
   <name>Clojure-Kit</name>
   <description>Clojure and ClojureScript plugin for IntelliJ-based tools</description>
@@ -11,20 +10,6 @@
   <depends>com.intellij.modules.lang</depends>
   <depends optional="true" config-file="plugin-copyright.xml">com.intellij.copyright</depends>
   <depends optional="true" config-file="plugin-java.xml">com.intellij.modules.java</depends>
-
-  <change-notes>
-    <![CDATA[
-    <ul>
-      <li>parser: allow no space between some tokens</li>
-      <li>resolve: namespaces without ":as" (#35)</li>
-      <li>resolve: check correct quotes in definitions</li>
-      <li>resolve: improve namespaces handling</li>
-      <li>editor: highlight missing namespaces</li>
-      <li>platform: IntelliJ IDEA 2020.3</li>
-    </ul>
-    <a href="https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md">Full change log...</a>
-    ]]>
-  </change-notes>
 
   <actions>
   </actions>

@@ -1,8 +1,16 @@
-2020.3.1
+# Clojure-Kit Changelog
+
+## Unreleased
+
+* CI: Integration with [gradle-changelog-plugin](https://github.com/JetBrains/gradle-changelog-plugin)
+* CI: GitHub Actions Workflow based on [IntelliJ Platform Plugin Template](https://github.com/JetBrains/intellij-platform-plugin-template)
+* CI: Dependabot integration
+
+## 2020.3.1
 
 * platform: minor compatibility fixes
 
-2020.3
+## 2020.3
 
 * parser: allow no space between some tokens
 * resolve: namespaces without ":as" (#35)
@@ -11,13 +19,13 @@
 * editor: highlight missing namespaces
 * platform: IntelliJ IDEA 2020.3
 
-2020.1
+## 2020.1
 
 * formatter: missing newline after a line comment (#31)
 * resolve: nested vectors in `require` (#33)
 * platform: IntelliJ IDEA 2020.1
 
-2019.3.1
+## 2019.3.1
 
 * editor: make "smart kill" and "smart parens" configurable (Smart Keys | Clojure)
 * editor: turn "smart kill" and "smart parens" off by default
@@ -25,11 +33,11 @@
 * java: fix resolve on Java 11
 * platform: IntelliJ IDEA 2019.3
 
-2019.3
+## 2019.3
 
 * platform: IntelliJ IDEA 2019.3 EAP
 
-0.7.6
+## 0.7.6
 
 * resolve: fix qualified :keys destructuring
 * resolve: support this in (reify), (proxy) and (extend)
@@ -51,7 +59,7 @@
 * resolve: improve qualified tags handling
 * tools: update nREPL dependencies #30
 
-0.7.5
+## 0.7.5
 
 * Editor: semantic highlighting (rainbow symbols)
 * Resolve: resolve java methods from super-interfaces
@@ -63,7 +71,7 @@
 * REPL: fix execution from editor
 * UI: new SVG icons
 
-0.7.4
+## 0.7.4
 
 * Debugger: initial java debugger integration
 * QuickDoc: fix specs and show macroexpand from repl
@@ -73,7 +81,7 @@
 * Editor: support custom folding regions
 * Clojure: better support for #_ forms
 
-0.7.3
+## 0.7.3
 
 * REPL: stdin/stdout/stderr support
 * REPL: use file ns when evaluating from a file
@@ -81,17 +89,17 @@
 * Editor: splice at caret position
 * Editor: error recovery in case of extra closing paren
 
-0.7.2
+## 0.7.2
 
 * IntelliJ Platform 2018.1 API compatibility
 * Clojure 1.9.0 compatibility (##Inf, ##-Inf, ##NaN) 
 
-0.7.1
+## 0.7.1
 
 * IntelliJ Platform 2017.2.5 and 2017.3 API compatibility
 * Misc: use the latest versions of Kotlin & Gradle
-  
-0.7.0
+
+## 0.7.0
 
 * Editor: multi-method & protocol method navigation (`ctrl-U`, `ctrl-alt-B`)
 * Editor: parameter info inlays; expression type hint
@@ -101,7 +109,7 @@
 * REPL: the first repl gets exclusive mode by default
 * Internals: redesigned AST/PSI, name resolution, indices and etc.
 
-0.5.0
+## 0.5.0
 
 * REPL: connect to remote REPL
 * REPL: send all commands to one specific REPL
@@ -110,7 +118,7 @@
 * Structural editing: improved caret handling
 * Main menu: add clojure actions to Edit and Tools
 
-0.4.4
+## 0.4.4
 
 * Editor: improved structural editing actions
 * Editor: more items in structure view and breadcrumbs
@@ -119,7 +127,7 @@
 * ClojureScript: resolve and usage search for `::aliased/keywords`
 * REPL: detect running nrepl via `.nrepl-port` file
 
-0.4.3
+## 0.4.3
 
 * Language: basic language support for Clojure and ClojureScript
 * Editor: colors, completion, navigation, parameter info, quickdoc and live templates
