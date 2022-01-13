@@ -73,7 +73,7 @@ class NReplClient {
       transport = AsyncTransport(SocketTransport(Socket(host, port))) { o -> runCallbacks(o) }
       mainSession = if (mainSession != "" && pingImpl(mainSession)) mainSession else createSession()
       toolSession = if (toolSession != "" && pingImpl(toolSession)) toolSession else createSession()
-      pingSession = if (pingSession != "") pingSession else createSession()
+      pingSession = if (pingSession != "" && pingImpl(pingSession)) pingSession else createSession()
     }
     catch(e: Exception) {
       if (transport != NOT_CONNECTED) disconnect()
