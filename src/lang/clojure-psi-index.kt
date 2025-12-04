@@ -82,8 +82,8 @@ class ClojureKeywordFqnIndex : ClojureUnitIndex() {
 }
 
 abstract class ClojureUnitIndex : ClojureIndexBase<Unit>() {
-  override fun readValue(input: DataInput) = Unit
-  override fun writeValue(output: DataOutput, value: Unit) = Unit
+  override fun readValue(input: DataInput) = Unit.also { input.readByte() }
+  override fun writeValue(output: DataOutput, value: Unit) = output.writeByte(0)
 }
 
 //abstract class ClojureStringIndex : ClojureIndexBase<String>() {
