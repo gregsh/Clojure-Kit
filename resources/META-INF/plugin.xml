@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <idea-plugin>
   <id>org.jetbrains.idea.clojure</id>
-  <version>2020.3.2-SNAPSHOT</version>
+  <version>2023.3-SNAPSHOT</version>
   <vendor email="gregory.shrago@jetbrains.com">Greg Shrago</vendor>
 
   <name>Clojure-Kit</name>

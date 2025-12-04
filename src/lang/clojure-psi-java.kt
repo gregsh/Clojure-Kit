@@ -58,7 +58,7 @@ abstract class JavaHelper {
 
   companion object {
     
-    private const val ASM_API = Opcodes.ASM7
+    private const val ASM_API = Opcodes.ASM9
 
     private val INSTANCE_KEY: NotNullLazyKey<JavaHelper, Project> = NotNullLazyKey.create(
         "Service: " + JavaHelper::class.qualifiedName) {

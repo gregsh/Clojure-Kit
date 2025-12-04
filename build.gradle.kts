@@ -1,27 +1,60 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.changelog.Changelog
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
-fun properties(key: String) = project.findProperty(key)?.toString()
+val pluginName: String by project
+val pluginVersion: String by project
+val pluginSinceIdeaBuild: String by project
+
+val ideVersion: String by project
+val javaVersion: String by project
+val clojureVersion: String by project
+val cljsVersion: String by project
+
+val artifactsPath: String by project
+val ourGradleVersion: String by project
 
 plugins {
-  id("org.jetbrains.intellij") version "1.2.1"
-  id("org.jetbrains.changelog") version "1.3.1"
+  id("org.jetbrains.intellij.platform") version "2.10.5"
+  id("org.jetbrains.changelog") version "2.5.0"
   id("idea")
   id("java")
-  id("org.jetbrains.kotlin.jvm") version "1.4.10"
+  kotlin("jvm") version "2.3.0"
 }
 
-version = properties("pluginVersion").toString()
+kotlin {
+  compilerOptions {
+    jvmTarget = JvmTarget.valueOf("JVM_$javaVersion")
+    apiVersion = KotlinVersion.KOTLIN_2_1
+  }
+}
+
+tasks.withType<JavaCompile> {
+  sourceCompatibility = javaVersion
+  targetCompatibility = javaVersion
+}
+
+version = pluginVersion
 
 repositories {
   mavenCentral()
   maven { url = uri("https://clojars.org/repo") }
+  intellijPlatform {
+    defaultRepositories()
+  }
 }
 
 dependencies {
-  compileOnly("org.jetbrains:annotations:22.0.0")
-  testRuntimeOnly("org.clojure:clojure:${properties("clojureVersion")}")
-  testRuntimeOnly("org.clojure:clojurescript:${properties("cljsVersion")}")
-  compileOnly(files("${System.getProperties()["java.home"]}/../lib/tools.jar"))
+  intellijPlatform {
+    intellijIdeaCommunity(ideVersion)
+    bundledPlugin("com.intellij.copyright")
+    bundledPlugin("com.intellij.java")
+    testFramework(TestFrameworkType.Platform)
+  }
+  testImplementation("junit:junit:4.13.2")
+  testRuntimeOnly("org.clojure:clojure:$clojureVersion")
+  testRuntimeOnly("org.clojure:clojurescript:$cljsVersion")
 }
 
 idea {
@@ -30,12 +63,13 @@ idea {
   }
 }
 
-intellij {
-  pluginName.set(properties("pluginName"))
-  version.set(properties("ideaVersion"))
-  type.set("IC")
-  plugins.set(listOf("copyright", "java"))
-  updateSinceUntilBuild.set(false)
+intellijPlatform {
+  pluginConfiguration {
+    name = pluginName
+    version = ideVersion
+    ideaVersion {
+      sinceBuild = pluginSinceIdeaBuild
+    }}
 }
 
 changelog {
@@ -45,9 +79,7 @@ changelog {
   unreleasedTerm.set("Unreleased")
 }
 
-val artifactsPath = properties("artifactsPath").toString()
-
-val buildClojureKitJar = tasks.create<Jar>("buildClojureKitJar") {
+val buildClojureKitJar = tasks.register<Jar>("buildClojureKitJar") {
   dependsOn("assemble")
   archiveBaseName.set("Clojure-kit")
   destinationDirectory.set(file(artifactsPath))
@@ -58,17 +90,6 @@ val buildClojureKitJar = tasks.create<Jar>("buildClojureKitJar") {
 }
 
 tasks {
-  withType<JavaCompile> {
-    sourceCompatibility = properties("javaVersion")
-    targetCompatibility = properties("javaVersion")
-  }
-
-  withType<KotlinCompile> {
-    kotlinOptions {
-      jvmTarget = properties("javaVersion")!!
-      apiVersion = properties("kotlinApiVersion")!!
-    }
-  }
 
   withType<Test> {
     useJUnit()
@@ -81,10 +102,6 @@ tasks {
     (options as StandardJavadocDocletOptions).apply {
       addStringOption("Xdoclint:none", "-quiet")
     }
-  }
-
-  wrapper {
-    gradleVersion = properties("gradleVersion")
   }
 
   sourceSets {
@@ -102,24 +119,27 @@ tasks {
   }
 
   patchPluginXml {
-    sinceBuild.set(properties("pluginSinceIdeaBuild"))
-    changeNotes.set(provider {
-      changelog.run {
-        getOrNull(project.version.toString()) ?: getLatest()
-      }.toHTML() + "<a href=\"https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md\">Full change log...</a>"
-    })
+    changeNotes = provider {
+      changelog.renderItem(
+        changelog
+          .getUnreleased()
+          .withHeader(false)
+          .withEmptySections(false),
+        Changelog.OutputType.HTML
+      ) + "<a href=\"https://github.com/gregsh/Clojure-Kit/blob/master/CHANGELOG.md\">Full change log...</a>"
+    }
   }
 
-  val buildClojureKitZip = create<Zip>("buildClojureKitZip") {
+  val buildClojureKitZip = register<Zip>("buildClojureKitZip") {
     dependsOn(buildClojureKitJar)
     archiveBaseName.set("ClojureKit")
     destinationDirectory.set(file(artifactsPath))
-    from(buildClojureKitJar.outputs) {
+    from(buildClojureKitJar.get().outputs) {
       into("/ClojureKit/lib")
     }
   }
 
-  create("artifacts") {
+  register("artifacts") {
     dependsOn(buildClojureKitJar, buildClojureKitZip)
   }
 
