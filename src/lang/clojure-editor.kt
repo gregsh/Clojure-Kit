@@ -62,7 +62,8 @@ import com.intellij.refactoring.rename.RenameInputValidator
 import com.intellij.spellchecker.tokenizer.SpellcheckingStrategy
 import com.intellij.spellchecker.tokenizer.Tokenizer
 import com.intellij.ui.breadcrumbs.BreadcrumbsProvider
-import com.intellij.ui.layout.panel
+import com.intellij.ui.dsl.builder.bindSelected
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ProcessingContext
 import com.intellij.util.containers.JBIterable
 import com.intellij.util.containers.TreeTraversal
@@ -325,10 +326,14 @@ class ClojureSmartKeysConfigurable : BoundConfigurable("Clojure"), SearchableCon
   override fun createPanel(): DialogPanel {
     val options = service<ClojureSmartKeysOptions>()
     return panel {
-      row { checkBox("Add closing ')', ']' or '}' after the nearest form",
-          { options.SMART_PARENS }, { options.SMART_PARENS = it}) }
-      row { checkBox("Kill a form when deleting '(' or ')' from outside, splice from inside",
-          { options.SMART_KILL }, { options.SMART_KILL = it}) }
+      row {
+        checkBox("Add closing ')', ']' or '}' after the nearest form")
+          .bindSelected(options::SMART_PARENS)
+      }
+      row {
+        checkBox("Kill a form when deleting '(' or ')' from outside, splice from inside")
+          .bindSelected(options::SMART_KILL)
+      }
     }
   }
 }

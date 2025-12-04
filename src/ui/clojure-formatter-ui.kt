@@ -22,13 +22,19 @@ import com.intellij.application.options.CodeStyleAbstractPanel
 import com.intellij.application.options.SmartIndentOptionsEditor
 import com.intellij.application.options.TabbedLanguageCodeStylePanel
 import com.intellij.lang.Language
-import com.intellij.psi.codeStyle.CodeStyleSettings
-import com.intellij.psi.codeStyle.CodeStyleSettingsProvider
-import com.intellij.psi.codeStyle.CommonCodeStyleSettings
-import com.intellij.psi.codeStyle.LanguageCodeStyleSettingsProvider
+import com.intellij.openapi.editor.colors.EditorColorsScheme
+import com.intellij.openapi.editor.highlighter.EditorHighlighter
+import com.intellij.openapi.fileTypes.FileType
+import com.intellij.openapi.ui.DialogPanel
+import com.intellij.psi.codeStyle.*
+import com.intellij.ui.dsl.builder.bindSelected
+import com.intellij.ui.dsl.builder.panel
+import com.intellij.util.ui.JBUI
 import org.intellij.clojure.formatter.ClojureCodeStyleSettings
+import org.intellij.clojure.formatter.getClojureSettings
+import org.intellij.clojure.lang.ClojureFileType
 import org.intellij.clojure.lang.ClojureLanguage
-import org.intellij.clojure.ui.forms.CodeStyleOtherTab
+import javax.swing.JComponent
 
 /**
  * @author gregsh
@@ -36,7 +42,8 @@ import org.intellij.clojure.ui.forms.CodeStyleOtherTab
 class ClojureCodeStyleSettingsProvider : CodeStyleSettingsProvider() {
   override fun getLanguage(): Language = ClojureLanguage
   override fun createCustomSettings(settings: CodeStyleSettings) = ClojureCodeStyleSettings(settings)
-  override fun createSettingsPage(settings: CodeStyleSettings, originalSettings: CodeStyleSettings) = ClojureCodeStyleConfigurable(settings, originalSettings)
+  override fun createConfigurable(settings: CodeStyleSettings, modelSettings: CodeStyleSettings): CodeStyleConfigurable =
+    ClojureCodeStyleConfigurable(settings, modelSettings)
 }
 
 class ClojureCodeStyleConfigurable(settings: CodeStyleSettings, cloneSettings: CodeStyleSettings) : CodeStyleAbstractConfigurable(settings, cloneSettings, "Clojure") {
@@ -47,7 +54,7 @@ class ClojureCodeStyleConfigurable(settings: CodeStyleSettings, cloneSettings: C
   private class Panel(currentSettings: CodeStyleSettings, settings: CodeStyleSettings) :
       TabbedLanguageCodeStylePanel(ClojureLanguage, currentSettings, settings) {
     init {
-      addTab(CodeStyleOtherTab(ClojureLanguage, currentSettings, settings))
+      addTab(ClojureCodeStyleOtherTab(currentSettings, settings))
     }
   }
 }
@@ -55,12 +62,10 @@ class ClojureCodeStyleConfigurable(settings: CodeStyleSettings, cloneSettings: C
 class ClojureLangCodeStyleSettingsProvider : LanguageCodeStyleSettingsProvider() {
   override fun getLanguage(): Language = ClojureLanguage
   override fun getIndentOptionsEditor() = SmartIndentOptionsEditor()
-  override fun getDefaultCommonSettings() = CommonCodeStyleSettings(language).run {
-    val indentOptions = initIndentOptions()
+  override fun customizeDefaults(commonSettings: CommonCodeStyleSettings, indentOptions: CommonCodeStyleSettings.IndentOptions) {
     indentOptions.INDENT_SIZE = 2
     indentOptions.CONTINUATION_INDENT_SIZE = 4
     indentOptions.TAB_SIZE = 2
-    this
   }
 
   override fun getCodeSample(settingsType: SettingsType): String {
@@ -75,4 +80,37 @@ class ClojureLangCodeStyleSettingsProvider : LanguageCodeStyleSettingsProvider()
 x (nth subvector 0) y (nth subvector 1) z (+ x y)] (conj start z)) (- range 1))))
 """
   }
+}
+
+class ClojureCodeStyleOtherTab(
+  currentSettings: CodeStyleSettings?,
+  settings: CodeStyleSettings
+) : CodeStyleAbstractPanel(ClojureLanguage, currentSettings, settings) {
+  private lateinit var myPanel: DialogPanel
+
+  override fun getRightMargin(): Int = 0
+
+  override fun createHighlighter(scheme: EditorColorsScheme): EditorHighlighter? = null
+
+  override fun getFileType(): FileType = ClojureFileType
+
+  override fun getPreviewText(): String? = null
+
+  override fun getPanel(): JComponent {
+    val options = settings.getClojureSettings()
+    myPanel = panel {
+      row {
+        checkBox("Use ;; comments")
+          .bindSelected(options::USE_2SEMI_COMMENT)
+      }
+    }
+      .withBorder(JBUI.Borders.empty(10))
+    return myPanel
+  }
+
+  override fun apply(settings: CodeStyleSettings) = myPanel.apply()
+
+  override fun isModified(settings: CodeStyleSettings): Boolean = myPanel.isModified()
+
+  override fun resetImpl(settings: CodeStyleSettings) = myPanel.reset()
 }
