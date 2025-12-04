@@ -35,7 +35,7 @@ import org.intellij.clojure.ui.forms.CodeStyleOtherTab
  */
 class ClojureCodeStyleSettingsProvider : CodeStyleSettingsProvider() {
   override fun getLanguage(): Language = ClojureLanguage
-  override fun createCustomSettings(settings: CodeStyleSettings?) = ClojureCodeStyleSettings(settings)
+  override fun createCustomSettings(settings: CodeStyleSettings) = ClojureCodeStyleSettings(settings)
   override fun createSettingsPage(settings: CodeStyleSettings, originalSettings: CodeStyleSettings) = ClojureCodeStyleConfigurable(settings, originalSettings)
 }
 

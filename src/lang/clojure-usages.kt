@@ -133,7 +133,7 @@ class ClojureGotoSymbolContributor : ChooseByNameContributor, GotoClassContribut
     return indices.flatMap { FileBasedIndex.getInstance().getAllKeys(it.first, project).jbIt() }.toTypedArray()
   }
 
-  override fun getQualifiedName(item: NavigationItem?): String? {
+  override fun getQualifiedName(item: NavigationItem): String? {
     return (item as? PsiElement).asCTarget?.key?.qualifiedName
   }
 

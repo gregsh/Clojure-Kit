@@ -136,10 +136,10 @@ fun PsiElement?.iterateRCAware(): JBIterable<PsiElement> =
     if (this == null) JBIterable.empty() else cljTraverserRCAware().expandAndSkip(Conditions.equalTo(this)).traverse()
 
 fun PsiElement?.siblings(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else JBIterable.generate(this) { it.nextSibling }.notNulls()
+    if (this == null) JBIterable.empty() else JBIterable.generate(this) { it.nextSibling }
 
 fun PsiElement?.prevSiblings(): JBIterable<PsiElement> =
-    if (this == null) JBIterable.empty() else JBIterable.generate(this) { it.prevSibling }.notNulls()
+    if (this == null) JBIterable.empty() else JBIterable.generate(this) { it.prevSibling }
 
 fun PsiElement?.parents(): JBIterable<PsiElement> = SyntaxTraverser.psiApi().parents(this)
 fun PsiElement?.contexts(): JBIterable<PsiElement> = JBIterable.generate(this) { it.context }

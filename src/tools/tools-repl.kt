@@ -738,6 +738,7 @@ fun newRemoteProcess(addressString: String): ProcessHandler {
     override fun getErrorStream() = emptyIn
     override fun getInputStream() = emptyIn
     override fun killProcessTree() = false
+    override fun setWindowSize(columns: Int, rows: Int) = Unit
   }
   val processHandler = object : BaseRemoteProcessHandler<RemoteProcess>(process, addressString, null) {
 

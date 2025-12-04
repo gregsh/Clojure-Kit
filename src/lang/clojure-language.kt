@@ -77,7 +77,7 @@ class ClojureBraceMatcher : PairedBraceMatcher {
 }
 
 class ClojureQualifiedNameProvider : QualifiedNameProvider {
-  override fun getQualifiedName(element: PsiElement?): String? {
+  override fun getQualifiedName(element: PsiElement): String? {
     return element.asCTarget?.key?.run { if (type == "keyword") ":$qualifiedName" else qualifiedName }
   }
 

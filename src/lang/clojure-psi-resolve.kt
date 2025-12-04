@@ -596,7 +596,7 @@ class CSymbolReference(o: CSymbol, r: TextRange = o.lastChild.textRange.shiftRig
             service.exprType(form)
           })
               .let {
-                val iterable = if (it is Iterable<*>) JBIterable.from(it) else JBIterable.of(it)
+                val iterable: JBIterable<Any> = if (it is Iterable<*>) JBIterable.from(it) else JBIterable.of(it)
                 if (isCljs) iterable
                 else iterable.append(ClojureConstants.J_OBJECT)
                     .map { ClojureConstants.J_BOXED_TYPES[it]

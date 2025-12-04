@@ -214,7 +214,6 @@ class ClojureCompletionContributor : CompletionContributor() {
           return !(posExt == "clj" && fileExt == "cljs")
         }
 
-        @Suppress("NON_EXHAUSTIVE_WHEN")
         when (thisForm.role) {
           Role.ARG, Role.BND, Role.FIELD -> return
           Role.NAME -> {
@@ -224,6 +223,8 @@ class ClojureCompletionContributor : CompletionContributor() {
             }
             return
           }
+
+          else -> Unit
         }
         val ref = if (thisForm !is CKeyword) element.reference as? CSymbolReference else null
         val bindingsVec: CVec? = (element.parent as? CVec)?.run { if (ref?.resolve()?.navigationElement == element) this else null }
@@ -840,7 +841,7 @@ class ClojureTypeInfoProvider : ExpressionTypeProvider<CForm>() {
   }
 
   override fun getExpressionsAt(elementAt: PsiElement): List<CForm> =
-      JBIterable.generate(elementAt.thisForm) { it.parentForm }.notNulls().toList()
+      generateSequence(elementAt.thisForm) { it.parentForm }.toList()
 }
 
 class ClojureDeclarationRangeHandler : DeclarationRangeHandler<CPForm> {

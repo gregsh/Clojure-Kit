@@ -39,7 +39,7 @@ import java.io.File
 abstract class ClojureLexerTestCase(val lexer: Lexer) : LexerTestCase() {
   override fun getDirPath() = "$TEST_DATA_PATH/lexer"
   override fun createLexer() = lexer
-  override fun doTest(text: String?) = assertSameLinesWithFile(
+  override fun doTest(text: String) = assertSameLinesWithFile(
       "$dirPath/${getTestName(false)}.txt", printTokens(text, 0, createLexer()))
 }
 

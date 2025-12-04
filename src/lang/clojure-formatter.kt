@@ -44,7 +44,7 @@ import org.intellij.clojure.util.*
 /**
  * @author gregsh
  */
-class ClojureCodeStyleSettings (container: CodeStyleSettings?) : CustomCodeStyleSettings("ClojureCodeStyleSettings", container) {
+class ClojureCodeStyleSettings(container: CodeStyleSettings) : CustomCodeStyleSettings("ClojureCodeStyleSettings", container) {
   @JvmField var USE_2SEMI_COMMENT: Boolean = false
 }
 
