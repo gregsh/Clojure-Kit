@@ -363,7 +363,7 @@ class BEncodeInput(stream: InputStream) {
       val b = read_ch()
       if (b == delim) return result
       if (b == '-' && result == 0L && !negate) negate = true
-      else if (b >= '0' || b <= '9') result = result * 10 + (b - '0')
+      else if (b in '0'..'9') result = result * 10 + (b - '0')
       else throw IOException("Invalid long. Unexpected $b encountered.")
     }
   }
